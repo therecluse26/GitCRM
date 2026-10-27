@@ -1,0 +1,50 @@
+# Security, Privacy, and Deletion
+
+## Threat assumptions
+
+CRM records contain personal or commercially sensitive information. A private repo helps restrict access; it is **not encryption**, a compliance guarantee, or proof that deleted data no longer exists. The browser and everyone authorized for the private GitHub repo are inside the trust boundary.
+
+## Threats and mitigations
+
+| Threat | Minimum mitigation |
+| --- | --- |
+| Public repo exposure | Refuse public repos; recheck visibility at connection and refresh; never publish data as static assets |
+| Credential theft via JS/XSS | No inline unsafe HTML, strict CSP, no third-party analytics/scripts, memory-only alpha token |
+| Overbroad token scope | Fine-grained repo-restricted token; instructions to expire/revoke |
+| Unauthorized collaborator access | GitHub repo permissions; onboarding explains collaborator access |
+| Accidental overwrite | Blob SHA preconditions, conflict UI |
+| Malformed or malicious JSON | Runtime schema checks, size caps, treat text as text rather than trusted HTML |
+| Corrupt/partial export | Validate all files and fail closed on partial snapshot |
+| Sensitive information in history | Ordinary delete vs. purge distinction, clear warnings |
+| Exposure through logs/telemetry | No third-party analytics by default; redact payloads and bearer tokens |
+| Supply-chain compromise | Lockfiles, dependency review, CI scans, static-host integrity checks |
+
+## Data boundaries
+
+- The public static hosting origin serves **application assets only**.
+- All business data comes from the user's selected private GitHub repo through authenticated API calls.
+- No data is sent to GitCRM-operated servers, AI APIs, crash reporters, or analytics by default.
+- No service worker should precache authenticated API responses or sensitive records.
+- `Disconnect` clears token and record caches from memory; browser memory cleanup cannot guarantee recovery-resistant erasure.
+- Keep repo initialization and writes within `.gitcrm/` and `data/`.
+
+## Delete, archive, purge: three different operations
+
+1. **Archive (MVP):** record remains as a JSON file, marked `archivedAt`. Hidden from default views; can be restored.
+2. **Delete from current snapshot (MVP):** commit removes the record file from `main`. Old Git commits still contain it. Block deletion of a record that has live references unless references have been explicitly removed; show warnings.
+3. **Purge Git history (later, separate maintenance tool):** a dangerous rewrite may remove a record's file path from reachable repository history using `git-filter-repo`. It changes commit hashes, requires a coordinated force-push and all collaborators to reconcile their clones. It does **not** guarantee erasure from forks, other clones, GitHub caches, or PR refs. GitHub Support may only remove cached sensitive data under its documented conditions. Do not promise automatic total erasure.
+
+Because filenames are stable UUIDs, a file's historical path is targetable. But other records, commits, exported CSV files, backups, and activity notes may contain copies of the same PII; a path purge alone is insufficient for a subject-access or deletion request.
+
+## Security tests required
+
+- Static bundle scan contains no token, secret, or example real customer data.
+- XSS payload in contact name or activity note is rendered harmlessly.
+- Public repository is rejected; protected branch is not silently bypassed.
+- `401/403/404` state produces no sensitive leaks in the UI/console.
+- Same-file write conflict is not silently resolved by overwriting.
+- All API/network errors preserve form data in memory until user acknowledges.
+
+## Privacy statement scope
+
+A future public privacy policy must separately disclose what the static host sees (IP and asset requests), what GitHub stores, what the browser processes, and whether any third-party telemetry is enabled. Do not claim compliance with GDPR, HIPAA, or other specialized regimes without a separate assessment.
