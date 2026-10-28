@@ -161,7 +161,7 @@ GitHub allows 60 s of GraphQL server time per minute, and says to estimate it fr
 | Undue burden | Cloudflare may temporarily limit requests that put an "undue burden" on its network | Static assets only; not a concern |
 
 - **Decision:** Cloudflare's terms permit the official copy on Cloudflare Pages. The owner chose it on 2026-10-28 (ADR-010). The same Developer Platform terms cover Workers, so a later move to Workers static assets changes nothing here.
-- **Follow-up:** choose `pages.dev` or a custom domain before the public release. Read these pages again before the public release.
+- **Follow-up:** the owner chose a `pages.dev` subdomain for now (2026-10-28, ADR-010). If Cloudflare announces a rename, consider a custom domain. Read these pages again before the public release.
 
 ## Most important product decision
 
