@@ -46,7 +46,7 @@ Primary: Home, Contacts, Companies, Pipeline, Tasks, Search, Settings. A unified
 - Workspace name, connected GitHub repo, private status, connection health.
 - Export complete snapshot / CSV.
 - Disconnect and token safety guidance.
-- Basic pipeline labels can be postponed from MVP if schema migration complexity appears.
+- Pipeline stage editor: rename, reorder, add, and remove-when-unused; Won and Lost always present (ADR-019).
 
 ## Important system states
 
@@ -73,5 +73,5 @@ Primary: Home, Contacts, Companies, Pipeline, Tasks, Search, Settings. A unified
 
 - "Save contact" not "Commit blob".
 - "Your data is stored in a private GitHub repository" in onboarding.
-- "Delete removes this record from current data; previous Git versions remain" in delete confirmation.
+- "Delete removes this record from current data; previous Git versions remain" in delete confirmation. The dialog also lists every related task and activity it deletes and every record it unlinks (ADR-021).
 - Avoid exaggerated privacy, compliance, or guaranteed-free marketing claims.

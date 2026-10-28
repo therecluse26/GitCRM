@@ -9,8 +9,8 @@
                        v
             [browser-only React SPA]
                 |             |
-         local query       auth token in
-         + search          volatile memory
+         local query       PAT + record cache
+         + search          in browser storage
                 \             /
                  v           v
                  [GitHub REST API]
@@ -24,14 +24,19 @@
 
 The application code repository and the user's private CRM data repository are **different repositories**. Deployments of the application MUST NOT read from or bundle a user's workspace. Each workspace's GitHub repository is its authorization and persistence boundary.
 
-## Suggested implementation stack
+## Implementation stack (ADR-012)
 
 - TypeScript + React + Vite.
-- TanStack Router + TanStack Query for routes, remote data/caching, and request states.
-- shadcn/ui (or comparable accessible component primitives).
-- Zod or JSON Schema for runtime shape validation.
-- MiniSearch / FlexSearch **only if** basic in-memory filtering proves inadequate.
-- Browser Web Crypto APIs for UUID creation and any necessary ephemeral crypto.
+- TanStack Router with hash history (ADR-010).
+- Zustand for the in-memory snapshot store. No TanStack Query: the data is one local snapshot synced by SHA, not many separate server queries.
+- `idb` for IndexedDB access.
+- A plain typed `fetch` client for GitHub REST and GraphQL; no Octokit.
+- Zod for runtime validation, with JSON Schema generated for the export's data dictionary (from memory, Zod 4 can emit JSON Schema; verify).
+- shadcn/ui for accessible components; dnd-kit for Kanban drag and drop with keyboard support.
+- fflate for the ZIP export.
+- MiniSearch **only if** basic in-memory filtering proves inadequate.
+- Browser Web Crypto APIs for UUID creation.
+- Vitest for unit and contract tests, MSW to mock the GitHub API, Playwright for E2E.
 
 None of these choices introduces persistent infrastructure. Prefer a thin modular architecture over application-framework ceremony.
 
@@ -54,7 +59,8 @@ interface WorkspaceRepository {
   readRecord(type: RecordType, id: string): Promise<VersionedRecord | null>;
   createRecord(record: CRMRecord): Promise<VersionedRecord>;
   updateRecord(record: CRMRecord, expectedBlobSha: string): Promise<VersionedRecord>;
-  deleteRecord(type: RecordType, id: string, expectedBlobSha: string): Promise<void>;
+  // One commit: deletes plus unlinks, each with its expected blob SHA (ADR-021)
+  deleteWithCascade(plan: DeletePlan): Promise<void>;
 }
 ```
 
@@ -68,7 +74,7 @@ A versioned record includes the Git blob SHA (and optionally the commit SHA) alo
 4. Successful response updates local cache and exposes the commit reference.
 5. `409` or `422` conflicts trigger reload and explicit compare/retry; never silently overwrite remote changes.
 
-Each mutation is a Git commit. A later batching feature might use Git Trees/Commits APIs, but MVP values simplicity over aggressive commit reduction.
+Each mutation is a Git commit. Creates and updates use the Contents API. Deletes use one multi-file commit through the Git Trees/Commits APIs with a non-forced ref update (ADR-021); later bulk features such as import reuse that path.
 
 ## Read path
 
@@ -82,11 +88,11 @@ The **principal performance uncertainty is data transport from GitHub, not local
 
 ## Hosting
 
-Use an appropriate static host that permits the intended use. GitHub Pages' terms restrict hosting a commercial SaaS application; don't treat Pages as the default commercial host. No Cloudflare Worker, Lambda, Edge Function, or identity service is a baseline dependency. A small server-side auth broker is an *explicit architecture change* requiring approval, not a hidden implementation detail.
+The build is host-agnostic (ADR-010): hash URLs, relative asset paths, CSP in a `<meta>` tag, and no host-specific features, so any static host works, including GitHub Pages for self-hosted copies. The official hosted copy uses a host whose terms permit its use; GitHub Pages restricts commercial SaaS. GitCRM has no server-side dependency; users connect with a fine-grained PAT (ADR-008). A stateless auth broker for GitHub App sign-in is deferred (ADR-009) and would never receive CRM data. Any server-side component requires an explicit owner decision.
 
 ## Offline model
 
-Online-first. Cached data may be displayed read-only during transient outages if loaded securely, but no offline mutation queue or automatic conflict replay in MVP. Reloads may require re-authentication if tokens are memory-only.
+Online-first. Cached data may be displayed read-only during transient outages if loaded securely, but no offline mutation queue or automatic conflict replay in MVP. The PAT and the record cache stay in browser storage until Disconnect (ADR-017).
 
 ## Scale boundary
 

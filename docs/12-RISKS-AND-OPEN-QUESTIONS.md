@@ -4,9 +4,9 @@ These are **real unresolved dependencies**, not minor TODOs. The docs deliberate
 
 | ID | Impact | Question / risk | Required validation | Fallback |
 | --- | --- | --- | --- | --- |
-| R-01 | Critical | Polished GitHub login from a truly static browser app | Test official OAuth requirements, PKCE, client secret and token-exchange CORS; threat model | Fine-grained PAT for developer alpha; explicit decision for public UX |
-| R-02 | High | First load of thousands of JSON files may consume excessive GitHub requests | Benchmark Git Trees + blob fetches, incremental SHA caching, optional private archive delivery | Limit published supported dataset size |
-| R-03 | High | GitHub Pages disallows sites primarily providing commercial SaaS | Select compliant static provider; verify policies | Cloudflare Pages or equivalent static host; do not use Pages for SaaS |
+| R-01 | High | PAT setup friction limits adoption by less technical users | Usability test of the PAT setup instructions with target users | Accepted for now (ADR-008); GitHub App sign-in through a broker if demand appears (ADR-009, deferred) |
+| R-02 | High | First load of thousands of JSON files may consume excessive GitHub requests | Benchmark the GraphQL tree walk, archive download, and Git Trees + blob fetches; incremental SHA caching | Verified rollup (ADR-016); otherwise limit published supported dataset size |
+| R-03 | High | GitHub Pages disallows sites primarily providing commercial SaaS | Select compliant static provider; verify policies | Host-agnostic build (ADR-010): move the official copy to any compliant static host |
 | R-04 | High | Small concurrent edits can conflict | Two-client live proof; GitHub Contents API SHA behavior | Conflict UI, serialize/retry nonoverlapping writes conservatively |
 | R-05 | High | User may accidentally expose repository or token | Visibility checks, narrow scopes, browser security review | Fail closed; disclose and direct to rotate/restrict |
 | R-06 | High | Delete != full erasure from Git | Validate history rewrite workflow against a disposable repo and support policy | Keep history purge out of MVP; accurately label deletion |
@@ -14,6 +14,7 @@ These are **real unresolved dependencies**, not minor TODOs. The docs deliberate
 | R-08 | Medium | GitHub API rate limits and provider terms can change | Monitor current docs; conservative API usage | Publish bounded scale expectations |
 | R-09 | Medium | Multiuser data becomes inconsistent during partial refresh | Pin to commit/tree and compare SHAs | Abort partial load, manual refresh |
 | R-10 | Medium | CRM migration CSV can lose relationships/notes | Contract tests + lossless JSON snapshot | Raw JSON always available |
+| R-11 | High | Fine-grained PATs may not reach a repo owned by another personal account, so collaborators on a personal workspace repo might need classic PATs with all-repo scope (unverified) | Spike: a collaborator tries to create a fine-grained PAT for a personal repo they collaborate on; check org PAT policies for members | Decided: team workspaces live in a GitHub organization (ADR-018); never ask users for classic or shared PATs |
 
 ## P0 spike record template
 
@@ -21,7 +22,7 @@ For each spike, write: **Date; hypothesis; exact repo/config; documented API beh
 
 ## Most important product decision
 
-Does a PAT-based alpha satisfy the first release's intended audience, or is polished GitHub App login a release blocker? This decision determines whether a *pure static no-backend commercial product* can ship under the original constraints. Do not add a secret-bearing proxy without deliberately revisiting the vision.
+Decided 2026-10-27 (ADR-004, ADR-008, ADR-009, ADR-015): GitCRM is a product for other people, and users connect with a fine-grained PAT in both the alpha and the public release. A stateless auth broker is allowed in principle but deferred until real demand appears.
 
 ## Commercial deployment check
 

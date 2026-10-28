@@ -9,7 +9,7 @@ As a GitHub user, I want GitCRM to connect only to a private repository that I c
 
 ## Required behavior
 
-- The alpha connection flow accepts a **fine-grained, repository-restricted PAT** held in volatile memory.
+- The connection flow accepts a **fine-grained, repository-restricted PAT** and keeps it in browser storage until Disconnect, unless the user unchecks "Remember on this device" (ADR-017).
 - The app checks the authenticated GitHub identity and selected repository metadata.
 - A repository must have `private = true`, be accessible with Contents read/write, and have a compatible writable `main` branch.
 - If `.gitcrm/workspace.json` is missing, offer explicit initialization. If present, validate schema version and do not overwrite it.
@@ -45,8 +45,15 @@ Scenario: Missing write permission
 Scenario: Disconnect
   Given I am connected and records are visible
   When I disconnect
-  Then the app drops its in-memory token and records
+  Then the app deletes the stored token and the record cache
   And protected data is no longer displayed
+
+Scenario: Reload with a remembered token
+  Given I connected with "Remember on this device" checked
+  And main has not changed since my last load
+  When I reload the page
+  Then I am connected without entering the PAT
+  And no record blobs are downloaded
 ```
 
 ## Failure cases

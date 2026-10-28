@@ -8,7 +8,8 @@ Support a handful of collaborators on the same private repository without silent
 
 ## Model
 
-- Every collaborator uses their own GitHub-authorized identity/credentials.
+- Team workspaces live in a GitHub organization (ADR-018).
+- Every collaborator uses their own GitHub-authorized identity/credentials; no shared PATs.
 - Repository access is governed by GitHub permissions.
 - Writes target `main` with expected old blob SHA for updates/deletes.
 - Cache tracks current blob SHA and commit/tree SHA.

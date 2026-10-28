@@ -9,7 +9,8 @@ CRM records contain personal or commercially sensitive information. A private re
 | Threat | Minimum mitigation |
 | --- | --- |
 | Public repo exposure | Refuse public repos; recheck visibility at connection and refresh; never publish data as static assets |
-| Credential theft via JS/XSS | No inline unsafe HTML, strict CSP, no third-party analytics/scripts, memory-only alpha token |
+| Credential theft via JS/XSS | No inline unsafe HTML, strict CSP, no third-party analytics/scripts, one-repo short-expiry PAT |
+| Stored PAT and records on a shared or lost device | "Remember on this device" opt-out; Disconnect deletes both; one-repo short-expiry PAT. A fully compromised machine is out of scope (ADR-017) |
 | Overbroad token scope | Fine-grained repo-restricted token; instructions to expire/revoke |
 | Unauthorized collaborator access | GitHub repo permissions; onboarding explains collaborator access |
 | Accidental overwrite | Blob SHA preconditions, conflict UI |
@@ -18,23 +19,24 @@ CRM records contain personal or commercially sensitive information. A private re
 | Sensitive information in history | Ordinary delete vs. purge distinction, clear warnings |
 | Exposure through logs/telemetry | No third-party analytics by default; redact payloads and bearer tokens |
 | Supply-chain compromise | Lockfiles, dependency review, CI scans, static-host integrity checks |
+| Compromised auth broker (only if ADR-009 is revived) | Stateless, no database; holds only the client secret; logs no codes or tokens; small reviewed codebase; secret rotation plan |
 
 ## Data boundaries
 
 - The public static hosting origin serves **application assets only**.
 - All business data comes from the user's selected private GitHub repo through authenticated API calls.
-- No data is sent to GitCRM-operated servers, AI APIs, crash reporters, or analytics by default.
+- No CRM data is sent to GitCRM-operated servers, AI APIs, crash reporters, or analytics by default. If the deferred auth broker (ADR-009) ever ships, it would see GitHub authorization codes and tokens in transit, plus request metadata such as IP addresses; never CRM records.
 - No service worker should precache authenticated API responses or sensitive records.
-- `Disconnect` clears token and record caches from memory; browser memory cleanup cannot guarantee recovery-resistant erasure.
+- `Disconnect` deletes the stored token and the record cache (ADR-017); deleting browser storage cannot guarantee recovery-resistant erasure.
 - Keep repo initialization and writes within `.gitcrm/` and `data/`.
 
 ## Delete, archive, purge: three different operations
 
 1. **Archive (MVP):** record remains as a JSON file, marked `archivedAt`. Hidden from default views; can be restored.
-2. **Delete from current snapshot (MVP):** commit removes the record file from `main`. Old Git commits still contain it. Block deletion of a record that has live references unless references have been explicitly removed; show warnings.
+2. **Delete from current snapshot (MVP):** commit removes the record file from `main`. Old Git commits still contain it. The same commit deletes related tasks and activities and unlinks other records (ADR-021); a preview lists every change first.
 3. **Purge Git history (later, separate maintenance tool):** a dangerous rewrite may remove a record's file path from reachable repository history using `git-filter-repo`. It changes commit hashes, requires a coordinated force-push and all collaborators to reconcile their clones. It does **not** guarantee erasure from forks, other clones, GitHub caches, or PR refs. GitHub Support may only remove cached sensitive data under its documented conditions. Do not promise automatic total erasure.
 
-Because filenames are stable UUIDs, a file's historical path is targetable. But other records, commits, exported CSV files, backups, and activity notes may contain copies of the same PII; a path purge alone is insufficient for a subject-access or deletion request.
+Because filenames are stable UUIDs, a file's historical path is targetable. But other records, commits, exported CSV files, backups, activity notes, and the verified rollup (if built, ADR-016) may contain copies of the same PII; a path purge alone is insufficient for a subject-access or deletion request.
 
 ## Security tests required
 
@@ -47,4 +49,4 @@ Because filenames are stable UUIDs, a file's historical path is targetable. But 
 
 ## Privacy statement scope
 
-A future public privacy policy must separately disclose what the static host sees (IP and asset requests), what GitHub stores, what the browser processes, and whether any third-party telemetry is enabled. Do not claim compliance with GDPR, HIPAA, or other specialized regimes without a separate assessment.
+A future public privacy policy must separately disclose what the static host sees (IP and asset requests), what an auth broker would see if one ships (codes and tokens in transit, IP addresses), what GitHub stores, what the browser processes, and whether any third-party telemetry is enabled. Do not claim compliance with GDPR, HIPAA, or other specialized regimes without a separate assessment.

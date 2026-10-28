@@ -4,7 +4,7 @@
 **Last reviewed:** 2026-10-26  
 **Audience:** solo developers and tiny teams who want a useful CRM without operating a database or backend.
 
-GitCRM is a static, browser-based CRM whose authoritative data lives as **one JSON document per record in a user's private Git repository**. On GitHub, the browser uses authenticated GitHub REST APIs to read and commit records. Searching happens over the current records in browser memory. There is no CRM application server, persistent database, or recurring automation requirement.
+GitCRM is a static, browser-based CRM whose authoritative data lives as **one JSON document per record in a user's private Git repository**. On GitHub, the browser uses authenticated GitHub REST APIs to read and commit records. Searching happens over the current records in browser memory. There is no CRM application server, persistent database, or recurring automation requirement. Users connect with a fine-grained PAT (ADR-008).
 
 > **Scope rule:** If the use case requires a traditional backend, use a different CRM instead of adding infrastructure to GitCRM.
 
@@ -39,9 +39,9 @@ GitCRM is a static, browser-based CRM whose authoritative data lives as **one JS
 
 ## Important feasibility constraints
 
-- **Authentication is the top product spike.** GitHub's documented OAuth code exchange requires a client secret; PKCE by itself does not remove that documented requirement. A static SPA must never embed an OAuth client secret or GitHub App private key. The *developer-first alpha* may accept a user-provided, repository-restricted fine-grained PAT held only in memory. A polished public onboarding flow remains an open decision.
-- **Do not make GitHub Pages the default production SaaS host.** GitHub Pages explicitly restricts hosting sites primarily providing commercial SaaS. Use an appropriate static hosting provider (e.g. Cloudflare Pages after reviewing its terms). GitHub Pages may be suitable for a noncommercial demo under its terms.
-- **Do not use GitHub Actions for CRM jobs.** Actions may be used for software testing/builds/deployments of the GitCRM codebase, not as the CRM's general-purpose workflow runtime.
+- **Authentication is the top product spike.** GitHub's documented OAuth code exchange requires a client secret; PKCE by itself does not remove that documented requirement. A static SPA must never embed an OAuth client secret or GitHub App private key. Users supply a repository-restricted fine-grained PAT, stored in browser storage until Disconnect (ADR-017). GitCRM uses this PAT route for the alpha and the public release (ADR-008); GitHub App sign-in through a broker is deferred until real demand appears (ADR-009).
+- **The build runs on any static host (ADR-010).** Self-hosted copies can use GitHub Pages. The official hosted copy must use a host whose terms permit it; GitHub Pages restricts commercial SaaS.
+- **Do not use GitHub Actions for CRM jobs (ADR-006).** The browser does all reads, writes, and aggregation. Actions may be used for software testing/builds/deployments of the GitCRM codebase, not as the CRM's general-purpose workflow runtime.
 - **A private repository does not guarantee permanent erasure.** Git history, other clones, caches, and pull request references matter. A future purge utility must state these limitations.
 - **Free is a target, not an unconditional guarantee.** Respect host limits, provider terms, and GitHub API limits.
 

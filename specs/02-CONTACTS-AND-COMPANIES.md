@@ -13,7 +13,7 @@ As a solo consultant, I want to maintain contacts and companies, with lightweigh
 - Companies: create, view, edit name/website/tags, archive, unarchive, and safe deletion.
 - Detail views show related records and recent manual activities.
 - List views support filters, search, and sensible sort (name, recently updated).
-- No custom fields, deduplication engine, enrichment, or email integration.
+- No custom-field UI in the MVP (planned first after it, ADR-020); saves keep any existing `customFields` values unchanged. No deduplication engine, enrichment, or email integration.
 
 ## Acceptance criteria
 
@@ -50,7 +50,7 @@ Scenario: Archived contact
 
 ## Notes
 
-Duplicate contacts are allowed for MVP. Warn on exact duplicate email if trivial, but do not silently merge. A company delete is blocked while active contacts or opportunities reference it unless the user explicitly detaches those references first. Note entry creates a separate Activity document, not a growing notes array on the contact file.
+Duplicate contacts are allowed for MVP. Warn on exact duplicate email if trivial, but do not silently merge. Deleting a company unlinks its contacts and opportunities and deletes its related tasks and activities, in one commit after a preview (ADR-021). Note entry creates a separate Activity document, not a growing notes array on the contact file.
 
 ## Test gate
 

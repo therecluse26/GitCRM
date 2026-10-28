@@ -10,14 +10,14 @@ Individuals and very small companies need a place to track people, companies, op
 
 ## Audience
 
-Primary: developers, freelancers, independent consultants, small agencies, and technical founders operating alone or with roughly 2-5 collaborators. They are comfortable with a GitHub account, but should not have to edit JSON or know Git commands to use the UI.
+Primary: developers, freelancers, independent consultants, small agencies, and technical founders operating alone or with roughly 2-5 collaborators. They are technical users, comfortable with GitHub, including creating a fine-grained personal access token (ADR-008, ADR-015). They should not have to edit JSON or know Git commands to use the UI.
 
 Not intended for: enterprise sales organizations, call centers, regulated record systems requiring certified retention/erasure, teams needing granular CRM-specific roles, or organizations demanding a full email/sales-automation suite.
 
 ## Product promises
 
 1. **Data is yours.** Every CRM entity is a human-inspectable JSON document inside your private repository, with an established portable format.
-2. **No runtime infrastructure.** No application backend process, managed database, message queue, or worker required for normal CRM use.
+2. **No data infrastructure.** No server stores or sees your CRM data, and there is no managed database, message queue, or worker. A small, stateless sign-in service may be added later if demand appears; it would never see CRM data (ADR-009, deferred).
 3. **Useful immediately.** Contacts, companies, opportunities, pipeline, tasks, notes, search, and export; focused, not an admin platform.
 4. **Auditability by default.** Git commits provide history and recovery for ordinary edits.
 5. **Easy exit.** Export and file-level interoperability are first-class features, not a paid upgrade.
@@ -26,7 +26,7 @@ Not intended for: enterprise sales organizations, call centers, regulated record
 ## Non-negotiable principles
 
 - One Git repository per independent workspace / organization, always **private**.
-- One immutable-ID-based document per record. No giant `opportunities.json` or centralized records database.
+- One immutable-ID-based document per record. No giant `opportunities.json` or centralized records database. A derived, verified rollup used only as a cache is allowed (ADR-016).
 - The `main` branch is the authoritative current snapshot for MVP.
 - Local client-side queries over the current snapshot; Git history is only for audit/recovery.
 - No user data embedded in the publicly hosted frontend or static build artifacts.
@@ -46,14 +46,14 @@ Not intended for: enterprise sales organizations, call centers, regulated record
 
 - Email synchronization, sending, tracking, or AI enrichment.
 - Webhooks, scheduled CRM automation, GitHub Actions pipelines for business operations.
-- Custom objects, user-defined fields, formula fields, approvals, workflow builders.
+- Custom objects, formula fields, approvals, workflow builders. (Simple typed custom fields are planned right after the MVP, ADR-020.)
 - Detailed permissions beyond GitHub repository access.
 - Mobile native apps, offline write synchronization, attachments, dashboards/forecasting.
 - A guarantee of compliance with any particular privacy regulation.
 
 ## Positioning
 
-**Working phrase:** "No database. No server. No lock-in."
+**Working phrase:** "No database. No server. No lock-in." Drop "No server" if the deferred sign-in service (ADR-009) ever ships.
 
 Avoid promising "zero setup" until authentication and onboarding genuinely reach that bar. Avoid promising "guaranteed free forever" because third-party usage policies and quotas can change.
 
