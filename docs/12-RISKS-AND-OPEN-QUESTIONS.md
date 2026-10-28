@@ -44,6 +44,31 @@ For each spike, write: **Date; hypothesis; exact repo/config; documented API beh
 - **Decision:** a Git clone in the browser and the archive download both need a proxy, which ADR-004 rules out. GraphQL stays the first bulk-read transport; per-blob reads are the baseline.
 - **Follow-up:** S-02 confirms GraphQL with a real fine-grained PAT on a private repo (`spikes/p0-crud.html`). Spike (3) then measures GraphQL load times at 100/500/2000 records.
 
+### S-02: REST CRUD, conflicts, multi-file commit, and GraphQL
+
+- **Date:** 2026-10-27, 22:30 EDT.
+- **Hypothesis:** Contents API writes enforce blob-SHA preconditions; the Git Trees/Commits path rejects a non-forced ref update after the branch moved; GraphQL returns file text for a folder.
+- **Config:** `therecluse26/gitcrm-spike` (private, default branch `main`, created for this spike). Node 24.15 via `spikes/run-node.js`. Token: the `gh` CLI OAuth token (`repo` scope), **not** a fine-grained PAT.
+- **Steps:** `GITCRM_SPIKE_TOKEN=… node spikes/run-node.js therecluse26/gitcrm-spike`. The run writes under `spike/` and removes it at the end.
+- **Results (14 of 14 checks passed):**
+
+| Check | Result | Time |
+| --- | --- | --- |
+| Create (Contents PUT, no `sha`) | 201 | 812 ms |
+| Read back | 200, same blob SHA | 294 ms |
+| Update with current `sha` | 200 | 706 ms |
+| Update with stale `sha` | **409**: "… does not match &lt;sha&gt;" | 288 ms |
+| Create on an existing path without `sha` | **422**: "\"sha\" wasn't supplied" | 236 ms |
+| Multi-file commit (get ref, get commit, tree, commit, ref update) | 200 | 1,963 ms |
+| Non-forced ref update after the branch moved | **422**: "Update is not a fast forward" | 296 ms |
+| GraphQL tree walk of `spike/`, pinned to a commit SHA | 200, text and `oid` for 2 files | 335 ms |
+| `x-ratelimit-remaining` readable | Yes | |
+| Cleanup | `spike/` removed in one commit | 1,594 ms |
+
+- **Threat/privacy assessment:** test data only; the token was never printed or stored.
+- **Decision:** the write model works as designed. Blob-SHA preconditions stop silent overwrites (spec 07), and the non-forced ref update protects the ADR-021 delete. Single saves (0.7–0.8 s) meet the 2-second target. A cascade delete takes about 2 seconds, so the delete UI should show progress.
+- **Follow-up:** repeat from the browser page with a fine-grained PAT that has only Contents: Read and write. That confirms the Git Data API and GraphQL work with that permission, and that `PUT` and `PATCH` preflights pass. Then run S-03 and the load benchmark.
+
 ## Most important product decision
 
 Decided 2026-10-27 (ADR-004, ADR-008, ADR-009, ADR-015): GitCRM is a product for other people, and users connect with a fine-grained PAT in both the alpha and the public release. A stateless auth broker is allowed in principle but deferred until real demand appears.

@@ -45,7 +45,7 @@ Saves write to GitHub first, then update the in-memory store and IndexedDB. Afte
 
 Test in this order:
 
-1. **GraphQL tree walk (first choice).** One query, with one alias per record type, walks `data/{type}/{shard}/` and returns each file's `name`, `oid` (blob SHA), and blob `text`. First resolve `main` to a commit SHA and pin every expression to it (`"<commitSha>:data/contacts"`), so all records come from one commit. Split into several queries if a response hits limits. Results feed the IndexedDB cache directly. Spike S-01 confirmed browser CORS for GraphQL with an `Authorization` header. Unverified: GraphQL response size and time limits, and fine-grained PAT support for GraphQL.
+1. **GraphQL tree walk (first choice).** One query, with one alias per record type, walks `data/{type}/{shard}/` and returns each file's `name`, `oid` (blob SHA), and blob `text`. First resolve `main` to a commit SHA and pin every expression to it (`"<commitSha>:data/contacts"`), so all records come from one commit. Split into several queries if a response hits limits. Results feed the IndexedDB cache directly. Spike S-01 confirmed browser CORS for GraphQL with an `Authorization` header, and S-02 confirmed the tree walk returns file text and blob SHAs (with an OAuth token). Unverified: GraphQL response size and time limits, and fine-grained PAT support for GraphQL.
 2. **Per-blob reads (baseline).** Git Trees plus one blob request per record.
 3. **Verified rollup (fallback, ADR-016);** see below.
 
@@ -70,11 +70,11 @@ Build this only if spike (3) shows per-blob first loads are too expensive.
 
 ## Create record
 
-`PUT .../contents/data/contacts/d1/uuid.json` with `message`, Base64 `content`, and `branch: main`; no `sha` for a new path. On conflict, fetch and report that the record already exists. Validate exact path uniqueness before upload.
+`PUT .../contents/data/contacts/d1/uuid.json` with `message`, Base64 `content`, and `branch: main`; no `sha` for a new path. On conflict, fetch and report that the record already exists; spike S-02 showed that a create on an existing path returns `422` ("\"sha\" wasn't supplied"). Validate exact path uniqueness before upload.
 
 ## Update record
 
-`PUT .../contents/...` with the prior blob `sha`. On `409`/`422`, reload the document and offer an explicit compare/resolve flow. Do not overwrite other users by fetching a new SHA and retrying blindly.
+`PUT .../contents/...` with the prior blob `sha`. A stale `sha` returns `409` ("… does not match &lt;sha&gt;", spike S-02). On `409`/`422`, reload the document and offer an explicit compare/resolve flow. Do not overwrite other users by fetching a new SHA and retrying blindly.
 
 ## Delete record (ADR-021)
 
@@ -85,7 +85,7 @@ One commit through the Git Trees/Commits APIs:
 3. `POST /repos/{owner}/{repo}/git/commits` with that tree and the current commit as parent.
 4. `PATCH /repos/{owner}/{repo}/git/refs/heads/main` with the new commit SHA and `force: false`.
 
-If step 4 fails because `main` moved, repeat from step 1 on the new `main`, a bounded number of times. After an ambiguous network failure in step 4, read `main` first: if it points to the new commit, the delete succeeded. This removes files from `main` only; it does **not** erase historical commits. Unverified: the exact error for a non-fast-forward ref update, and fine-grained PAT access to these endpoints with `Contents: Read and write`.
+If step 4 fails because `main` moved, repeat from step 1 on the new `main`, a bounded number of times. After an ambiguous network failure in step 4, read `main` first: if it points to the new commit, the delete succeeded. This removes files from `main` only; it does **not** erase historical commits. Spike S-02 showed that a non-fast-forward update returns `422` ("Update is not a fast forward") and that the whole delete path takes about 2 seconds. Unverified: fine-grained PAT access to these endpoints with `Contents: Read and write`.
 
 ## Rate limits and reliability
 
