@@ -45,12 +45,14 @@ Saves write to GitHub first, then update the in-memory store and IndexedDB. Afte
 
 Test in this order:
 
-1. **GraphQL tree walk (first choice).** One query, with one alias per record type, walks `data/{type}/{shard}/` and returns each file's `name`, `oid` (blob SHA), and blob `text`. First resolve `main` to a commit SHA and pin every expression to it (`"<commitSha>:data/contacts"`), so all records come from one commit. Split into several queries if a response hits limits. Results feed the IndexedDB cache directly. Unverified: GraphQL response size and time limits, and fine-grained PAT support for GraphQL.
-2. **Repo archive.** `GET /repos/{owner}/{repo}/tarball/{ref}` returns everything in one request, but it redirects to `codeload.github.com`; CORS support there is unverified.
-3. **Per-blob reads (baseline).** Git Trees plus one blob request per record.
-4. **Verified rollup (fallback, ADR-016);** see below.
+1. **GraphQL tree walk (first choice).** One query, with one alias per record type, walks `data/{type}/{shard}/` and returns each file's `name`, `oid` (blob SHA), and blob `text`. First resolve `main` to a commit SHA and pin every expression to it (`"<commitSha>:data/contacts"`), so all records come from one commit. Split into several queries if a response hits limits. Results feed the IndexedDB cache directly. Spike S-01 confirmed browser CORS for GraphQL with an `Authorization` header. Unverified: GraphQL response size and time limits, and fine-grained PAT support for GraphQL.
+2. **Per-blob reads (baseline).** Git Trees plus one blob request per record.
+3. **Verified rollup (fallback, ADR-016);** see below.
 
-**Ruled out: a Git clone in the browser** (for example an isomorphic-git shallow clone). From memory, GitHub's Git-over-HTTP endpoints send no CORS headers, so a clone needs a CORS proxy, and that proxy would carry the PAT and every record. ADR-004 rules this out unless the spike shows GitHub now allows CORS on those endpoints.
+Ruled out by spike S-01 (`docs/12-RISKS-AND-OPEN-QUESTIONS.md`), because each would need a CORS proxy carrying the PAT and every record, which ADR-004 forbids:
+
+- **A Git clone in the browser** (for example an isomorphic-git shallow clone): GitHub's Git-over-HTTP endpoints send no CORS headers.
+- **The repo archive** (`GET /repos/{owner}/{repo}/tarball/{ref}`): it redirects to `codeload.github.com`, which only allows the origin `https://render.githubusercontent.com`.
 
 No choice should require a CRM backend. The verified rollup is the only allowed index, and only as a cache.
 

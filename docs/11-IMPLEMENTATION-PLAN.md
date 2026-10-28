@@ -11,9 +11,9 @@ Build in **small vertical slices**. The first meaningful release must prove the 
 - [ ] Verify fine-grained PATs for org members, including the org's PAT approval policy (ADR-018, R-11).
 - [ ] Read GitHub's current Terms of Service, API terms, and Acceptable Use Policies for storing app data in private repos through the API; record findings in `docs/12-RISKS-AND-OPEN-QUESTIONS.md`.
 - [ ] Validate `private: true`, `main`, branch protection, permission failures.
-- [ ] Benchmark initial and incremental load at 100/500/2000 docs: GraphQL tree walk first, then archive and per-blob (`docs/04-GITHUB-INTEGRATION.md`). Check results against the targets in `docs/06-SEARCH-AND-PERFORMANCE.md`. Decide whether to build the verified rollup (ADR-016); if yes, test custom-ref create and force-update with a fine-grained PAT.
+- [ ] Benchmark initial and incremental load at 100/500/2000 docs: GraphQL tree walk first, then per-blob (`docs/04-GITHUB-INTEGRATION.md`; the archive is ruled out by S-01). Check results against the targets in `docs/06-SEARCH-AND-PERFORMANCE.md`. Decide whether to build the verified rollup (ADR-016); if yes, test custom-ref create and force-update with a fine-grained PAT.
 - [ ] Verify a multi-file commit through the Git Trees/Commits APIs with a fine-grained PAT, including a non-forced ref update after `main` has moved (ADR-021).
-- [ ] Check whether GitHub's Git-over-HTTP endpoints accept browser CORS calls (a five-minute test that rules a browser shallow clone in or out).
+- [x] Check whether GitHub's Git-over-HTTP endpoints accept browser CORS calls. They don't, so a browser shallow clone is ruled out (S-01).
 - [ ] Confirm chosen static hosting provider permits intended use; never assume GitHub Pages can host commercial SaaS.
 - [ ] Record P0 spike findings in `docs/12-RISKS-AND-OPEN-QUESTIONS.md` and update ADRs.
 

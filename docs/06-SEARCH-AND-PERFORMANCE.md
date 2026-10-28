@@ -37,7 +37,7 @@ With a private disposable repository, generate datasets of approximately 100, 50
 | Concurrent update result | No silent data loss |
 | Browser memory peak | Avoid bloated client state |
 
-Measure the GraphQL tree walk first, then the archive download and per-blob fetching (`docs/04-GITHUB-INTEGRATION.md`).
+Measure the GraphQL tree walk first, then per-blob fetching (`docs/04-GITHUB-INTEGRATION.md`). The archive download is ruled out (spike S-01).
 
 ### Targets (spike pass criteria, agreed 2026-10-27)
 

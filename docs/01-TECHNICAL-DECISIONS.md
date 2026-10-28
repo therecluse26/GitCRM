@@ -35,6 +35,6 @@ For changes to a product invariant: state the requirement, propose at least one 
 ## Not yet decided
 
 - Whether GitCRM is commercial (affects host terms and privacy disclosures).
-- Snapshot transport after spike (3): per-blob, GraphQL, or archive; and whether to build the verified rollup (ADR-016) and when it is rewritten.
+- Snapshot transport after spike (3): GraphQL or per-blob (archive ruled out, S-01); and whether to build the verified rollup (ADR-016) and when it is rewritten.
 - Whether default record export should additionally include a single portable ZIP in MVP.
 - When, if ever, to ship a local history-purge utility.
