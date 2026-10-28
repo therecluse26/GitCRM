@@ -163,6 +163,53 @@ GitHub allows 60 s of GraphQL server time per minute, and says to estimate it fr
 - **Decision:** Cloudflare's terms permit the official copy on Cloudflare Pages. The owner chose it on 2026-10-28 (ADR-010). The same Developer Platform terms cover Workers, so a later move to Workers static assets changes nothing here.
 - **Follow-up:** the owner chose a `pages.dev` subdomain for now (2026-10-28, ADR-010). If Cloudflare announces a rename, consider a custom domain. Read these pages again before the public release.
 
+### S-07: Pre-filled fine-grained PAT form
+
+- **Date:** 2026-10-28, 18:06 EDT. A reading of GitHub's current docs, not a test run.
+- **Question:** can a link open GitHub's fine-grained PAT form with GitCRM's settings already filled in?
+- **Source:** "Pre-filling fine-grained personal access token details using URL parameters" on the PAT page (`docs/13-SOURCES.md`).
+- **Findings:** yes. The form is `https://github.com/settings/personal-access-tokens/new`. All parameters are optional, and the form validates them:
+  - `name`: at most 40 characters. `description`: at most 1,024 characters.
+  - `target_name`: the user or organization that owns the repos. Without it, the current user.
+  - `expires_in`: 1 to 366 days, or `none`. Without it, 30 days, or less if the owner has a token lifetime policy.
+  - A permission and level, such as `contents=write`. Write includes read, and contents comes with metadata read.
+  - No parameter selects repositories.
+- **Decision:** the connection screen builds the link from the `owner/repo` the user typed: `?name=GitCRM+<repo>&description=<text>&target_name=<owner>&contents=write`. The user must still choose "Only select repositories" and pick the repo; onboarding says so. Proposal: leave out `expires_in`, so GitHub's 30-day default or the org's policy applies.
+- **Follow-up:** use the link in the S-02 browser run (`spikes/README.md`).
+
+### S-08: Repo checks and permission failures
+
+- **Date:** 2026-10-28, about 18:00 EDT. Node, with the OAuth token from `gh` (scope `repo`), against `therecluse26/gitcrm-spike` on a free personal account.
+- **Question:** what does the API return for visibility, the default branch, bad tokens, missing repos, an archived repo, and branch protection?
+- **Method:** `spikes/repo-checks.js`. It archives the repo and tries to protect `main`, then restores both.
+- **Results:**
+
+| Check | Result |
+| --- | --- |
+| Repo metadata | `200`: `private: true`, `visibility: "private"`, `default_branch: "main"`, `owner.type: "User"`, every `permissions` flag `true` |
+| Public repo (`octocat/Hello-World`) | `200`: `private: false`, `visibility: "public"` |
+| Bad token, on `/user` and on the repo | `401` "Bad credentials" |
+| No token, private repo | `404` "Not Found" |
+| Repo that does not exist | `404` "Not Found", the same as no access |
+| Write check: `POST git/blobs` | `201`. It stores an unreferenced blob and changes no branch |
+| Archived repo: metadata | `200`: `archived: true`, but `permissions.push` stays `true` |
+| Archived repo: Contents GET | `200` |
+| Archived repo: Contents PUT | `403` "Repository was archived so is read-only." |
+| Archived repo: write check | `404` "Not Found" |
+| Archive, then unarchive, with `PATCH /repos/...` | `200` both |
+| `GET branches/main` | `200`: `protected: false` |
+| `GET rules/branches/main` | `403` "Upgrade to GitHub Pro or make this repository public to enable this feature." |
+| Branch protection or a ruleset on this private repo | `403`, the same message |
+
+- **Decision:**
+  - At connect, refuse `private: false`, and treat `archived: true` as read-only. `permissions.push` does not show that a repo is archived.
+  - A `404` cannot tell a missing repo from one the token cannot see, so one message covers both.
+  - GitHub Free allows branch protection and rulesets only on public repos (GitHub docs), so free users never meet a protected `main`. Default protection only blocks force pushes and branch deletion, which GitCRM never does, so `protected: true` alone is compatible.
+  - Do not check protection up front: on a free private repo, `GET rules/branches/...` returns `403` without any permission problem. Show the compatibility error when a write fails.
+- **Follow-up:**
+  - The S-02 browser run checks what a fine-grained PAT returns in `permissions`, and what a read-only token returns on writes.
+  - Not tested: the error for a write to a branch that requires pull requests (needs a paid plan or a public test repo), and an empty repo with no commits.
+
 ## Most important product decision
 
 Decided 2026-10-27 (ADR-004, ADR-008, ADR-009, ADR-015): GitCRM is a product for other people, and users connect with a fine-grained PAT in both the alpha and the public release. A stateless auth broker is allowed in principle but deferred until real demand appears.

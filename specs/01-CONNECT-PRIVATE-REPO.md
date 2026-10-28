@@ -42,6 +42,12 @@ Scenario: Missing write permission
   Then I see a clear read-only or incompatible-permission message
   And I cannot use an enabled Save control
 
+Scenario: Archived repository
+  Given the selected private repo is archived
+  When I connect
+  Then I see a read-only message that tells me to unarchive the repo
+  And I cannot use an enabled Save control
+
 Scenario: Disconnect
   Given I am connected and records are visible
   When I disconnect
@@ -58,7 +64,7 @@ Scenario: Reload with a remembered token
 
 ## Failure cases
 
-Expired/revoked token, GitHub 403/404, protected branch, repository rename, invalid schema, GitHub outage, and user cancel. No infinite retry and no hidden fallback to public repository access.
+Expired/revoked token, GitHub 403/404, archived repository, protected branch, repository rename, invalid schema, GitHub outage, and user cancel. No infinite retry and no hidden fallback to public repository access.
 
 ## Test gate
 

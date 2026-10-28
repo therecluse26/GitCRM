@@ -9,7 +9,7 @@ Read and modify **only the selected private repository** from a static browser c
 | Purpose | GitHub REST endpoint |
 | --- | --- |
 | Verify identity | `GET /user` |
-| Inspect repo / visibility / default branch | `GET /repos/{owner}/{repo}` |
+| Inspect repo / visibility / archived / default branch | `GET /repos/{owner}/{repo}` |
 | Read workspace config or document | `GET /repos/{owner}/{repo}/contents/{path}?ref=main` |
 | Create or update document | `PUT /repos/{owner}/{repo}/contents/{path}` |
 | Delete with cascade, one commit (ADR-021) | `POST .../git/trees`, `POST .../git/commits`, `PATCH .../git/refs/heads/main` |
@@ -95,7 +95,7 @@ If step 4 fails because `main` moved, repeat from step 1 on the new `main`, a bo
 - Avoid unconditional poll loops. Check `main` on page load, on tab focus (at most once every 30 seconds), and on the refresh button; nothing else.
 - **Budget guard (ADR-023):** the adapter reads `x-ratelimit-remaining` on every REST response (S-01 and S-02 confirmed the page can read it). Below 500 remaining, pause background checks and show a quiet notice; saves and explicit refreshes still run. On `403` or `429` with `retry-after`, wait that long; never retry in a loop.
 - **One syncing tab (ADR-023):** only one tab per workspace checks `main`, and it shares results with other tabs over `BroadcastChannel`. Pick that tab with the Web Locks API (`navigator.locks.request`); the browser releases the lock when the tab closes, so another tab takes over.
-- Treat `401` (auth), `403/404` (permission, visibility, or missing), `409` (conflict), `422` (validation/conflict), and `429` (limit) as different user-facing states.
+- Treat `401` (auth), `403/404` (permission, visibility, or missing), `409` (conflict), `422` (validation/conflict), and `429` (limit) as different user-facing states. S-08 recorded the exact responses: `401` "Bad credentials"; `404` for both a missing repo and no access; `403` "Repository was archived so is read-only." on writes to an archived repo.
 - Never log `Authorization` headers, private response bodies, email addresses, or customer names to telemetry.
 
 ## Contract tests

@@ -9,15 +9,15 @@ See the S-01 record in `docs/12-RISKS-AND-OPEN-QUESTIONS.md`.
 ## S-02: REST CRUD, conflicts, multi-file commit, and GraphQL with a fine-grained PAT
 
 1. Create a private repo whose name starts with `gitcrm-spike`, with a README so it has an initial commit.
-2. Create a fine-grained PAT: GitHub Settings > Developer settings > Personal access tokens > Fine-grained tokens > Generate new token.
-   - Resource owner: you.
-   - Repository access: only the spike repo.
-   - Permissions: Repository > Contents: Read and write.
-   - Expiration: 7 days.
+2. Create a fine-grained PAT from this link, with `<you>` replaced by your GitHub login. It fills in the name, the owner, a 7-day expiry, and `Contents: Read and write` (S-07):
+   `https://github.com/settings/personal-access-tokens/new?name=GitCRM+spike&description=GitCRM+P0+spike&target_name=<you>&expires_in=7&contents=write`
+   - **Record:** did every field arrive filled in?
+   - Repository access: choose "Only select repositories" and pick the spike repo. Then generate the token.
 3. From the repo root, run `python3 -m http.server 8000 --directory spikes`.
 4. Open `http://localhost:8000/p0-crud.html`, enter `owner/gitcrm-spike` and the PAT, then click **Run checks**.
 5. Copy the "Results JSON" block and share it. It contains no token.
-6. Delete the PAT when you are done.
+6. Optional, for S-08: create a second token from the same link with `contents=read` in place of `contents=write`. Run the checks with it and share that Results JSON too. The writes should fail; the results show what a read-only token returns.
+7. Delete the PATs when you are done.
 
 The page writes only under `spike/` in the test repo and removes those files at the end.
 
@@ -41,6 +41,14 @@ BENCH_CHUNKED_ONLY=1 CHUNK_DIRS=25 CHUNK_CONCURRENCY=10 GITCRM_SPIKE_TOKEN=<toke
 ```
 
 A full run spends about 2,600 REST requests (the per-blob transport) out of the hourly 5,000.
+
+## S-08: Repo checks and permission failures (done)
+
+See the S-08 record in `docs/12-RISKS-AND-OPEN-QUESTIONS.md`. The script archives the repo and tries to protect `main` for a moment, then restores both, so the token needs admin rights on the repo. To reproduce:
+
+```sh
+GITCRM_SPIKE_TOKEN=<token> node spikes/repo-checks.js owner/gitcrm-spike
+```
 
 ## S-03: Fine-grained PATs for org members (ADR-018, R-11)
 

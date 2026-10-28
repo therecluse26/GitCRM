@@ -22,7 +22,7 @@
 - [GitHub App best practices - secrets and token types](https://docs.github.com/en/apps/creating-github-apps/about-creating-github-apps/best-practices-for-creating-a-github-app)
 - [GitHub's 2025 PKCE support announcement](https://github.blog/changelog/2025-07-14-pkce-support-for-oauth-and-github-app-authentication/)
 - [RFC 10017: OAuth 2.0 for Browser-Based Applications](https://www.rfc-editor.org/rfc/rfc10017.html)
-- [Personal access tokens - GitHub docs](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)
+- [Personal access tokens - GitHub docs](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens) (includes pre-filling the fine-grained PAT form with URL parameters, S-07)
 
 ## Hosting, usage, and erasure
 
@@ -30,6 +30,9 @@
 - [GitHub Acceptable Use Policies - bulk activity and bandwidth](https://docs.github.com/en/site-policy/acceptable-use-policies/github-acceptable-use-policies)
 - [GitHub Pages limits - commercial SaaS restriction](https://docs.github.com/en/pages/getting-started-with-github-pages/github-pages-limits)
 - [GitHub Additional Product Terms - Pages/Actions](https://docs.github.com/en/site-policy/github-terms/github-terms-for-additional-products-and-features)
+- [About protected branches - plan availability](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches)
+- [About rulesets - plan availability](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/about-rulesets)
+- [Archiving repositories - read-only for all users](https://docs.github.com/en/repositories/archiving-a-github-repository/archiving-repositories)
 - [Removing sensitive data from Git history - caveats and GitHub Support](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/removing-sensitive-data-from-a-repository)
 - [GitHub Pages public sites even from private repositories](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site)
 - [Cloudflare Self-Serve Subscription Agreement - restrictions and acceptable use](https://www.cloudflare.com/terms/)
