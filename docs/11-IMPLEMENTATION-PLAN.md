@@ -14,7 +14,7 @@ Build in **small vertical slices**. The first meaningful release must prove the 
 - [x] Benchmark initial and incremental load at 100/500/2000 docs (S-04: chunked GraphQL meets the targets; ADR-022; rollup not needed): GraphQL tree walk first, then per-blob (`docs/04-GITHUB-INTEGRATION.md`; the archive is ruled out by S-01). Check results against the targets in `docs/06-SEARCH-AND-PERFORMANCE.md`. Decide whether to build the verified rollup (ADR-016); if yes, test custom-ref create and force-update with a fine-grained PAT.
 - [ ] Verify a multi-file commit through the Git Trees/Commits APIs with a fine-grained PAT, including a non-forced ref update after `main` has moved (ADR-021). Works with an OAuth token (S-02); fine-grained PAT pending.
 - [x] Check whether GitHub's Git-over-HTTP endpoints accept browser CORS calls. They don't, so a browser shallow clone is ruled out (S-01).
-- [ ] Confirm chosen static hosting provider permits intended use; never assume GitHub Pages can host commercial SaaS.
+- [x] Confirm chosen static hosting provider permits intended use (S-06: Cloudflare Pages); never assume GitHub Pages can host commercial SaaS.
 - [ ] Record P0 spike findings in `docs/12-RISKS-AND-OPEN-QUESTIONS.md` and update ADRs.
 
 **Exit:** verified authenticated CRUD in a browser for a private repo, with explicit boundary/limits.
@@ -46,7 +46,7 @@ Build in **small vertical slices**. The first meaningful release must prove the 
 - [ ] Archive, and delete with a cascade preview in one commit (ADR-021).
 - [ ] Browser and GitHub adapter failure-path E2E tests.
 - [ ] CSP and static bundle audits; accessibility pass.
-- [ ] Deploy the same build to GitHub Pages and one other static host (ADR-010).
+- [ ] Deploy the same build to Cloudflare Pages (the official copy) and GitHub Pages (ADR-010).
 - [ ] Performance optimization based on recorded measurements only.
 
 **Exit:** MVP acceptance criteria pass, exports validate, no critical security issues remain.

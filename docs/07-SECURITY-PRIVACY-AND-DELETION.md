@@ -9,7 +9,8 @@ CRM records contain personal or commercially sensitive information. A private re
 | Threat | Minimum mitigation |
 | --- | --- |
 | Public repo exposure | Refuse public repos; recheck visibility at connection and refresh; never publish data as static assets |
-| Credential theft via JS/XSS | No inline unsafe HTML, strict CSP, no third-party analytics/scripts, one-repo short-expiry PAT |
+| Credential theft via JS/XSS | No inline unsafe HTML, strict CSP, no third-party analytics/scripts, one-repo short-expiry PAT; host features that inject scripts stay off (S-06) |
+| Clickjacking (another site frames the app) | `frame-ancestors 'none'` header on the official copy (S-06); on hosts without custom headers, the app refuses to render inside a frame |
 | Stored PAT and records on a shared or lost device | "Remember on this device" opt-out; Disconnect deletes both; one-repo short-expiry PAT. A fully compromised machine is out of scope (ADR-017) |
 | Overbroad token scope | Fine-grained repo-restricted token; instructions to expire/revoke |
 | Unauthorized collaborator access | GitHub repo permissions; onboarding explains collaborator access |
@@ -49,4 +50,4 @@ Because filenames are stable UUIDs, a file's historical path is targetable. But 
 
 ## Privacy statement scope
 
-A future public privacy policy must separately disclose what the static host sees (IP and asset requests), what an auth broker would see if one ships (codes and tokens in transit, IP addresses), what GitHub stores and when GitHub staff may access private repo content (security, scanning for malware or terms violations, support, service integrity, and legal obligations; S-05), what the browser processes, and whether any third-party telemetry is enabled. Do not claim compliance with GDPR, HIPAA, or other specialized regimes without a separate assessment.
+A future public privacy policy must separately disclose what the static host sees (Cloudflare processes visitors' IP addresses and traffic data for asset requests, never the PAT or CRM data; S-06), what an auth broker would see if one ships (codes and tokens in transit, IP addresses), what GitHub stores and when GitHub staff may access private repo content (security, scanning for malware or terms violations, support, service integrity, and legal obligations; S-05), what the browser processes, and whether any third-party telemetry is enabled. Do not claim compliance with GDPR, HIPAA, or other specialized regimes without a separate assessment.

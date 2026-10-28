@@ -1,6 +1,6 @@
 # Primary Research References
 
-**Checked:** 2026-10-26; terms, limits, and PAT pages read again on 2026-10-28 (S-05). Provider documentation evolves; validate again before implementing or publishing hard promises. Links are references, not substitutes for an end-to-end security test.
+**Checked:** 2026-10-26; terms, limits, and PAT pages read again on 2026-10-28 (S-05); Cloudflare terms read on 2026-10-28 (S-06). Provider documentation evolves; validate again before implementing or publishing hard promises. Links are references, not substitutes for an end-to-end security test.
 
 ## GitHub API
 
@@ -32,6 +32,11 @@
 - [GitHub Additional Product Terms - Pages/Actions](https://docs.github.com/en/site-policy/github-terms/github-terms-for-additional-products-and-features)
 - [Removing sensitive data from Git history - caveats and GitHub Support](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/removing-sensitive-data-from-a-repository)
 - [GitHub Pages public sites even from private repositories](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site)
+- [Cloudflare Self-Serve Subscription Agreement - restrictions and acceptable use](https://www.cloudflare.com/terms/)
+- [Cloudflare Developer Platform Service-Specific Terms - Pages](https://www.cloudflare.com/service-specific-terms-developer-platform/)
+- [Cloudflare Pages limits](https://developers.cloudflare.com/pages/platform/limits/)
+- [Cloudflare Pages headers - `_headers` file](https://developers.cloudflare.com/pages/configuration/headers/)
+- [Cloudflare Privacy Policy - End User data](https://www.cloudflare.com/privacypolicy/)
 
 ## Notes
 

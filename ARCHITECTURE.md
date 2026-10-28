@@ -4,7 +4,7 @@
 
 ```text
             public static app assets
-       [static host: e.g. Cloudflare Pages]
+         [static host: Cloudflare Pages]
                        |
                        v
             [browser-only React SPA]
@@ -88,7 +88,7 @@ The **principal performance uncertainty is data transport from GitHub, not local
 
 ## Hosting
 
-The build is host-agnostic (ADR-010): hash URLs, relative asset paths, CSP in a `<meta>` tag, and no host-specific features, so any static host works, including GitHub Pages for self-hosted copies. The official hosted copy uses a host whose terms permit its use; GitHub Pages restricts commercial SaaS. GitCRM has no server-side dependency; users connect with a fine-grained PAT (ADR-008). A stateless auth broker for GitHub App sign-in is deferred (ADR-009) and would never receive CRM data. Any server-side component requires an explicit owner decision.
+The build is host-agnostic (ADR-010): hash URLs, relative asset paths, CSP in a `<meta>` tag, and no host-specific features, so any static host works, including GitHub Pages for self-hosted copies. The official copy uses Cloudflare Pages, whose terms permit it (S-06). GitCRM has no server-side dependency; users connect with a fine-grained PAT (ADR-008). A stateless auth broker for GitHub App sign-in is deferred (ADR-009) and would never receive CRM data. Any server-side component requires an explicit owner decision.
 
 ## Offline model
 

@@ -6,7 +6,7 @@ These are **real unresolved dependencies**, not minor TODOs. The docs deliberate
 | --- | --- | --- | --- | --- |
 | R-01 | High | PAT setup friction limits adoption by less technical users | Usability test of the PAT setup instructions with target users | Accepted for now (ADR-008); GitHub App sign-in through a broker if demand appears (ADR-009, deferred) |
 | R-02 | High | First load of thousands of JSON files may consume excessive GitHub requests | Benchmark the GraphQL tree walk and Git Trees + blob fetches (archive ruled out, S-01); incremental SHA caching | Measured (S-04): chunked GraphQL loads 2,000 records in ~5 s. Fallbacks: verified rollup (ADR-016), then a published size limit |
-| R-03 | Medium | GitHub Pages says sites shouldn't be used for sending passwords, and users enter a PAT on GitCRM's page (S-05). Its commercial SaaS ban does not apply, because GitCRM is non-commercial (ADR-015) | Select the official copy's host; verify its terms | Host-agnostic build (ADR-010): move the official copy to any compliant static host |
+| R-03 | Low | GitHub Pages says sites shouldn't be used for sending passwords, and users enter a PAT on GitCRM's page (S-05). Its commercial SaaS ban does not apply, because GitCRM is non-commercial (ADR-015) | Done: the official copy uses Cloudflare Pages, whose terms permit it (S-06) | Host-agnostic build (ADR-010): move the official copy to any compliant static host |
 | R-04 | High | Small concurrent edits can conflict | Two-client live proof; GitHub Contents API SHA behavior | Conflict UI, serialize/retry nonoverlapping writes conservatively |
 | R-05 | High | User may accidentally expose repository or token | Visibility checks, narrow scopes, browser security review | Fail closed; disclose and direct to rotate/restrict |
 | R-06 | High | Delete != full erasure from Git | Validate history rewrite workflow against a disposable repo and support policy | Keep history purge out of MVP; accurately label deletion |
@@ -138,7 +138,30 @@ GitHub allows 60 s of GraphQL server time per minute, and says to estimate it fr
 | Repo limits (recommended, not enforced) | Directory width 3,000 entries; single object 1 MB; 6 pushes per minute per repository | Shards stay far below 3,000 entries, and records far below 1 MB. Unverified: whether API commits count as pushes |
 
 - **Decision:** nothing in GitHub's terms forbids GitCRM's design. The limits are: no shared tokens, no bulk automation, no commercial SaaS on Pages, and staying inside the documented rate limits.
-- **Follow-up:** confirm the PAT permissions live (S-02 follow-up). Check the terms of the static host chosen for the official copy. Read these pages again before the public release.
+- **Follow-up:** confirm the PAT permissions live (S-02 follow-up). Check the terms of the static host chosen for the official copy (done in S-06). Read these pages again before the public release.
+
+### S-06: Cloudflare Pages terms
+
+- **Date:** 2026-10-28, 17:38 EDT. A reading of Cloudflare's current docs, not a test run.
+- **Question:** do Cloudflare's terms allow the official GitCRM copy on Cloudflare Pages? What must the deployment do or avoid?
+- **Sources:** Self-Serve Subscription Agreement (updated 2025-09-12), Developer Platform Service-Specific Terms (updated 2026-09-28), Pages limits, Pages headers, and the Privacy Policy (effective 2025-11-04). Links are in `docs/13-SOURCES.md`.
+- **Findings:**
+
+| Topic | What Cloudflare's docs say | Effect on GitCRM |
+| --- | --- | --- |
+| Free plan | Cloudflare may end a free service "in our sole discretion", with no liability | Allowed. If Cloudflare ends it, move the build to another host (ADR-010) |
+| Credentials | No clause about entering passwords. Free plans may not "process or collect personal or business credit card information". "The use of the Services for phishing schemes is prohibited" | Entering a PAT is allowed. GitCRM collects no card data. The page must never look like a GitHub page |
+| Project names | Subdomains with "names of other businesses, organizations, or individuals" are prohibited | Name the project `gitcrm`; never put `github` in it |
+| Content | No malware or unlawful content, and nothing that "discloses sensitive personal information". Free plans may not "store or transmit any 'protected health information'" without consent | The host serves app assets only (ADR-014). CRM data goes from the browser to GitHub and never reaches Cloudflare (ADR-004) |
+| Subdomain changes | Cloudflare "may change Cloudflare Workers/Pages subdomain names" on `pages.dev` "for any or no reason", with about one week's notice. Custom domains are exempt | The PAT and the record cache belong to the page's origin (ADR-017). A changed subdomain makes every user reconnect and reload; no CRM data is lost. A custom domain avoids this |
+| Content changes | Depending on the features enabled, Cloudflare may "add scripts to your pages" and cookies. It promises a way to turn such features off | Keep script-injecting features, such as Web Analytics, off. The strict CSP blocks injected scripts anyway |
+| Headers | A `_headers` file sets response headers on static assets: up to 100 rules, 2,000 characters per line | Send the CSP as a real header, with `frame-ancestors 'none'`. Keep the `<meta>` CSP for other hosts |
+| Free-plan limits | 20,000 files, 25 MiB per file, 500 builds per month, 1 build at a time | A Vite build is far below these |
+| Visitor data | Cloudflare processes visitors' "IP addresses, traffic routing data" and similar traffic data | The privacy statement must say this (docs/07). The PAT and CRM data go to `api.github.com`, never to Cloudflare |
+| Undue burden | Cloudflare may temporarily limit requests that put an "undue burden" on its network | Static assets only; not a concern |
+
+- **Decision:** Cloudflare's terms permit the official copy on Cloudflare Pages. The owner chose it on 2026-10-28 (ADR-010). The same Developer Platform terms cover Workers, so a later move to Workers static assets changes nothing here.
+- **Follow-up:** choose `pages.dev` or a custom domain before the public release. Read these pages again before the public release.
 
 ## Most important product decision
 
@@ -146,4 +169,4 @@ Decided 2026-10-27 (ADR-004, ADR-008, ADR-009, ADR-015): GitCRM is a product for
 
 ## Commercial deployment check
 
-Read on 2026-10-28 (S-05): GitHub Pages forbids commercial SaaS and advises against sending passwords through Pages sites. The Actions terms forbid using Actions as part of a serverless application. Treat these as provider contract boundaries, not technical limitations to evade. GitCRM is non-commercial (ADR-015, 2026-10-28), so the Pages SaaS ban does not apply; check this section again if that changes.
+Read on 2026-10-28 (S-05): GitHub Pages forbids commercial SaaS and advises against sending passwords through Pages sites. The Actions terms forbid using Actions as part of a serverless application. Treat these as provider contract boundaries, not technical limitations to evade. GitCRM is non-commercial (ADR-015, 2026-10-28), so the Pages SaaS ban does not apply; check this section again if that changes. The official copy uses Cloudflare Pages (S-06), whose terms ban phishing and card collection on free plans but say nothing against entering credentials.
