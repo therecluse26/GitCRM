@@ -81,7 +81,9 @@ For each spike, write: **Date; hypothesis; exact repo/config; documented API beh
   - First try: the token had the repo selected but no permissions, and `GET repo` returned `404`. Onboarding must name this cause next to "repo not selected".
   - Second try: **Run checks** was clicked twice, and the two runs raced on `main`. GitHub refused each stale ref update with `422` and nothing was overwritten. The page now allows one run at a time.
 - **Decision:** the PAT route works end to end in a browser (ADR-008). The docs' permission request, `Contents: Read and write` only, is enough.
-- **Follow-up:** run the page with the same token set to `Contents: Read-only`, to see what a read-only token returns on writes (`spikes/README.md`, S-02 step 6). Unverified: whether browsers offer to save the PAT as a password.
+- **Read-only run (18:36 EDT):** the same token with `Contents: Read-only`. Reads passed. The write check (`POST git/blobs`) returned `403` "Resource not accessible by personal access token", and the Contents `PUT` returned `403`. Nothing was written.
+- **Decision (connect check):** after the repo metadata, send the write check once. `201` means the token can write. `403` means a read-only token, so show the read-only screen. Check `archived` first, because an archived repo answers the write check with `404` (S-08). The check stores one small blob that no file or branch uses.
+- **Follow-up:** unverified: whether browsers offer to save the PAT as a password.
 
 ### S-04: First-load transport benchmark (spike 3)
 
@@ -221,7 +223,7 @@ GitHub allows 60 s of GraphQL server time per minute, and says to estimate it fr
   - GitHub Free allows branch protection and rulesets only on public repos (GitHub docs), so free users never meet a protected `main`. Default protection only blocks force pushes and branch deletion, which GitCRM never does, so `protected: true` alone is compatible.
   - Do not check protection up front: on a free private repo, `GET rules/branches/...` returns `403` without any permission problem. Show the compatibility error when a write fails.
 - **Follow-up:**
-  - The S-02 browser run showed that `permissions` reflects the user's role, not a fine-grained PAT's permissions. Still to run: what a read-only token returns on writes and on the write check.
+  - The S-02 browser run showed that `permissions` reflects the user's role, not a fine-grained PAT's permissions. A read-only fine-grained PAT gets `403` from the write check, so the write check detects it.
   - Not tested: the error for a write to a branch that requires pull requests (needs a paid plan or a public test repo), and an empty repo with no commits.
 
 ## Most important product decision

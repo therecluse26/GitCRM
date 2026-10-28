@@ -24,7 +24,7 @@ This is the supported route for the alpha and the public release (ADR-008). Its 
 2. Select "Connect existing private GitHub repository".
 3. Enter `owner/repo`. The app then shows a link to GitHub's token form, filled in for that owner with `Contents: Read and write` (S-07). The link cannot select the repo, so the instructions say to choose "Only select repositories" and pick it.
 4. Paste the new PAT.
-5. Verify repo `private = true` and `archived = false`, read its `default_branch` (any name, ADR-003), and confirm that content read/write is possible. `permissions.push` stays `true` on an archived repo (S-08). `permissions` shows the user's role on the repo, not the PAT's permissions (S-02 browser run), so it cannot detect a read-only token.
+5. Verify repo `private = true` and `archived = false`, read its `default_branch` (any name, ADR-003), and confirm that content read/write is possible. `permissions.push` stays `true` on an archived repo (S-08). `permissions` shows the user's role on the repo, not the PAT's permissions (S-02 browser run), so it cannot detect a read-only token. Instead, send one write check, `POST git/blobs`: it stores a small blob that no file or branch uses. `201` means the token can write; `403` means a read-only token (S-02 read-only run).
 6. Check for `.gitcrm/workspace.json`. If absent, show an explicit Initialize action.
 7. Enter workspace display name, write config, and open CRM.
 8. Show a readable "Connected to owner/repo" indicator and a Disconnect action that deletes the stored token and the record cache.

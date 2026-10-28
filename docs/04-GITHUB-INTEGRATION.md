@@ -10,6 +10,7 @@ Read and modify **only the selected private repository** from a static browser c
 | --- | --- |
 | Verify identity | `GET /user` |
 | Inspect repo / visibility / archived / default branch | `GET /repos/{owner}/{repo}` |
+| Check write access at connect (S-02) | `POST /repos/{owner}/{repo}/git/blobs` |
 | Read workspace config or document | `GET /repos/{owner}/{repo}/contents/{path}?ref=main` |
 | Create or update document | `PUT /repos/{owner}/{repo}/contents/{path}` |
 | Delete with cascade, one commit (ADR-021) | `POST .../git/trees`, `POST .../git/commits`, `PATCH .../git/refs/heads/main` |
