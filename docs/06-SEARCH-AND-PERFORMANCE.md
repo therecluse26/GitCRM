@@ -56,8 +56,8 @@ If first load misses the target at 2,000 records, use a faster transport or the 
 | --- | --- | --- |
 | Page load with a warm cache | Under 1 s | ~0.2 s (one `GET` of the ref) |
 | Save one record | Under 2 s | 0.7–0.8 s (S-02) |
-| First load, 500 records | Under 10 s | 3.1 s with chunked GraphQL; 12.5 s per-blob |
-| First load, 2,000 records | (none) | 5.1 s with chunked GraphQL; 47.7 s per-blob |
+| First load, 500 records | Under 10 s | 3.1–4.8 s with chunked GraphQL (two runs); 12.5 s per-blob |
+| First load, 2,000 records | (none) | 5.1–8.5 s with chunked GraphQL (two runs); 47.7 s per-blob |
 | Same-record conflict | Explicit, never silent | `409` on a stale SHA (S-02) |
 
 ## Caching

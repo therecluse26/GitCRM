@@ -49,4 +49,4 @@ Because filenames are stable UUIDs, a file's historical path is targetable. But 
 
 ## Privacy statement scope
 
-A future public privacy policy must separately disclose what the static host sees (IP and asset requests), what an auth broker would see if one ships (codes and tokens in transit, IP addresses), what GitHub stores, what the browser processes, and whether any third-party telemetry is enabled. Do not claim compliance with GDPR, HIPAA, or other specialized regimes without a separate assessment.
+A future public privacy policy must separately disclose what the static host sees (IP and asset requests), what an auth broker would see if one ships (codes and tokens in transit, IP addresses), what GitHub stores and when GitHub staff may access private repo content (security, scanning for malware or terms violations, support, service integrity, and legal obligations; S-05), what the browser processes, and whether any third-party telemetry is enabled. Do not claim compliance with GDPR, HIPAA, or other specialized regimes without a separate assessment.

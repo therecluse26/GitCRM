@@ -101,6 +101,8 @@ async function graphqlChunked(commit, treeSha, dirsPerQuery, concurrency) {
     ms: performance.now() - started,
     queries: chunks.length,
     slowestQueryMs: Math.max(...results.map((r) => r.ms)),
+    // GitHub estimates secondary-limit CPU time from total response time (60 s of GraphQL per minute).
+    sumQueryMs: results.reduce((a, r) => a + r.ms, 0),
     bytes: tree.bytes + results.reduce((a, r) => a + r.bytes, 0),
     records: results.flatMap((r) => r.records),
     errors: results.flatMap((r) => r.errors),
@@ -154,7 +156,7 @@ for (const branch of branches) {
 
   if (CHUNKED_ONLY) {
     const tuned = await graphqlChunked(head.commit, head.tree, CHUNK_DIRS, CHUNK_CONCURRENCY);
-    report.push({ branch, expected, graphqlChunked: { ms: round(head.ms + tuned.ms), queries: tuned.queries, dirsPerQuery: CHUNK_DIRS, concurrency: CHUNK_CONCURRENCY, slowestQueryMs: round(tuned.slowestQueryMs), records: tuned.records.length, errors: tuned.errors } });
+    report.push({ branch, expected, graphqlChunked: { ms: round(head.ms + tuned.ms), queries: tuned.queries, dirsPerQuery: CHUNK_DIRS, concurrency: CHUNK_CONCURRENCY, slowestQueryMs: round(tuned.slowestQueryMs), sumQueryMs: round(tuned.sumQueryMs), records: tuned.records.length, errors: tuned.errors } });
     continue;
   }
 

@@ -1,6 +1,6 @@
 # Primary Research References
 
-**Checked:** 2026-10-26. Provider documentation evolves; validate again before implementing or publishing hard promises. Links are references, not substitutes for an end-to-end security test.
+**Checked:** 2026-10-26; terms, limits, and PAT pages read again on 2026-10-28 (S-05). Provider documentation evolves; validate again before implementing or publishing hard promises. Links are references, not substitutes for an end-to-end security test.
 
 ## GitHub API
 
@@ -11,6 +11,9 @@
 - [REST API best practices - serialized writes, throttling](https://docs.github.com/en/rest/using-the-rest-api/best-practices-for-using-the-rest-api)
 - [Using CORS with GitHub REST API](https://docs.github.com/en/rest/using-the-rest-api/using-cors-and-jsonp-to-make-cross-origin-requests)
 - [GitHub repository limits](https://docs.github.com/en/repositories/creating-and-managing-repositories/repository-limits)
+- [GraphQL rate limits, timeouts, and node limits](https://docs.github.com/en/graphql/overview/rate-limits-and-query-limits-for-the-graphql-api)
+- [Permissions required for fine-grained PATs](https://docs.github.com/en/rest/authentication/permissions-required-for-fine-grained-personal-access-tokens)
+- [Endpoints available for fine-grained PATs](https://docs.github.com/en/rest/authentication/endpoints-available-for-fine-grained-personal-access-tokens)
 
 ## Identity and token security
 
@@ -23,6 +26,8 @@
 
 ## Hosting, usage, and erasure
 
+- [GitHub Terms of Service - sections E (private repos) and H (API terms)](https://docs.github.com/en/site-policy/github-terms/github-terms-of-service)
+- [GitHub Acceptable Use Policies - bulk activity and bandwidth](https://docs.github.com/en/site-policy/acceptable-use-policies/github-acceptable-use-policies)
 - [GitHub Pages limits - commercial SaaS restriction](https://docs.github.com/en/pages/getting-started-with-github-pages/github-pages-limits)
 - [GitHub Additional Product Terms - Pages/Actions](https://docs.github.com/en/site-policy/github-terms/github-terms-for-additional-products-and-features)
 - [Removing sensitive data from Git history - caveats and GitHub Support](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/removing-sensitive-data-from-a-repository)

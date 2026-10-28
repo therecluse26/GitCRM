@@ -9,7 +9,7 @@ Build in **small vertical slices**. The first meaningful release must prove the 
 - [ ] Verify the PAT route end to end in a real browser (ADR-008).
 - [ ] Check whether GitHub supports URL parameters that pre-fill the fine-grained PAT form.
 - [ ] Verify fine-grained PATs for org members, including the org's PAT approval policy (ADR-018, R-11).
-- [ ] Read GitHub's current Terms of Service, API terms, and Acceptable Use Policies for storing app data in private repos through the API; record findings in `docs/12-RISKS-AND-OPEN-QUESTIONS.md`.
+- [x] Read GitHub's current Terms of Service, API terms, and Acceptable Use Policies for storing app data in private repos through the API; record findings in `docs/12-RISKS-AND-OPEN-QUESTIONS.md` (S-05: nothing forbids the design).
 - [ ] Validate `private: true`, `main`, branch protection, permission failures.
 - [x] Benchmark initial and incremental load at 100/500/2000 docs (S-04: chunked GraphQL meets the targets; proposed ADR-022; rollup not needed): GraphQL tree walk first, then per-blob (`docs/04-GITHUB-INTEGRATION.md`; the archive is ruled out by S-01). Check results against the targets in `docs/06-SEARCH-AND-PERFORMANCE.md`. Decide whether to build the verified rollup (ADR-016); if yes, test custom-ref create and force-update with a fine-grained PAT.
 - [ ] Verify a multi-file commit through the Git Trees/Commits APIs with a fine-grained PAT, including a non-forced ref update after `main` has moved (ADR-021). Works with an OAuth token (S-02); fine-grained PAT pending.

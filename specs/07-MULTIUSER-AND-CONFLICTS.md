@@ -50,6 +50,18 @@ Scenario: Repository permission revoked
   When I try to save
   Then the operation fails with a clear permission message
   And no alternative credential is silently used
+
+Scenario: Low API budget
+  Given fewer than 500 REST requests remain this hour
+  When the app would run a background check of main
+  Then it skips the check and shows a quiet notice
+  And saves and the refresh button still work
+
+Scenario: Many open tabs
+  Given the same workspace is open in five tabs
+  When the tabs gain focus
+  Then only one tab checks main
+  And the other tabs receive its results
 ```
 
 ## Conflict UI requirements

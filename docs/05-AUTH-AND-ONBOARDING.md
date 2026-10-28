@@ -38,6 +38,7 @@ Do not automatically initialize arbitrary repositories just because a user has p
 - Missing write permission: read-only screen with explanation.
 - Unsupported default branch / protected `main`: show an actionable compatibility error, not a spin loop.
 - Personal repo owned by someone else (repo `owner.type` is `User` and differs from the token's user): explain that team workspaces must live in a GitHub organization (ADR-018).
+- Org repo returns `404` for a valid token: say the token may be waiting for an org owner's approval, or may not include this repo. A pending token can read only public resources (S-05). Outside collaborators cannot use fine-grained PATs at all; tell them to ask for org membership.
 - Invalid workspace version: offer export/read-only diagnostics but no automatic destructive rewrite.
 - GitHub outage/rate limit: preserve current unsaved form and allow later manual retry.
 
@@ -54,4 +55,4 @@ Unverified: user-token and refresh-token lifetimes, PKCE behavior on the GitHub 
 
 ## Permissions / identity
 
-GitHub determines who can access or modify a repo; GitCRM has no independent identity provider, user table, or team membership registry. Team workspaces live in a GitHub organization, and each member creates their own fine-grained PAT with the organization as resource owner; the organization may require owner approval (ADR-018). Check `GET /user` identity when a token is submitted; do not trust the user-supplied repository name as evidence of authorization.
+GitHub determines who can access or modify a repo; GitCRM has no independent identity provider, user table, or team membership registry. Team workspaces live in a GitHub organization, and each member creates their own fine-grained PAT with the organization as resource owner; the organization may require owner approval (ADR-018). Every teammate must be an org member: GitHub does not let outside or repository collaborators use fine-grained PATs (S-05). The organization may also set a maximum token lifetime. Check `GET /user` identity when a token is submitted; do not trust the user-supplied repository name as evidence of authorization.
