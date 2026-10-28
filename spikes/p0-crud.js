@@ -43,7 +43,7 @@ async function multiFileCommit(gh, base, branch, entries, message) {
   const commit = await gh('POST', `${base}/git/commits`, { message, tree: tree.json.sha, parents: [head.sha] });
   if (commit.status !== 201) return { ok: false, detail: `commits status ${commit.status}: ${commit.json?.message}`, ms: elapsed() };
   const ref = await gh('PATCH', `${base}/git/refs/heads/${branch}`, { sha: commit.json.sha, force: false });
-  return { ok: ref.status === 200, detail: `ref status ${ref.status}`, ms: elapsed() };
+  return { ok: ref.status === 200, detail: `ref status ${ref.status}${ref.json?.message ? `: ${ref.json.message}` : ''}`, ms: elapsed() };
 }
 
 async function checkWrites(gh, record, owner, repo, base, branch) {
@@ -120,6 +120,10 @@ export async function runChecks({ token, owner, repo, record }) {
   if (info.private !== true) return;
   record('Default branch readable', Boolean(info.default_branch), `default_branch=${info.default_branch}, owner.type=${info.owner?.type}, permissions=${JSON.stringify(info.permissions)}`);
   record('Rate-limit header visible', meta.rateRemaining !== null, `x-ratelimit-remaining=${meta.rateRemaining}`);
+
+  // An unreferenced blob changes no branch: a candidate connect-time check for write access (S-08).
+  const probe = await gh('POST', `${base}/git/blobs`, { content: 'gitcrm write check', encoding: 'utf-8' });
+  record('Write check: POST git/blobs', probe.status === 201, `status ${probe.status}${probe.json?.message ? `: ${probe.json.message}` : ''}`, probe.ms);
 
   const branch = info.default_branch;
   try {

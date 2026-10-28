@@ -16,8 +16,8 @@ See the S-01 record in `docs/12-RISKS-AND-OPEN-QUESTIONS.md`.
 3. From the repo root, run `python3 -m http.server 8000 --directory spikes`.
 4. Open `http://localhost:8000/p0-crud.html`, enter `owner/gitcrm-spike` and the PAT, then click **Run checks**.
 5. Copy the "Results JSON" block and share it. It contains no token.
-6. Optional, for S-08: create a second token from the same link with `contents=read` in place of `contents=write`. Run the checks with it and share that Results JSON too. The writes should fail; the results show what a read-only token returns.
-7. Delete the PATs when you are done.
+6. Optional, for S-08: edit the token and set Contents to Read-only. Reload the page, run the checks again, and share that Results JSON too. The writes should fail; the results show what a read-only token returns.
+7. Delete the PAT when you are done.
 
 The page writes only under `spike/` in the test repo and removes those files at the end.
 

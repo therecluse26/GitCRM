@@ -4,15 +4,15 @@ Build in **small vertical slices**. The first meaningful release must prove the 
 
 ## Phase 0 - technical viability (must pass first)
 
-- [ ] Create disposable private test repo and repo-restricted fine-grained PAT.
-- [ ] Verify browser `fetch` to GitHub REST for repo metadata, blob reads, one create, update with SHA, delete with SHA. Semantics verified from Node with an OAuth token (S-02); a browser run with a fine-grained PAT is pending.
-- [ ] Verify the PAT route end to end in a real browser (ADR-008).
+- [x] Create disposable private test repo and repo-restricted fine-grained PAT.
+- [x] Verify browser `fetch` to GitHub REST for repo metadata, blob reads, one create, update with SHA, delete with SHA (S-02, OAuth from Node, then a fine-grained PAT in Chrome).
+- [x] Verify the PAT route end to end in a real browser (ADR-008; S-02 browser run).
 - [x] Check whether GitHub supports URL parameters that pre-fill the fine-grained PAT form (S-07: yes, except repository selection).
 - [ ] Verify fine-grained PATs for org members, including the org's PAT approval policy (ADR-018, R-11).
 - [x] Read GitHub's current Terms of Service, API terms, and Acceptable Use Policies for storing app data in private repos through the API; record findings in `docs/12-RISKS-AND-OPEN-QUESTIONS.md` (S-05: nothing forbids the design).
-- [ ] Validate `private: true`, `main`, branch protection, permission failures. Done with an OAuth token (S-08), except a branch that requires pull requests (needs a paid plan or a public test repo); a read-only fine-grained PAT is pending.
+- [ ] Validate `private: true`, `main`, branch protection, permission failures. Done with an OAuth token (S-08), except a branch that requires pull requests (needs a paid plan or a public test repo); a read-only fine-grained PAT is pending. The repo's `permissions` field shows the user's role, not the token's (S-02 browser run).
 - [x] Benchmark initial and incremental load at 100/500/2000 docs (S-04: chunked GraphQL meets the targets; ADR-022; rollup not needed): GraphQL tree walk first, then per-blob (`docs/04-GITHUB-INTEGRATION.md`; the archive is ruled out by S-01). Check results against the targets in `docs/06-SEARCH-AND-PERFORMANCE.md`. Decide whether to build the verified rollup (ADR-016); if yes, test custom-ref create and force-update with a fine-grained PAT.
-- [ ] Verify a multi-file commit through the Git Trees/Commits APIs with a fine-grained PAT, including a non-forced ref update after `main` has moved (ADR-021). Works with an OAuth token (S-02); fine-grained PAT pending.
+- [x] Verify a multi-file commit through the Git Trees/Commits APIs with a fine-grained PAT, including a non-forced ref update after `main` has moved (ADR-021). Works with an OAuth token and with a fine-grained PAT that has only Contents: Read and write (S-02).
 - [x] Check whether GitHub's Git-over-HTTP endpoints accept browser CORS calls. They don't, so a browser shallow clone is ruled out (S-01).
 - [x] Confirm chosen static hosting provider permits intended use (S-06: Cloudflare Pages); never assume GitHub Pages can host commercial SaaS.
 - [ ] Record P0 spike findings in `docs/12-RISKS-AND-OPEN-QUESTIONS.md` and update ADRs.

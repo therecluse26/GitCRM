@@ -25,6 +25,9 @@ const out = document.getElementById('out');
 
 document.getElementById('form').addEventListener('submit', async (event) => {
   event.preventDefault();
+  // Two runs at once race each other on the branch, so allow one at a time.
+  const button = event.target.querySelector('button');
+  button.disabled = true;
   out.textContent = '';
   const results = [];
   const record = (name, ok, detail = '', ms = 0) => {
@@ -39,6 +42,7 @@ document.getElementById('form').addEventListener('submit', async (event) => {
   }
   const report = { spike: 'S-02', runner: navigator.userAgent, when: new Date().toISOString(), results };
   out.textContent += `\nResults JSON (safe to share; it contains no token):\n${JSON.stringify(report, null, 2)}\n`;
+  button.disabled = false;
 });
 </script>
 </html>

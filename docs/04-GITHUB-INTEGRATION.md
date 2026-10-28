@@ -19,7 +19,7 @@ Read and modify **only the selected private repository** from a static browser c
 | Resolve head for consistency | `GET /repos/{owner}/{repo}/git/ref/heads/main` and commit/tree lookup |
 | Display commit confirmation | returned Contents API commit metadata |
 
-GitHub uses explicit content permissions for write operations. Request least privilege; do not ask for workflows permission. For the alpha, a fine-grained user PAT should be restricted to the one CRM repo with `Contents: Read and write` and implicit metadata read access. Confirm these permissions in a live spike.
+GitHub uses explicit content permissions for write operations. Request least privilege; do not ask for workflows permission. For the alpha, a fine-grained user PAT should be restricted to the one CRM repo with `Contents: Read and write` and implicit metadata read access. S-02's browser run confirmed these permissions cover every MVP call, including GraphQL and the delete path.
 
 ## Workspace snapshot algorithm (candidate)
 
@@ -45,7 +45,7 @@ Saves write to GitHub first, then update the in-memory store and IndexedDB. Afte
 
 Test in this order:
 
-1. **Chunked GraphQL tree walk (the first-load transport; measured in S-04, ADR-022).** First resolve `main` to a commit SHA and fetch the recursive tree. Then send GraphQL queries in which each alias reads one shard folder (`"<commitSha>:data/contacts/d1"`) and returns each file's `name`, `oid` (blob SHA), and blob `text`. Keep each query to about 100 files and run up to 10 in parallel. GitHub allows 60 s of GraphQL server time per minute, estimated from response time; keep the summed response time under 50 s per rolling minute, and wait when it is over (S-04 addendum). GitHub ends any request that takes over 10 seconds with `502` or `504`, and a timeout costs extra rate-limit points for the next hour. A single query timed out somewhere between 500 and 800 files (500 took 6.7 s; 800 failed), so never send one large query; on a 502, split that chunk and retry it once. Pinning every expression to one commit SHA keeps all records from the same commit. Results feed the IndexedDB cache directly. Spike S-01 confirmed browser CORS for GraphQL with an `Authorization` header, and S-02 confirmed the tree walk returns file text and blob SHAs (with an OAuth token). Unverified: GraphQL response size limits, and fine-grained PAT support for GraphQL.
+1. **Chunked GraphQL tree walk (the first-load transport; measured in S-04, ADR-022).** First resolve `main` to a commit SHA and fetch the recursive tree. Then send GraphQL queries in which each alias reads one shard folder (`"<commitSha>:data/contacts/d1"`) and returns each file's `name`, `oid` (blob SHA), and blob `text`. Keep each query to about 100 files and run up to 10 in parallel. GitHub allows 60 s of GraphQL server time per minute, estimated from response time; keep the summed response time under 50 s per rolling minute, and wait when it is over (S-04 addendum). GitHub ends any request that takes over 10 seconds with `502` or `504`, and a timeout costs extra rate-limit points for the next hour. A single query timed out somewhere between 500 and 800 files (500 took 6.7 s; 800 failed), so never send one large query; on a 502, split that chunk and retry it once. Pinning every expression to one commit SHA keeps all records from the same commit. Results feed the IndexedDB cache directly. Spike S-01 confirmed browser CORS for GraphQL with an `Authorization` header, and S-02 confirmed the tree walk returns file text and blob SHAs (with an OAuth token). S-02's browser run confirmed GraphQL works with a fine-grained PAT. Unverified: GraphQL response size limits.
 2. **Per-blob reads (baseline).** Git Trees plus one blob request per record.
 3. **Verified rollup (fallback, ADR-016);** see below.
 
@@ -85,7 +85,7 @@ One commit through the Git Trees/Commits APIs:
 3. `POST /repos/{owner}/{repo}/git/commits` with that tree and the current commit as parent.
 4. `PATCH /repos/{owner}/{repo}/git/refs/heads/main` with the new commit SHA and `force: false`.
 
-If step 4 fails because `main` moved, repeat from step 1 on the new `main`, a bounded number of times. After an ambiguous network failure in step 4, read `main` first: if it points to the new commit, the delete succeeded. This removes files from `main` only; it does **not** erase historical commits. Spike S-02 showed that a non-fast-forward update returns `422` ("Update is not a fast forward") and that the whole delete path takes about 2 seconds. GitHub's permissions page lists all four endpoints under `Contents` (S-05). Unverified: a live delete with a fine-grained PAT that has only `Contents: Read and write`.
+If step 4 fails because `main` moved, repeat from step 1 on the new `main`, a bounded number of times. After an ambiguous network failure in step 4, read `main` first: if it points to the new commit, the delete succeeded. This removes files from `main` only; it does **not** erase historical commits. Spike S-02 showed that a non-fast-forward update returns `422` ("Update is not a fast forward") and that the whole delete path takes about 2 seconds. GitHub's permissions page lists all four endpoints under `Contents` (S-05), and S-02's browser run confirmed the whole path works with a fine-grained PAT that has only `Contents: Read and write`.
 
 ## Rate limits and reliability
 

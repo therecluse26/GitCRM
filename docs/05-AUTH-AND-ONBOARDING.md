@@ -24,7 +24,7 @@ This is the supported route for the alpha and the public release (ADR-008). Its 
 2. Select "Connect existing private GitHub repository".
 3. Enter `owner/repo`. The app then shows a link to GitHub's token form, filled in for that owner with `Contents: Read and write` (S-07). The link cannot select the repo, so the instructions say to choose "Only select repositories" and pick it.
 4. Paste the new PAT.
-5. Verify repo `private = true` and `archived = false`, read its `default_branch` (any name, ADR-003), and confirm that content read/write is possible. `permissions.push` stays `true` on an archived repo (S-08). Unverified: whether `permissions` reflects a fine-grained PAT's own permissions.
+5. Verify repo `private = true` and `archived = false`, read its `default_branch` (any name, ADR-003), and confirm that content read/write is possible. `permissions.push` stays `true` on an archived repo (S-08). `permissions` shows the user's role on the repo, not the PAT's permissions (S-02 browser run), so it cannot detect a read-only token.
 6. Check for `.gitcrm/workspace.json`. If absent, show an explicit Initialize action.
 7. Enter workspace display name, write config, and open CRM.
 8. Show a readable "Connected to owner/repo" indicator and a Disconnect action that deletes the stored token and the record cache.
@@ -37,7 +37,7 @@ Do not automatically initialize arbitrary repositories just because a user has p
 - Expired or revoked token: prompt to reconnect; never retry indefinitely.
 - Missing write permission: read-only screen with explanation.
 - Archived repo (`archived = true`): read-only screen that says to unarchive the repo. Writes return `403` "Repository was archived so is read-only." (S-08).
-- Repo returns `404`: GitHub gives the same answer for a missing repo and a repo the token cannot see (S-08), so the message covers both.
+- Repo returns `404`: GitHub gives the same answer for a missing repo and a repo the token cannot see (S-08). The token also cannot see a repo it includes if it has no permissions (S-02 browser run). The message covers all three: check the name, that the token includes the repo, and that Contents is set to Read and write.
 - Unsupported default branch / protected `main`: show an actionable compatibility error, not a spin loop. Show it when a write fails, not from an up-front check: `protected: true` alone is compatible, because default protection only blocks force pushes and deletion. GitHub Free cannot protect private repos at all (S-08). Unverified: the error for a write to a branch that requires pull requests.
 - Personal repo owned by someone else (repo `owner.type` is `User` and differs from the token's user): explain that team workspaces must live in a GitHub organization (ADR-018).
 - Org repo returns `404` for a valid token: say the token may be waiting for an org owner's approval, or may not include this repo. A pending token can read only public resources (S-05). Outside collaborators cannot use fine-grained PATs at all; tell them to ask for org membership.

@@ -69,6 +69,20 @@ For each spike, write: **Date; hypothesis; exact repo/config; documented API beh
 - **Decision:** the write model works as designed. Blob-SHA preconditions stop silent overwrites (spec 07), and the non-forced ref update protects the ADR-021 delete. Single saves (0.7–0.8 s) meet the 2-second target. A cascade delete takes about 2 seconds, so the delete UI should show progress.
 - **Follow-up:** repeat from the browser page with a fine-grained PAT that has only Contents: Read and write. That confirms the Git Data API and GraphQL work with that permission, and that `PUT` and `PATCH` preflights pass. Then run S-03 and the load benchmark.
 
+#### S-02 browser run with a fine-grained PAT
+
+- **Date:** 2026-10-28, 18:19 EDT. Chrome 148 on Linux, `spikes/p0-crud.html` served from `127.0.0.1`. The owner ran it.
+- **Token:** fine-grained PAT, resource owner `therecluse26`, only `gitcrm-spike`, `Contents: Read and write` (metadata read comes with it), 7-day expiry. Created from the S-07 link.
+- **Results:** 14 of 14 checks passed, with the same responses as the OAuth run: `409` for a stale `sha`, `422` for a create on an existing path, `422` "Update is not a fast forward". A single save took 1.0–1.2 s, and a multi-file commit 2.1 s.
+- **Findings:**
+  - A browser can do every MVP call with this token: REST reads and writes, the Git Trees/Commits delete path (the ref update returned `200`), and GraphQL. The `PUT`, `PATCH`, and `POST` preflights pass.
+  - `PATCH git/refs` does not need the Workflows permission for ordinary files. `Contents: Read and write` is enough.
+  - The repo's `permissions` field showed `admin: true` for a token with only Contents. It shows the user's role on the repo, not the token's permissions, so it cannot detect a read-only token.
+  - First try: the token had the repo selected but no permissions, and `GET repo` returned `404`. Onboarding must name this cause next to "repo not selected".
+  - Second try: **Run checks** was clicked twice, and the two runs raced on `main`. GitHub refused each stale ref update with `422` and nothing was overwritten. The page now allows one run at a time.
+- **Decision:** the PAT route works end to end in a browser (ADR-008). The docs' permission request, `Contents: Read and write` only, is enough.
+- **Follow-up:** run the page with the same token set to `Contents: Read-only`, to see what a read-only token returns on writes (`spikes/README.md`, S-02 step 6). Unverified: whether browsers offer to save the PAT as a password.
+
 ### S-04: First-load transport benchmark (spike 3)
 
 - **Date:** 2026-10-27, 22:39–22:41 EDT.
@@ -175,7 +189,7 @@ GitHub allows 60 s of GraphQL server time per minute, and says to estimate it fr
   - A permission and level, such as `contents=write`. Write includes read, and contents comes with metadata read.
   - No parameter selects repositories.
 - **Decision:** the connection screen builds the link from the `owner/repo` the user typed: `?name=GitCRM+<repo>&description=<text>&target_name=<owner>&contents=write`. The user must still choose "Only select repositories" and pick the repo; onboarding says so. Proposal: leave out `expires_in`, so GitHub's 30-day default or the org's policy applies.
-- **Follow-up:** use the link in the S-02 browser run (`spikes/README.md`).
+- **Follow-up:** the owner created the S-02 browser-run token from this link (2026-10-28). The token first ended up with no permissions; it is not known whether the link failed to fill in Contents. Onboarding therefore tells users to check that Contents is set to Read and write.
 
 ### S-08: Repo checks and permission failures
 
@@ -207,7 +221,7 @@ GitHub allows 60 s of GraphQL server time per minute, and says to estimate it fr
   - GitHub Free allows branch protection and rulesets only on public repos (GitHub docs), so free users never meet a protected `main`. Default protection only blocks force pushes and branch deletion, which GitCRM never does, so `protected: true` alone is compatible.
   - Do not check protection up front: on a free private repo, `GET rules/branches/...` returns `403` without any permission problem. Show the compatibility error when a write fails.
 - **Follow-up:**
-  - The S-02 browser run checks what a fine-grained PAT returns in `permissions`, and what a read-only token returns on writes.
+  - The S-02 browser run showed that `permissions` reflects the user's role, not a fine-grained PAT's permissions. Still to run: what a read-only token returns on writes and on the write check.
   - Not tested: the error for a write to a branch that requires pull requests (needs a paid plan or a public test repo), and an empty repo with no commits.
 
 ## Most important product decision
