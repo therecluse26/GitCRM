@@ -29,6 +29,19 @@ GITCRM_SPIKE_TOKEN=<token> node spikes/run-node.js owner/gitcrm-spike
 
 Node does not enforce CORS, so use the browser page when CORS matters (S-01 already covers it).
 
+## S-04: First-load transport benchmark (done)
+
+See the S-04 record in `docs/12-RISKS-AND-OPEN-QUESTIONS.md`. To reproduce:
+
+```sh
+node spikes/gen-dataset.js 2000 ds-2000      # then push it as branch bench-2000 of the spike repo
+GITCRM_SPIKE_TOKEN=<token> node spikes/bench-load.js owner/gitcrm-spike bench-100 bench-500 bench-2000
+# GraphQL-only tuning run, a few REST requests:
+BENCH_CHUNKED_ONLY=1 CHUNK_DIRS=25 CHUNK_CONCURRENCY=10 GITCRM_SPIKE_TOKEN=<token> node spikes/bench-load.js owner/gitcrm-spike bench-2000
+```
+
+A full run spends about 2,600 REST requests (the per-blob transport) out of the hourly 5,000.
+
 ## S-03: Fine-grained PATs for org members (ADR-018, R-11)
 
 This needs two GitHub accounts: A (owner) and B (member).

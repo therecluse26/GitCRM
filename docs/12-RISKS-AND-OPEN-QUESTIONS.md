@@ -5,7 +5,7 @@ These are **real unresolved dependencies**, not minor TODOs. The docs deliberate
 | ID | Impact | Question / risk | Required validation | Fallback |
 | --- | --- | --- | --- | --- |
 | R-01 | High | PAT setup friction limits adoption by less technical users | Usability test of the PAT setup instructions with target users | Accepted for now (ADR-008); GitHub App sign-in through a broker if demand appears (ADR-009, deferred) |
-| R-02 | High | First load of thousands of JSON files may consume excessive GitHub requests | Benchmark the GraphQL tree walk and Git Trees + blob fetches (archive ruled out, S-01); incremental SHA caching | Verified rollup (ADR-016); otherwise limit published supported dataset size |
+| R-02 | High | First load of thousands of JSON files may consume excessive GitHub requests | Benchmark the GraphQL tree walk and Git Trees + blob fetches (archive ruled out, S-01); incremental SHA caching | Measured (S-04): chunked GraphQL loads 2,000 records in ~5 s. Fallbacks: verified rollup (ADR-016), then a published size limit |
 | R-03 | High | GitHub Pages disallows sites primarily providing commercial SaaS | Select compliant static provider; verify policies | Host-agnostic build (ADR-010): move the official copy to any compliant static host |
 | R-04 | High | Small concurrent edits can conflict | Two-client live proof; GitHub Contents API SHA behavior | Conflict UI, serialize/retry nonoverlapping writes conservatively |
 | R-05 | High | User may accidentally expose repository or token | Visibility checks, narrow scopes, browser security review | Fail closed; disclose and direct to rotate/restrict |
@@ -68,6 +68,36 @@ For each spike, write: **Date; hypothesis; exact repo/config; documented API beh
 - **Threat/privacy assessment:** test data only; the token was never printed or stored.
 - **Decision:** the write model works as designed. Blob-SHA preconditions stop silent overwrites (spec 07), and the non-forced ref update protects the ADR-021 delete. Single saves (0.7–0.8 s) meet the 2-second target. A cascade delete takes about 2 seconds, so the delete UI should show progress.
 - **Follow-up:** repeat from the browser page with a fine-grained PAT that has only Contents: Read and write. That confirms the Git Data API and GraphQL work with that permission, and that `PUT` and `PATCH` preflights pass. Then run S-03 and the load benchmark.
+
+### S-04: First-load transport benchmark (spike 3)
+
+- **Date:** 2026-10-27, 22:39–22:41 EDT.
+- **Hypothesis:** a GraphQL tree walk loads a full snapshot much faster, and with far fewer rate-limited requests, than per-blob REST reads.
+- **Config:** `therecluse26/gitcrm-spike`, branches `bench-100`, `bench-500`, `bench-2000` made by `spikes/gen-dataset.js` (deterministic; 10% companies, 25% contacts, 10% opportunities, 15% tasks, 40% activities; note bodies 100–1,500 characters). 2,000 records are about 1.2 MB of JSON. Node 24.15 via `spikes/bench-load.js`, `gh` OAuth token, one run per setting, from one home connection.
+- **Steps:** for each branch, resolve the head commit, then load the full snapshot four ways. Times include resolving the head (about 0.4 s).
+- **Results (full snapshot, wall-clock):**
+
+| Transport | 100 records | 500 records | 2,000 records |
+| --- | --- | --- | --- |
+| GraphQL, one query for everything | 3.2 s | 6.7 s | **Fails:** HTTP 502 after ~10.4 s |
+| GraphQL, one query per type, in parallel | 1.4 s | 6.0 s | **Fails** for activities (800 records): 502 after ~10.8 s |
+| GraphQL, 100 shard folders per query, 3 in parallel | 3.3 s | 5.8 s | 15.4 s (10 queries) |
+| GraphQL, 50 folders per query, 8 in parallel | — | 3.8 s | 9.1 s (19 queries) |
+| **GraphQL, 25 folders per query, 10 in parallel** | — | **3.1 s** | **5.1 s** (38 queries, slowest 2.1 s) |
+| Per-blob REST, 8 in parallel | 3.4 s (104 requests) | 12.5 s (504) | 47.7 s (2,004 requests) |
+
+| Other measurement | Result |
+| --- | --- |
+| Warm cache, `main` unchanged (`GET` ref) | ~0.2 s |
+| Sync after one edit (ref, commit, recursive tree, one blob) | ~0.8–1.0 s |
+| Recursive tree at 2,000 records | 0.28 s, 741 KB, not truncated |
+| In-memory search at 2,000 records | ~0.15 ms per search |
+| GraphQL rate-limit cost | 1 point per query |
+| Bytes for 2,000 records | ~2.2 MB via GraphQL, ~2.9 MB per-blob (base64) |
+
+- **Threat/privacy assessment:** generated data only; the token was never printed or stored.
+- **Decision (proposed as ADR-022):** load the first snapshot with chunked GraphQL, at about 50 files per query (from the recursive tree) and 10 queries in parallel, all pinned to one commit. Per-blob REST is fine for small syncs. Per-blob REST is not viable for first loads: at 2,000 records it takes 48 s and spends 40% of the hourly 5,000-request limit. The verified rollup (ADR-016) is not needed at the target scale. Any single GraphQL query must stay well under ~10 s of server time; on a 502 the app splits that chunk and retries once.
+- **Follow-up:** confirm in a browser with a fine-grained PAT (S-02 follow-up). Single runs from one location, so variance is unknown; repeat before treating the numbers as stable.
 
 ## Most important product decision
 

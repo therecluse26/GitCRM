@@ -27,6 +27,7 @@ ChatGPT drafted the original entries. The owner reviewed every entry on 2026-10-
 | ADR-019 | accepted | Pipeline stages are editable in the MVP: rename, reorder, add, and remove when unused. `won` and `lost` always exist. Stage IDs never change | Owner decision 2026-10-27. Edits touch only `.gitcrm/workspace.json`, so no record migration is needed |
 | ADR-020 | accepted | Typed custom fields ship first after the MVP. Schema v1 reserves an optional `customFields` object on contacts, companies, and opportunities; the MVP keeps those values on save and in exports | Owner decision 2026-10-27. Keeps the MVP smaller and avoids a record migration later. Design in `docs/02-DATA-MODEL.md` |
 | ADR-021 | accepted | Delete cascades in one commit: tasks and activities related to the record are deleted; contacts, companies, and opportunities that link to it are unlinked, never deleted. Archived records count. A preview lists every change first. Uses the Git Trees/Commits APIs with a non-forced ref update | Owner decision 2026-10-27. One commit instead of one per link; no dangling links; removes notes about the deleted record from `main` |
+| ADR-022 | proposed | First-load transport: chunked GraphQL tree walk, about 50 files per query from the recursive tree, 10 queries in parallel, pinned to one commit. Per-blob REST only for small syncs. Do not build the verified rollup at the target scale | Spike S-04, 2026-10-27: 2,000 records in ~5 s vs 48 s per-blob; 1 GraphQL point per query; a single large query fails with 502 after ~10 s. Awaiting owner confirmation |
 
 ## Decision process
 
@@ -35,6 +36,6 @@ For changes to a product invariant: state the requirement, propose at least one 
 ## Not yet decided
 
 - Whether GitCRM is commercial (affects host terms and privacy disclosures).
-- Snapshot transport after spike (3): GraphQL or per-blob (archive ruled out, S-01); and whether to build the verified rollup (ADR-016) and when it is rewritten.
+- Confirm ADR-022 (first-load transport, measured in S-04).
 - Whether default record export should additionally include a single portable ZIP in MVP.
 - When, if ever, to ship a local history-purge utility.
