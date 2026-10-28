@@ -44,13 +44,13 @@ A full run spends about 2,600 REST requests (the per-blob transport) out of the 
 
 ## S-03: Fine-grained PATs for org members (ADR-018, R-11)
 
-This needs two GitHub accounts: A (owner) and B (member).
+This needs two GitHub accounts, A (owner) and B (member), **held by two different people**. GitHub's terms allow one free account per person; the one extra machine account they allow is only for automated tasks. Ask a colleague or friend to be B.
 
 1. As A, create a free organization. In it, create a private repo `gitcrm-spike-org` with a README.
 2. Invite B to the organization, and give B write access to the repo.
 3. As B, start a fine-grained PAT. **Record:** does the organization appear under Resource owner? Select it, select only the repo, and set Contents: Read and write.
 4. **Record:** does the token show "pending approval"? If it does, approve it as A under the organization's Settings > Personal access tokens > Pending requests.
 5. Run the S-02 page with B's token against `<org>/gitcrm-spike-org`.
-6. R-11 check: as A, create a personal private repo `gitcrm-spike-personal` and add B as a collaborator. As B, start a fine-grained PAT. **Record:** can B select A as Resource owner, or select that repo at all?
+6. Optional, because GitHub's docs already answer R-11 (S-05): as A, create a personal private repo `gitcrm-spike-personal` and add B as a collaborator. As B, start a fine-grained PAT. **Record:** can B select A as Resource owner, or select that repo at all?
 
 Share the answers to steps 3, 4, and 6, plus the S-02 results JSON from step 5.

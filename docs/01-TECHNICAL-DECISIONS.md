@@ -27,7 +27,7 @@ ChatGPT drafted the original entries. The owner reviewed every entry on 2026-10-
 | ADR-019 | accepted | Pipeline stages are editable in the MVP: rename, reorder, add, and remove when unused. `won` and `lost` always exist. Stage IDs never change | Owner decision 2026-10-27. Edits touch only `.gitcrm/workspace.json`, so no record migration is needed |
 | ADR-020 | accepted | Typed custom fields ship first after the MVP. Schema v1 reserves an optional `customFields` object on contacts, companies, and opportunities; the MVP keeps those values on save and in exports | Owner decision 2026-10-27. Keeps the MVP smaller and avoids a record migration later. Design in `docs/02-DATA-MODEL.md` |
 | ADR-021 | accepted | Delete cascades in one commit: tasks and activities related to the record are deleted; contacts, companies, and opportunities that link to it are unlinked, never deleted. Archived records count. A preview lists every change first. Uses the Git Trees/Commits APIs with a non-forced ref update | Owner decision 2026-10-27. One commit instead of one per link; no dangling links; removes notes about the deleted record from `main` |
-| ADR-022 | proposed | First-load transport: chunked GraphQL tree walk pinned to one commit, about 100 files per query (from the recursive tree), up to 10 queries in parallel. GraphQL time budget: at most 50 s of summed response time per rolling 60 s, then wait. Per-blob REST only for small syncs. Do not build the verified rollup at the target scale | Spike S-04, 2026-10-27/28: 2,000 records in 5–9 s vs 48 s per-blob; ~47 s of GraphQL response time, near GitHub's limit of 60 s per minute (S-05); a single large query fails with 502 after ~10 s, and timeouts cost extra points. Awaiting owner confirmation |
+| ADR-022 | accepted | First-load transport: chunked GraphQL tree walk pinned to one commit, about 100 files per query (from the recursive tree), up to 10 queries in parallel. GraphQL time budget: at most 50 s of summed response time per rolling 60 s, then wait. Per-blob REST only for small syncs. Do not build the verified rollup at the target scale | Owner decision 2026-10-28. Spike S-04, 2026-10-27/28: 2,000 records in 5–9 s vs 48 s per-blob; ~47 s of GraphQL response time, near GitHub's limit of 60 s per minute (S-05); a single large query fails with 502 after ~10 s, and timeouts cost extra points |
 | ADR-023 | accepted | Rate-limit budget guard and one syncing tab: below 500 remaining REST requests, pause background checks; honor `retry-after`; one tab per workspace (chosen with Web Locks) checks `main` and shares results over `BroadcastChannel` | Owner decision 2026-10-28. Keeps normal use at a few percent of the hourly budget, and stops a runaway loop or many open tabs from exhausting it |
 
 ## Decision process
@@ -37,7 +37,6 @@ For changes to a product invariant: state the requirement, propose at least one 
 ## Not yet decided
 
 - Whether GitCRM is commercial (affects host terms and privacy disclosures).
-- Confirm ADR-022 (first-load transport, measured in S-04).
 - Which static host serves the official copy. S-05 suggests not GitHub Pages, because users enter a PAT on the page.
 - Whether default record export should additionally include a single portable ZIP in MVP.
 - When, if ever, to ship a local history-purge utility.
