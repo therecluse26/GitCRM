@@ -24,8 +24,9 @@
 - `related` points only to a contact, a company, or an opportunity.
 - Stage IDs and custom field IDs use lowercase letters, digits, `-`, and `_`, up to 64 characters.
 - A file over 100 KiB is an issue and is not parsed (the size cap in `docs/07`).
-- Issue codes: `too-large`, `invalid-json`, `unsupported-version` (a newer `schemaVersion`), `invalid-record`, `path-mismatch` (the type or ID differs from the path), and `unrecognized-path` (a file under `data/` outside the layout).
-- Not yet checked: links between records, such as a dangling ID or an unknown `stageId`. These checks need the whole snapshot, so they come with the record UI.
+- Issue codes: `too-large`, `invalid-json`, `unsupported-version` (a newer `schemaVersion`), `invalid-record`, `path-mismatch` (the type or ID differs from the path), `unrecognized-path` (a file under `data/` outside the layout), and `broken-link`.
+- `broken-link` (`src/core/links.ts`): a `companyId`, `contactIds` entry, or `related` link names no record of that type in the snapshot. An archived record counts as present. The record still loads, and Settings lists the issue. The UI offers only existing records, so it cannot create a broken link.
+- Not yet checked: an unknown `stageId`. That check comes with the opportunity screens.
 
 ## Workspace configuration
 

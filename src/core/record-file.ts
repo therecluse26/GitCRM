@@ -7,7 +7,8 @@ import { recordSchemas, workspaceSchema, type CRMRecord, type WorkspaceConfig } 
 // Size cap for one file (docs/07); a larger file is reported, not parsed.
 export const MAX_FILE_BYTES = 100 * 1024;
 
-export type FileIssueCode = 'too-large' | 'invalid-json' | 'unsupported-version' | 'invalid-record' | 'path-mismatch' | 'unrecognized-path';
+// 'broken-link' (core/links.ts) is the one code whose record still loads.
+export type FileIssueCode = 'too-large' | 'invalid-json' | 'unsupported-version' | 'invalid-record' | 'path-mismatch' | 'unrecognized-path' | 'broken-link';
 export type FileIssue = { path: string; code: FileIssueCode; message: string };
 
 type Failure = { ok: false; issue: FileIssue };

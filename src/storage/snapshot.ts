@@ -1,5 +1,6 @@
 // Reads main into a validated in-memory snapshot with the chunked GraphQL tree walk (ADR-022).
 // Every expression is pinned to one commit SHA, so all records come from the same commit.
+import { linkIssues } from '../core/links.ts';
 import { parseRecordPath, WORKSPACE_PATH } from '../core/paths.ts';
 import { parseRecordFile, parseWorkspaceFile, unrecognizedPath, type FileIssue } from '../core/record-file.ts';
 import { base64ToUtf8 } from './encoding.ts';
@@ -116,6 +117,7 @@ function buildSnapshot(commitSha: string | null, files: Map<string, CachedFile>)
       else issues.push(parsed.issue);
     }
   }
+  issues.push(...linkIssues(records));
   const byPath = (a: { path: string }, b: { path: string }) => (a.path < b.path ? -1 : 1);
   return { commitSha, workspace, records: records.sort(byPath), issues: issues.sort(byPath) };
 }

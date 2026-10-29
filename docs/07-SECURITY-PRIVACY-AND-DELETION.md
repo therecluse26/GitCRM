@@ -15,10 +15,11 @@ CRM records contain personal or commercially sensitive information. A private re
 | Overbroad token scope | Fine-grained repo-restricted token; instructions to expire/revoke |
 | Unauthorized collaborator access | GitHub repo permissions; onboarding explains collaborator access |
 | Accidental overwrite | Blob SHA preconditions, conflict UI |
-| Malformed or malicious JSON | Runtime schema checks, size caps, treat text as text rather than trusted HTML |
+| Malformed or malicious JSON | Runtime schema checks, size caps, treat text as text rather than trusted HTML; a `website` must be `http` or `https`, so a stored `javascript:` link is refused |
 | Corrupt/partial export | Validate all files and fail closed on partial snapshot |
 | Sensitive information in history | Ordinary delete vs. purge distinction, clear warnings |
 | Exposure through logs/telemetry | No third-party analytics by default; redact payloads and bearer tokens |
+| CRM data in browser history | Browsers keep URLs in history, and some sync it to the browser vendor. URLs hold record IDs only, never names, emails, or search text; the page title stays "GitCRM" |
 | Supply-chain compromise | Lockfiles, dependency review, CI scans, static-host integrity checks; `.npmrc` installs only versions at least 14 days old, and any exception is pinned and explained there |
 | Compromised auth broker (only if ADR-009 is revived) | Stateless, no database; holds only the client secret; logs no codes or tokens; small reviewed codebase; secret rotation plan |
 

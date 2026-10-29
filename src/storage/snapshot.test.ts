@@ -80,6 +80,14 @@ describe('loadSnapshot', () => {
     ]);
   });
 
+  it('loads a record with a broken link and reports the link as an issue', async () => {
+    const orphan = { ...contact(1), companyId: 'a28a8fb0-52c6-493d-9a11-99a4f0b8a6cf' };
+    await github().seed(recordPath('contact', orphan.id), serializeRecord(orphan));
+    const { snapshot } = await load();
+    expect(snapshot.records).toHaveLength(1);
+    expect(snapshot.issues).toEqual([expect.objectContaining({ path: recordPath('contact', orphan.id), code: 'broken-link' })]);
+  });
+
   it('reads at most about 100 files per GraphQL query', async () => {
     await seedContacts(250);
     const { snapshot } = await load();
