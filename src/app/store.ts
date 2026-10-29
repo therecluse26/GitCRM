@@ -4,14 +4,17 @@ import { create } from 'zustand';
 import { assessRepository, describeConnectError, inspectRepository, type Access } from '../auth/connect.ts';
 import { forgetConnection, readSavedConnection, saveConnection, type SavedConnection } from '../auth/credentials.ts';
 import { WORKSPACE_PATH } from '../core/paths.ts';
-import { serializeWorkspace } from '../core/record-file.ts';
+import { serializeRecord, serializeWorkspace } from '../core/record-file.ts';
+import type { CRMRecord } from '../core/schemas.ts';
 import { newWorkspaceConfig } from '../core/workspace.ts';
+import { DEFAULT_LIST_VIEW, type ListView } from '../features/list-query.ts';
 import { createGitHubClient, GitHubError } from '../storage/github-client.ts';
 import { createGitHubWorkspace } from '../storage/github-workspace.ts';
 import { stateForError, type OperationState } from '../storage/operation-state.ts';
+import { ConflictError } from '../storage/errors.ts';
 import { createRecordCache } from '../storage/record-cache.ts';
 import { snapshotFromFiles, type SnapshotFiles } from '../storage/snapshot.ts';
-import type { WorkspaceRepository, WorkspaceSnapshot } from '../storage/workspace-repository.ts';
+import type { VersionedRecord, WorkspaceRepository, WorkspaceSnapshot } from '../storage/workspace-repository.ts';
 
 export type Screen =
   | { name: 'starting' }
@@ -38,21 +41,38 @@ export type AppState = {
   snapshot: WorkspaceSnapshot | null;
   files: SnapshotFiles | null; // what the record cache holds
   sync: OperationState;
+  saving: boolean; // one write at a time (docs/04: keep mutating calls serialized)
+  lastSave: { commitSha: string | null } | null;
+  // List filters stay in memory, not in the URL: browsers keep URLs in history, and some sync it.
+  lists: Record<'contact' | 'company', ListView>;
   start(): Promise<void>;
   connect(credentials: Credentials): Promise<void>;
   refresh(): Promise<void>;
   initialize(input: { name: string; defaultCurrency: string }): Promise<void>;
+  // Creates the record when expectedBlobSha is null; otherwise updates it from that version.
+  saveRecord<R extends CRMRecord>(record: R, expectedBlobSha: string | null): Promise<VersionedRecord<R>>;
+  setListView(type: keyof AppState['lists'], changes: Partial<ListView>): void;
   disconnect(): Promise<void>;
 };
 
 // Saves need a write-capable token and a finished sync (docs/04, "Page load with a cached snapshot").
-export const selectCanWrite = (state: AppState) => state.session?.access.kind === 'write' && state.sync.status === 'loaded';
+export const selectCanWrite = (state: AppState) => state.session?.access.kind === 'write' && state.sync.status === 'loaded' && !state.saving;
+// Nothing can be saved until a refresh succeeds: a read-only token, or cached records shown after a failed sync.
+export const selectReadOnly = (state: AppState) => state.session?.access.kind === 'read-only' || 'message' in state.sync;
 
 class RefusedError extends Error {}
 
 const cache = createRecordCache();
 const cacheKey = ({ owner, repo }: { owner: string; repo: string }) => `${owner}/${repo}`.toLowerCase();
-const cleared = { session: null, snapshot: null, files: null, sync: { status: 'idle' } } satisfies Partial<AppState>;
+const cleared = {
+  session: null,
+  snapshot: null,
+  files: null,
+  sync: { status: 'idle' },
+  saving: false,
+  lastSave: null,
+  lists: { contact: DEFAULT_LIST_VIEW, company: DEFAULT_LIST_VIEW },
+} satisfies Partial<AppState>;
 let started = false; // StrictMode runs effects twice in development
 
 export const useApp = create<AppState>()((set, get) => {
@@ -131,8 +151,8 @@ export const useApp = create<AppState>()((set, get) => {
 
     async refresh() {
       const { credentials, files } = get();
-      if (!credentials) return;
-      set({ sync: { status: 'loading' } });
+      if (!credentials || get().saving) return;
+      set({ sync: { status: 'loading' }, lastSave: null });
       try {
         await establish(credentials, files);
       } catch (error) {
@@ -150,6 +170,36 @@ export const useApp = create<AppState>()((set, get) => {
         files: new Map(files?.files).set(WORKSPACE_PATH, { blobSha: saved.blobSha, text: serializeWorkspace(config), isTruncated: false }),
       };
       show(snapshotFromFiles(next), next);
+    },
+
+    async saveRecord(record, expectedBlobSha) {
+      const { session } = get();
+      if (!session || !selectCanWrite(get())) throw new Error('GitCRM cannot save right now');
+      set({ saving: true });
+      let saved: VersionedRecord<typeof record>;
+      try {
+        saved = expectedBlobSha === null ? await session.workspace.createRecord(record) : await session.workspace.updateRecord(record, expectedBlobSha);
+      } catch (error) {
+        set({ saving: false });
+        // GitHub has a newer version: load it for the rest of the app (ARCHITECTURE, "Write path").
+        // The form keeps its own copy, so the user's changes stay.
+        if (error instanceof ConflictError && get().session === session) void get().refresh();
+        throw error;
+      }
+      set({ saving: false });
+      if (get().session !== session) return saved; // disconnected while saving
+      // main may now hold other people's commits too, so the next load compares blob SHAs (docs/04).
+      const next: SnapshotFiles = {
+        commitSha: null,
+        files: new Map(get().files?.files).set(saved.path, { blobSha: saved.blobSha, text: serializeRecord(record), isTruncated: false }),
+      };
+      show(snapshotFromFiles(next), next);
+      set({ lastSave: { commitSha: saved.commitSha } });
+      return saved;
+    },
+
+    setListView(type, changes) {
+      set({ lists: { ...get().lists, [type]: { ...get().lists[type], ...changes } } });
     },
 
     async disconnect() {

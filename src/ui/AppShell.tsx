@@ -9,6 +9,8 @@ import { Button } from '@/components/ui/button';
 
 const NAV = [
   { to: '/', label: 'Home' },
+  { to: '/contacts', label: 'Contacts' },
+  { to: '/companies', label: 'Companies' },
   { to: '/settings', label: 'Settings' },
 ] as const;
 
@@ -17,6 +19,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const workspaceName = useApp((s) => s.snapshot?.workspace?.config.name);
   const access = useApp((s) => s.session?.access);
   const sync = useApp((s) => s.sync);
+  const saving = useApp((s) => s.saving);
+  const lastSave = useApp((s) => s.lastSave);
 
   return (
     <div className="flex min-h-svh flex-col bg-background">
@@ -30,9 +34,27 @@ export function AppShell({ children }: { children: ReactNode }) {
           </span>
           {access?.kind === 'read-only' && <Badge variant="secondary">Read-only</Badge>}
           <span role="status" className="text-muted-foreground">
-            {sync.status === 'loading' ? 'Syncing…' : sync.status === 'loaded' ? 'Up to date' : 'Not synced'}
+            {sync.status === 'loading' ? (
+              'Syncing…'
+            ) : saving ? (
+              'Saving…'
+            ) : lastSave ? (
+              <>
+                Saved
+                {lastSave.commitSha && (
+                  <>
+                    {' · '}
+                    <a className="underline" href={`https://github.com/${repoName}/commit/${lastSave.commitSha}`} target="_blank" rel="noopener noreferrer">View commit</a>
+                  </>
+                )}
+              </>
+            ) : sync.status === 'loaded' ? (
+              'Up to date'
+            ) : (
+              'Not synced'
+            )}
           </span>
-          <Button variant="outline" size="sm" disabled={sync.status === 'loading'} onClick={() => void useApp.getState().refresh()}>
+          <Button variant="outline" size="sm" disabled={sync.status === 'loading' || saving} onClick={() => void useApp.getState().refresh()}>
             <RefreshCw aria-hidden />
             Refresh
           </Button>
@@ -41,7 +63,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className="flex flex-1 flex-col md:flex-row">
         <nav aria-label="Main" className="flex gap-1 border-b p-2 md:w-48 md:flex-col md:border-r md:border-b-0">
           {NAV.map(({ to, label }) => (
-            <Link key={to} to={to} className="rounded-md px-3 py-1.5 text-sm hover:bg-muted" activeProps={{ className: 'bg-muted font-medium' }} activeOptions={{ exact: true }}>
+            <Link key={to} to={to} className="rounded-md px-3 py-1.5 text-sm hover:bg-muted" activeProps={{ className: 'bg-muted font-medium' }} activeOptions={{ exact: to === '/' }}>
               {label}
             </Link>
           ))}

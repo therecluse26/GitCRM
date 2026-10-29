@@ -5,15 +5,8 @@ import { serializeRecord, serializeWorkspace } from '../src/core/record-file.ts'
 import { newRecord } from '../src/core/records.ts';
 import { newWorkspaceConfig } from '../src/core/workspace.ts';
 import type { FakeGitHub } from '../src/test/fake-github.ts';
+import { connect } from './connect-page.ts';
 import { routeFakeGitHub } from './fake-route.ts';
-
-async function connect(page: Page, fake: FakeGitHub, { remember = true, repo = fake.repo } = {}) {
-  await page.goto('/');
-  await page.getByLabel('Repository', { exact: true }).fill(`${fake.owner}/${repo}`);
-  await page.getByLabel('Fine-grained personal access token').fill(fake.token);
-  if (!remember) await page.getByRole('checkbox', { name: 'Remember on this device' }).click();
-  await page.getByRole('button', { name: 'Connect' }).click();
-}
 
 async function seedWorkspace(fake: FakeGitHub) {
   await fake.seed(WORKSPACE_PATH, serializeWorkspace(newWorkspaceConfig({ name: 'Example Studio', defaultCurrency: 'USD' })));

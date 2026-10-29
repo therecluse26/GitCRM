@@ -1,0 +1,27 @@
+// Filtering and sorting for record lists (spec 02): search in memory, archived records hidden
+// unless asked for (spec 06).
+
+export type ListView = { query: string; showArchived: boolean; sort: 'name' | 'updated' };
+export const DEFAULT_LIST_VIEW: ListView = { query: '', showArchived: false, sort: 'name' };
+
+type Listed = { id: string; name: string; updatedAt: string; archivedAt: string | null };
+
+// Case and accents do not matter: "zoe" finds "Zoë".
+const fold = (text: string) => text.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
+
+const compare = {
+  name: (a: Listed, b: Listed) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }) || (a.id < b.id ? -1 : 1),
+  updated: (a: Listed, b: Listed) => (a.updatedAt === b.updatedAt ? compare.name(a, b) : a.updatedAt > b.updatedAt ? -1 : 1),
+};
+
+// Every word of the query must appear in the record's search text. `hiddenArchived` counts the
+// archived records that match but are not shown.
+export function listRecords<R extends Listed>(records: R[], view: ListView, searchText: (record: R) => string[]): { shown: R[]; hiddenArchived: number } {
+  const words = fold(view.query).split(/\s+/).filter(Boolean);
+  const matching = records.filter((record) => {
+    const text = fold(searchText(record).join('\n'));
+    return words.every((word) => text.includes(word));
+  });
+  const shown = view.showArchived ? matching : matching.filter((record) => record.archivedAt === null);
+  return { shown: shown.sort(compare[view.sort]), hiddenArchived: matching.length - shown.length };
+}

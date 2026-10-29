@@ -4,9 +4,9 @@ import { useApp } from '@/app/store.ts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { RecordType } from '@/core/schemas.ts';
 
-const COUNTED: { type: RecordType; label: string }[] = [
-  { type: 'contact', label: 'Contacts' },
-  { type: 'company', label: 'Companies' },
+const COUNTED: { type: RecordType; label: string; to?: '/contacts' | '/companies' }[] = [
+  { type: 'contact', label: 'Contacts', to: '/contacts' },
+  { type: 'company', label: 'Companies', to: '/companies' },
   { type: 'opportunity', label: 'Opportunities' },
 ];
 
@@ -25,10 +25,18 @@ export function HomePage() {
         </p>
       )}
       <section aria-label="Active records" className="grid gap-4 sm:grid-cols-3">
-        {COUNTED.map(({ type, label }) => (
+        {COUNTED.map(({ type, label, to }) => (
           <Card key={type}>
             <CardHeader>
-              <CardTitle className="text-sm font-medium text-muted-foreground">{label}</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                {to ? (
+                  <Link to={to} className="underline">
+                    {label}
+                  </Link>
+                ) : (
+                  label
+                )}
+              </CardTitle>
             </CardHeader>
             <CardContent className="text-3xl font-semibold">{active(type)}</CardContent>
           </Card>

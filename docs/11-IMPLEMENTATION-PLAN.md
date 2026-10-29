@@ -32,7 +32,7 @@ Build in **small vertical slices**. The first meaningful release must prove the 
 ## Phase 2 - onboarding and core CRM
 
 - [x] Connection screen; private repo validation and initialization. Includes the remembered token and record cache (ADR-017) and Disconnect. Focus checks and one syncing tab (ADR-023) come with the record screens.
-- [ ] Contacts and companies CRUD + links.
+- [x] Contacts and companies CRUD + links. Includes archive and restore, list search and sort, the conflict compare panel (spec 07), the warning before leaving an unsaved form, and the `broken-link` check. Delete stays in Phase 3.
 - [ ] Opportunity CRUD + pipeline stage board/list + stage editor (ADR-019).
 - [ ] Tasks and manual activities with relational display.
 - [ ] Responsive navigation, save feedback, and validation UX.
@@ -43,7 +43,7 @@ Build in **small vertical slices**. The first meaningful release must prove the 
 
 - [ ] Search over current fully loaded snapshot.
 - [ ] Full JSON snapshot ZIP, per-entity CSV, data dictionary.
-- [ ] Archive, and delete with a cascade preview in one commit (ADR-021).
+- [ ] Delete with a cascade preview in one commit (ADR-021). Archive is built in Phase 2.
 - [ ] Browser and GitHub adapter failure-path E2E tests.
 - [ ] CSP and static bundle audits; accessibility pass.
 - [ ] Deploy the same build to Cloudflare Pages (the official copy) and GitHub Pages (ADR-010).
