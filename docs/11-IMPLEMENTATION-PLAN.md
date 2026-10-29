@@ -21,13 +21,13 @@ Build in **small vertical slices**. The first meaningful release must prove the 
 
 ## Phase 1 - minimal domain and storage
 
-- [ ] Set up the ADR-012 stack (React + TypeScript + Vite) with Vitest, MSW, and Playwright.
-- [ ] Define versioned record schemas and canonical serializer.
-- [ ] Implement path generation, GitHub adapter, and in-memory snapshot reader.
-- [ ] Implement explicit operation state and safe conflict/error mapping.
-- [ ] Write unit and adapter contract tests first.
+- [x] Set up the ADR-012 stack (React + TypeScript + Vite) with Vitest, MSW, and Playwright. Other ADR-012 libraries are added when a phase needs them.
+- [x] Define versioned record schemas and canonical serializer (`src/core/`; rules in `docs/02-DATA-MODEL.md`).
+- [x] Implement path generation, GitHub adapter, and in-memory snapshot reader (`src/storage/`; chunked GraphQL per ADR-022).
+- [x] Implement explicit operation state and safe conflict/error mapping (`src/storage/operation-state.ts`).
+- [x] Write unit and adapter contract tests first (Vitest against a fake GitHub served through MSW).
 
-**Exit:** a CLI-like developer test page can create/read/edit/delete one contact without data loss.
+**Exit:** a CLI-like developer test page can create/read/edit/delete one contact without data loss. Met on 2026-10-28 against the fake GitHub (`e2e/dev-page.spec.ts`). Still to do: a manual run of `dev.html` against a disposable private repo.
 
 ## Phase 2 - onboarding and core CRM
 

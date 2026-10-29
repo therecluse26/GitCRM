@@ -75,18 +75,24 @@ Build this only if spike (3) shows per-blob first loads are too expensive.
 
 ## Update record
 
-`PUT .../contents/...` with the prior blob `sha`. A stale `sha` returns `409` ("… does not match &lt;sha&gt;", spike S-02). On `409`/`422`, reload the document and offer an explicit compare/resolve flow. Do not overwrite other users by fetching a new SHA and retrying blindly.
+`PUT .../contents/...` with the prior blob `sha`. A stale `sha` returns `409` ("… does not match &lt;sha&gt;", spike S-02). On `409`/`422`, reload the document and offer an explicit compare/resolve flow. Do not overwrite other users by fetching a new SHA and retrying blindly. If the content is byte-for-byte unchanged, send nothing. Unverified: GitHub's answer when the `sha` names a file that someone deleted.
+
+## After a refused or lost write (create and update)
+
+- **`409` or `422`:** read the file again. If it still has the expected blob SHA (none, for a create), it is not a conflict: GitHub refused for another reason, such as branch protection, so show GitHub's error. Otherwise show a conflict with the remote version.
+- **No response (network failure):** the write may or may not have landed. Read the file, then compare its blob SHA with the Git blob SHA of the text the app sent, which the browser computes itself. The same SHA means the write landed. The expected SHA means it never arrived, so a retry is safe. Any other SHA is a conflict. If that read also fails, say the outcome is unknown and ask the user to reload first (spec 07).
+- Every GET uses `cache: 'no-store'`: GitHub lets browsers cache GETs for 60 seconds, and a cached ref or file would hide other people's saves.
 
 ## Delete record (ADR-021)
 
 One commit through the Git Trees/Commits APIs:
 
-1. Read `main`'s commit SHA. Confirm every affected file still has the blob SHA the app loaded; if not, show a conflict.
+1. Read `main`'s commit SHA. Confirm every affected file still has the blob SHA the app loaded (from the recursive tree, one request); if not, show a conflict.
 2. `POST /repos/{owner}/{repo}/git/trees` with `base_tree` set to that commit's tree. Entries with `sha: null` delete the record and its related tasks and activities; entries with `content` rewrite linking records without the link.
 3. `POST /repos/{owner}/{repo}/git/commits` with that tree and the current commit as parent.
 4. `PATCH /repos/{owner}/{repo}/git/refs/heads/main` with the new commit SHA and `force: false`.
 
-If step 4 fails because `main` moved, repeat from step 1 on the new `main`, a bounded number of times. After an ambiguous network failure in step 4, read `main` first: if it points to the new commit, the delete succeeded. This removes files from `main` only; it does **not** erase historical commits. Spike S-02 showed that a non-fast-forward update returns `422` ("Update is not a fast forward") and that the whole delete path takes about 2 seconds. GitHub's permissions page lists all four endpoints under `Contents` (S-05), and S-02's browser run confirmed the whole path works with a fine-grained PAT that has only `Contents: Read and write`.
+If step 4 fails because `main` moved, repeat from step 1 on the new `main`, up to 3 attempts in total. After an ambiguous network failure in step 4, read `main` first: if it points to the new commit, the delete succeeded. This removes files from `main` only; it does **not** erase historical commits. Spike S-02 showed that a non-fast-forward update returns `422` ("Update is not a fast forward") and that the whole delete path takes about 2 seconds. GitHub's permissions page lists all four endpoints under `Contents` (S-05), and S-02's browser run confirmed the whole path works with a fine-grained PAT that has only `Contents: Read and write`.
 
 ## Rate limits and reliability
 
@@ -101,4 +107,4 @@ If step 4 fails because `main` moved, repeat from step 1 on the new `main`, a bo
 
 ## Contract tests
 
-Use a mocked API client to assert request paths, Base64 encoding, `sha` preconditions, branch selection, error-state mapping, and no token leakage. One optional integration suite should run against a deliberately disposable **private test repository** using explicit credentials configured locally (not embedded in committed fixtures).
+Use a mocked API client to assert request paths, Base64 encoding, `sha` preconditions, branch selection, error-state mapping, and no token leakage. The mock is `src/test/fake-github.ts`: an in-memory repo that answers like the spikes recorded, with real Git blob SHAs and injectable faults (an error response, a lost response, or another user's save first). Vitest serves it through MSW, and Playwright through `page.route`. One optional integration suite should run against a deliberately disposable **private test repository** using explicit credentials configured locally (not embedded in committed fixtures).

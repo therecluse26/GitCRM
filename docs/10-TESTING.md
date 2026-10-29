@@ -6,9 +6,9 @@
 
 **Contract:** mocked GitHub API request/response sequences; handling changed SHA, missing repo, public visibility, missing scopes, rate limit, invalid tree, truncated tree, and partial fetch. No real GitHub credentials in source control.
 
-**E2E:** browser user flows with a fake repository adapter. An optional separate suite against a **disposable private GitHub repo** tests real API semantics, never production CRM data.
+**E2E:** browser user flows against the fake GitHub (`src/test/fake-github.ts`), so the real adapter runs in the browser. An optional separate suite against a **disposable private GitHub repo** tests real API semantics, never production CRM data.
 
-**Tools (ADR-012):** Vitest for unit and contract tests, MSW to mock the GitHub API, Playwright for E2E.
+**Tools (ADR-012):** Vitest for unit and contract tests, MSW to mock the GitHub API, Playwright for E2E. Run them with `npm test` and `npm run test:e2e`.
 
 ## Core test cases
 

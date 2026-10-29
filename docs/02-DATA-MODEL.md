@@ -11,6 +11,22 @@
 - No HTML strings stored as rich text in MVP; activity bodies are plain text.
 - Monetary values are integer minor units (e.g. cents), not binary floating-point currency.
 
+## Validation and canonical form (Phase 1, not yet reviewed)
+
+`src/core/schemas.ts` and `src/core/record-file.ts` implement these rules. No ADR covers them, and the owner has not reviewed them yet.
+
+- The canonical file is `JSON.stringify(record, null, 2)` plus a final newline. Keys follow the order in the examples below, and `customFields` keys are sorted. Arrays put one item per line, unlike the compact arrays in the examples.
+- Every key in the examples is required; an empty value is `null` or `[]`. Only `customFields` may be left out.
+- An unknown key makes the file invalid. A hand-added field then shows up as an issue, instead of disappearing on the next save.
+- IDs are lowercase UUID v4. Timestamps are written to the second (`2026-10-26T16:00:00Z`). A timestamp with an offset, such as `+01:00`, is invalid.
+- `website` must be an `http` or `https` URL with a domain name, so a `javascript:` link cannot be stored.
+- Names, titles, and activity bodies must not be blank. A task `description` may be an empty string.
+- `related` points only to a contact, a company, or an opportunity.
+- Stage IDs and custom field IDs use lowercase letters, digits, `-`, and `_`, up to 64 characters.
+- A file over 100 KiB is an issue and is not parsed (the size cap in `docs/07`).
+- Issue codes: `too-large`, `invalid-json`, `unsupported-version` (a newer `schemaVersion`), `invalid-record`, `path-mismatch` (the type or ID differs from the path), and `unrecognized-path` (a file under `data/` outside the layout).
+- Not yet checked: links between records, such as a dangling ID or an unknown `stageId`. These checks need the whole snapshot, so they come with the record UI.
+
 ## Workspace configuration
 
 Path: `.gitcrm/workspace.json`

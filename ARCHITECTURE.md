@@ -51,16 +51,18 @@ search/      in-memory workspace index derived from current snapshot
 auth/        runtime token management and identity checks
 ```
 
-`WorkspaceRepository` is an abstraction around **repository persistence behavior**, not an attempt to support every Git provider:
+Phase 1 built `core/`, `storage/`, and the connect checks in `auth/`. `dev/` holds the developer page (`dev.html`, dev server only). `test/` holds the fake GitHub that Vitest (through MSW) and Playwright both use.
+
+`WorkspaceRepository` is an abstraction around **repository persistence behavior**, not an attempt to support every Git provider (`src/storage/workspace-repository.ts`):
 
 ```ts
 interface WorkspaceRepository {
   loadWorkspace(): Promise<WorkspaceSnapshot>;
   readRecord(type: RecordType, id: string): Promise<VersionedRecord | null>;
-  createRecord(record: CRMRecord): Promise<VersionedRecord>;
-  updateRecord(record: CRMRecord, expectedBlobSha: string): Promise<VersionedRecord>;
+  createRecord<R extends CRMRecord>(record: R): Promise<VersionedRecord<R>>;
+  updateRecord<R extends CRMRecord>(record: R, expectedBlobSha: string): Promise<VersionedRecord<R>>;
   // One commit: deletes plus unlinks, each with its expected blob SHA (ADR-021)
-  deleteWithCascade(plan: DeletePlan): Promise<void>;
+  deleteWithCascade(plan: DeletePlan): Promise<{ commitSha: string }>;
 }
 ```
 

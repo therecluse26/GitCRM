@@ -1,7 +1,7 @@
 # GitCRM - Project Starter
 
-**Status:** concept / pre-implementation specification  
-**Last reviewed:** 2026-10-26  
+**Status:** Phase 1 (domain and storage) built; no CRM user interface yet  
+**Last reviewed:** 2026-10-28  
 **Audience:** solo developers and tiny teams who want a useful CRM without operating a database or backend.
 
 GitCRM is a static, browser-based CRM whose authoritative data lives as **one JSON document per record in a user's private Git repository**. On GitHub, the browser uses authenticated GitHub REST APIs to read and commit records. Searching happens over the current records in browser memory. There is no CRM application server, persistent database, or recurring automation requirement. Users connect with a fine-grained PAT (ADR-008).
@@ -53,6 +53,15 @@ GitCRM is a static, browser-based CRM whose authoritative data lives as **one JS
 - **P0**: must be validated before the main feature build.
 - **MVP**: minimum usable release, not a production-ready multi-tenant SaaS.
 
-## Starting the project
+## Development
 
-This ZIP contains **documentation only**, deliberately no application scaffold or hidden infrastructure. Initialize a separate code repository, copy these files, and begin with the P0 spikes in `docs/11-IMPLEMENTATION-PLAN.md`. Keep the code repository separate from end users' private data repositories.
+Requires Node 24 or later. Keep this code repository separate from end users' private data repositories (ADR-014).
+
+```sh
+npm install
+npm test            # unit and contract tests (Vitest, against a fake GitHub)
+npm run test:e2e    # browser tests (Playwright, against the same fake)
+npm run dev         # then open http://localhost:5173/dev.html
+```
+
+`dev.html` is the developer page from Phase 1. It connects to a repo with a fine-grained PAT and creates, reads, edits, and deletes one contact. The token stays in that tab's memory. Writes go straight to the repo's default branch, so use a disposable private repo. The dev server serves the page; `npm run build` leaves it out.
