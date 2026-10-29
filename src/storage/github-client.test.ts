@@ -72,6 +72,11 @@ describe('rest', () => {
     vi.useRealTimers();
   });
 
+  it('waits one minute when GitHub gives no wait', async () => {
+    respond(429, { message: 'Too many requests' });
+    expect((await errorOf(createGitHubClient(token).rest('GET', '/user'))).retryAfterSeconds).toBe(60);
+  });
+
   it('reports a network failure without a status', async () => {
     server.use(http.all('https://api.github.com/*', () => HttpResponse.error()));
     const error = await errorOf(createGitHubClient(token).rest('GET', '/user'));
@@ -87,6 +92,61 @@ describe('rest', () => {
       expect(`${error.message} ${error.stack} ${JSON.stringify(error)}`).not.toContain(token);
     }
     expect(logged).not.toHaveBeenCalled();
+  });
+});
+
+describe('rate limits (ADR-023)', () => {
+  afterEach(() => vi.useRealTimers());
+
+  it('reads the REST budget from every REST response, errors too', async () => {
+    const client = createGitHubClient(token);
+    expect(client.limits()).toEqual({ remaining: null, resetAt: null, waitUntil: null });
+    respond(200, {}, { 'x-ratelimit-remaining': '499', 'x-ratelimit-reset': '1793361600' });
+    await client.rest('GET', '/user');
+    expect(client.limits()).toEqual({ remaining: 499, resetAt: 1_793_361_600_000, waitUntil: null });
+    respond(404, { message: 'Not Found' }, { 'x-ratelimit-remaining': '498' });
+    await errorOf(client.rest('GET', '/repos/o/r'));
+    expect(client.limits().remaining).toBe(498);
+  });
+
+  it('ignores the GraphQL budget, which GitHub counts apart from REST', async () => {
+    const client = createGitHubClient(token);
+    respond(200, { data: {} }, { 'x-ratelimit-remaining': '10', 'x-ratelimit-reset': '1793361600' });
+    await client.graphql('query { x }', {});
+    expect(client.limits()).toEqual({ remaining: null, resetAt: null, waitUntil: null });
+  });
+
+  it('after retry-after, sends nothing, REST or GraphQL, until the wait is over', async () => {
+    vi.useFakeTimers({ now: new Date('2026-10-28T12:00:00Z'), toFake: ['Date'] });
+    let sent = 0;
+    server.use(
+      http.all('https://api.github.com/*', () => {
+        sent += 1;
+        return sent === 1 ? HttpResponse.json({ message: 'slow down' }, { status: 429, headers: { 'retry-after': '60' } }) : HttpResponse.json({ data: {} });
+      }),
+    );
+    const client = createGitHubClient(token);
+    await errorOf(client.rest('GET', '/user'));
+    expect(client.limits().waitUntil).toBe(Date.parse('2026-10-28T12:01:00Z'));
+
+    vi.setSystemTime(new Date('2026-10-28T12:00:59Z'));
+    const early = await errorOf(client.rest('GET', '/user'));
+    expect(early).toMatchObject({ kind: 'rate-limited', status: null, retryAfterSeconds: 1 });
+    expect((await errorOf(client.graphql('query { x }', {}))).kind).toBe('rate-limited');
+    expect(sent).toBe(1);
+
+    vi.setSystemTime(new Date('2026-10-28T12:01:00Z'));
+    await client.rest('GET', '/user');
+    expect(sent).toBe(2);
+  });
+
+  it('when the hourly budget is gone, sends nothing until x-ratelimit-reset', async () => {
+    vi.useFakeTimers({ now: new Date('2026-10-28T12:00:00Z'), toFake: ['Date'] });
+    const reset = String(Date.parse('2026-10-28T12:10:00Z') / 1000);
+    respond(403, { message: 'API rate limit exceeded' }, { 'x-ratelimit-remaining': '0', 'x-ratelimit-reset': reset });
+    const client = createGitHubClient(token);
+    await errorOf(client.rest('GET', '/user'));
+    expect(client.limits().waitUntil).toBe(Date.parse('2026-10-28T12:10:00Z'));
   });
 });
 
