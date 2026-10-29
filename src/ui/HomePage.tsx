@@ -1,19 +1,24 @@
-// Home (docs/08): counts of active records. Pipeline, tasks, and recent activity come with their slices.
+// Home (docs/08): counts of active records and the open pipeline by stage. Tasks and recent
+// activity come with their slice.
 import { Link } from '@tanstack/react-router';
 import { useApp } from '@/app/store.ts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { RecordType } from '@/core/schemas.ts';
+import { isTerminal } from '@/core/stages.ts';
+import { useStages } from '@/features/records.ts';
 
-const COUNTED: { type: RecordType; label: string; to?: '/contacts' | '/companies' }[] = [
+const COUNTED: { type: RecordType; label: string; to: '/contacts' | '/companies' | '/pipeline' }[] = [
   { type: 'contact', label: 'Contacts', to: '/contacts' },
   { type: 'company', label: 'Companies', to: '/companies' },
-  { type: 'opportunity', label: 'Opportunities' },
+  { type: 'opportunity', label: 'Opportunities', to: '/pipeline' },
 ];
 
 export function HomePage() {
   const snapshot = useApp((s) => s.snapshot);
   const active = (type: RecordType) => snapshot?.records.filter(({ record }) => record.type === type && record.archivedAt === null).length ?? 0;
   const issues = snapshot?.issues.length ?? 0;
+  const open = useStages().filter((s) => !isTerminal(s.id));
+  const inStage = (id: string) => snapshot?.records.filter(({ record }) => record.type === 'opportunity' && record.archivedAt === null && record.stageId === id).length ?? 0;
 
   return (
     <>
@@ -29,18 +34,33 @@ export function HomePage() {
           <Card key={type}>
             <CardHeader>
               <CardTitle className="text-sm font-medium text-muted-foreground">
-                {to ? (
-                  <Link to={to} className="underline">
-                    {label}
-                  </Link>
-                ) : (
-                  label
-                )}
+                <Link to={to} className="underline">
+                  {label}
+                </Link>
               </CardTitle>
             </CardHeader>
             <CardContent className="text-3xl font-semibold">{active(type)}</CardContent>
           </Card>
         ))}
+      </section>
+      <section aria-labelledby="open-pipeline-heading">
+        <Card>
+          <CardHeader>
+            <CardTitle>
+              <h2 id="open-pipeline-heading">Open opportunities by stage</h2>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 text-sm sm:max-w-sm">
+              {open.map((stage) => (
+                <div key={stage.id} className="contents">
+                  <dt>{stage.label}</dt>
+                  <dd className="text-right tabular-nums">{inStage(stage.id)}</dd>
+                </div>
+              ))}
+            </dl>
+          </CardContent>
+        </Card>
       </section>
     </>
   );

@@ -11,6 +11,7 @@ const NAV = [
   { to: '/', label: 'Home' },
   { to: '/contacts', label: 'Contacts' },
   { to: '/companies', label: 'Companies' },
+  { to: '/pipeline', label: 'Pipeline' },
   { to: '/settings', label: 'Settings' },
 ] as const;
 
@@ -74,7 +75,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </header>
       <div className="flex flex-1 flex-col md:flex-row">
-        <nav aria-label="Main" className="flex gap-1 border-b p-2 md:w-48 md:flex-col md:border-r md:border-b-0">
+        <nav aria-label="Main" className="flex flex-wrap gap-1 border-b p-2 md:w-48 md:flex-col md:flex-nowrap md:border-r md:border-b-0">
           {NAV.map(({ to, label }) => (
             <Link key={to} to={to} className="rounded-md px-3 py-1.5 text-sm hover:bg-muted" activeProps={{ className: 'bg-muted font-medium' }} activeOptions={{ exact: to === '/' }}>
               {label}

@@ -7,6 +7,9 @@ import { CompanyPage } from '@/features/companies/CompanyPage.tsx';
 import { EditContactPage, NewContactPage } from '@/features/contacts/ContactEditor.tsx';
 import { ContactPage } from '@/features/contacts/ContactPage.tsx';
 import { ContactsPage } from '@/features/contacts/ContactsPage.tsx';
+import { EditOpportunityPage, NewOpportunityPage, type NewOpportunitySearch } from '@/features/opportunities/OpportunityEditor.tsx';
+import { OpportunityPage } from '@/features/opportunities/OpportunityPage.tsx';
+import { PipelinePage } from '@/features/opportunities/PipelinePage.tsx';
 import { HomePage } from '@/ui/HomePage.tsx';
 import { Root } from '@/ui/Root.tsx';
 import { SettingsPage } from '@/ui/SettingsPage.tsx';
@@ -30,6 +33,19 @@ const routeTree = rootRoute.addChildren([
   page('/companies/new', NewCompanyPage),
   page('/companies/$companyId', CompanyPage),
   page('/companies/$companyId/edit', EditCompanyPage),
+  page('/pipeline', PipelinePage),
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/opportunities/new',
+    component: NewOpportunityPage,
+    // "Add opportunity" on a company or contact page fills in that link.
+    validateSearch: (search: Record<string, unknown>): NewOpportunitySearch => ({
+      ...(typeof search.companyId === 'string' && { companyId: search.companyId }),
+      ...(typeof search.contactId === 'string' && { contactId: search.contactId }),
+    }),
+  }),
+  page('/opportunities/$opportunityId', OpportunityPage),
+  page('/opportunities/$opportunityId/edit', EditOpportunityPage),
   page('/settings', SettingsPage),
 ]);
 

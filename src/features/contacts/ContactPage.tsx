@@ -1,10 +1,11 @@
-// One contact (spec 02): details, its company, Edit, and Archive or Restore.
+// One contact (spec 02): details, its company and opportunities, Edit, and Archive or Restore.
 import { Link, useParams } from '@tanstack/react-router';
 import { selectCanWrite, selectReadOnly, useApp } from '@/app/store.ts';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { linkButton } from '@/ui/link-button.ts';
 import { ArchivedBadge, Detail, Problem, RecordNotFound, Tags } from '@/ui/record-page.tsx';
+import { RelatedOpportunities } from '../opportunities/RelatedOpportunities.tsx';
 import { formatDate, useRecord } from '../records.ts';
 import { useArchive } from '../use-archive.ts';
 
@@ -76,6 +77,7 @@ export function ContactPage() {
           </dl>
         </CardContent>
       </Card>
+      <RelatedOpportunities name={contact.name} linked={(o) => o.contactIds.includes(contactId)} search={{ contactId }} />
     </>
   );
 }

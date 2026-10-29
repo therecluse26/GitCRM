@@ -68,6 +68,8 @@ Scenario: Many open tabs
 
 Show the record type/name, remote updated value, local unsaved value, and actions: Discard mine, Copy mine, and Retry after review. A full three-way text merge tool is unnecessary initially. Preserve edited form values until resolved or the user explicitly discards.
 
+Retry after review saves the remote version with my changed fields on top. Some fields mean something only together. An opportunity's `valueMinor` and `currency` are one group: when I changed one, the retry keeps both of mine, so my amount never gets their currency.
+
 ## Limits
 
 This is **low-volume optimistic concurrency**, not realtime collaboration. No live cursors, locks, presence, instant feeds, or cross-repository merges. If a team's operational requirements exceed this model, recommend migration rather than introducing a server.

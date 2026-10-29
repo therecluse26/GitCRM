@@ -31,6 +31,14 @@ describe('rebaseFields', () => {
     const remote = { ...base, emails: ['ava@studio.test'] };
     expect(rebaseFields(mine, base, remote)).toEqual({ name: 'Ava Bennett', emails: ['ava@studio.test'], phones: ['555-0100'] });
   });
+
+  it('keeps a group of fields from one side, so my amount never meets their currency', () => {
+    const start = { title: 'Website rebuild', valueMinor: 250000, currency: 'USD' };
+    const mine = { ...start, valueMinor: 300000 };
+    const remote = { ...start, title: 'Site rebuild', currency: 'JPY' };
+    expect(rebaseFields(mine, start, remote, [['valueMinor', 'currency']])).toEqual({ title: 'Site rebuild', valueMinor: 300000, currency: 'USD' });
+    expect(rebaseFields(start, start, remote, [['valueMinor', 'currency']])).toEqual(remote);
+  });
 });
 
 describe('conflictRows', () => {
@@ -41,6 +49,14 @@ describe('conflictRows', () => {
       { key: 'name', mine: 'Ava B.', remote: 'Ava Bennett-Park', changedByMe: true, changedRemotely: true },
       { key: 'emails', mine: ['ava@example.test'], remote: ['ava@studio.test'], changedByMe: false, changedRemotely: true },
       { key: 'phones', mine: ['555-0100'], remote: [], changedByMe: true, changedRemotely: false },
+    ]);
+  });
+
+  it('marks every field of a group as mine when I changed one of them', () => {
+    const start = { valueMinor: 250000, currency: 'USD' };
+    expect(conflictRows({ ...start, valueMinor: 300000 }, start, { ...start, currency: 'JPY' }, [['valueMinor', 'currency']])).toEqual([
+      { key: 'valueMinor', mine: 300000, remote: 250000, changedByMe: true, changedRemotely: false },
+      { key: 'currency', mine: 'USD', remote: 'JPY', changedByMe: true, changedRemotely: true },
     ]);
   });
 });

@@ -62,6 +62,12 @@ Scenario: Financial values
   And preserves exact value through save and export
 ```
 
+## Notes
+
+Phase 2 builds everything here except Delete, which comes in Phase 3 with the cascade preview (`docs/11`). Export, and its test, also come in Phase 3. A move shows as "Moving…" in its new stage until the commit lands. A failed move puts the card back and says why. One move runs at a time. Stage edits stay in a draft until "Save stages"; if someone else changed the settings first, nothing is saved until the latest stages are loaded.
+
+Amounts use a period for decimals, so "2.500,00" is refused with a message rather than read another way.
+
 ## Error handling
 
 Invalid pipeline stage, stale record SHA, rate limit, and outdated company/contact relations cannot silently mutate data. Keep unsaved stage movement visible as pending until committed; restore the previous position on failure.

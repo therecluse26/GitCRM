@@ -1,6 +1,6 @@
 # GitCRM - Project Starter
 
-**Status:** Phase 2 in progress: connecting, setting up a workspace, and contacts and companies work; other people's changes show when you return to the tab; opportunities come next  
+**Status:** Phase 2 in progress: connecting, setting up a workspace, and contacts, companies, and the opportunity pipeline work; other people's changes show when you return to the tab; tasks and activities come next  
 **Last reviewed:** 2026-10-28  
 **Audience:** solo developers and tiny teams who want a useful CRM without operating a database or backend.
 

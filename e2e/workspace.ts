@@ -3,7 +3,7 @@ import { expect, type Page } from '@playwright/test';
 import { recordPath, WORKSPACE_PATH } from '../src/core/paths.ts';
 import { serializeRecord, serializeWorkspace } from '../src/core/record-file.ts';
 import { newRecord } from '../src/core/records.ts';
-import type { Company, Contact, CRMRecord } from '../src/core/schemas.ts';
+import type { Company, Contact, CRMRecord, Opportunity } from '../src/core/schemas.ts';
 import { newWorkspaceConfig } from '../src/core/workspace.ts';
 import type { FakeGitHub, FakeGitHubOptions } from '../src/test/fake-github.ts';
 import { connect } from './connect-page.ts';
@@ -17,6 +17,13 @@ export function contact(name: string, changes: Partial<Contact> = {}): Contact {
 
 export function company(name: string, changes: Partial<Company> = {}): Company {
   return { ...newRecord('company', { name, website: null, tags: [] }, { now }), ...changes };
+}
+
+export function opportunity(title: string, stageId: string, changes: Partial<Opportunity> = {}): Opportunity {
+  return {
+    ...newRecord('opportunity', { title, stageId, companyId: null, contactIds: [], valueMinor: null, currency: 'USD', expectedCloseDate: null }, { now }),
+    ...changes,
+  };
 }
 
 export async function seedWorkspace(fake: FakeGitHub, records: CRMRecord[]) {
