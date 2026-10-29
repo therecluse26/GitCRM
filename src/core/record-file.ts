@@ -26,7 +26,7 @@ export function serializeWorkspace(config: WorkspaceConfig): string {
 
 export function parseRecordFile(path: string, text: string): { ok: true; record: CRMRecord } | Failure {
   const location = parseRecordPath(path);
-  if (!location) return failure(path, 'unrecognized-path', 'Not a record path (data/{type}/{shard}/{uuid}.json)');
+  if (!location) return { ok: false, issue: unrecognizedPath(path) };
   const json = readJson(path, text);
   if (!json.ok) return json;
   if (json.value.type !== location.type) return failure(path, 'path-mismatch', `The file is in the ${location.type} folder but has type ${String(json.value.type)}`);
@@ -34,6 +34,10 @@ export function parseRecordFile(path: string, text: string): { ok: true; record:
   if (!result.success) return failure(path, 'invalid-record', describe(result.error));
   if (result.data.id !== location.id) return failure(path, 'path-mismatch', 'The record ID does not match the filename');
   return { ok: true, record: result.data };
+}
+
+export function unrecognizedPath(path: string): FileIssue {
+  return { path, code: 'unrecognized-path', message: 'Not a record path (data/{type}/{shard}/{uuid}.json)' };
 }
 
 export function parseWorkspaceFile(text: string): { ok: true; config: WorkspaceConfig } | Failure {
