@@ -11,7 +11,8 @@ CRM records contain personal or commercially sensitive information. A private re
 | Public repo exposure | Refuse public repos; recheck visibility at connection and refresh; never publish data as static assets |
 | Credential theft via JS/XSS | No inline unsafe HTML, strict CSP, no third-party analytics/scripts, one-repo short-expiry PAT; host features that inject scripts stay off (S-06) |
 | Clickjacking (another site frames the app) | `frame-ancestors 'none'` header on the official copy (S-06); on hosts without custom headers, the app refuses to render inside a frame |
-| Stored PAT and records on a shared or lost device | "Remember on this device" opt-out; Disconnect deletes both; one-repo short-expiry PAT. A fully compromised machine is out of scope (ADR-017) |
+| Stored PAT and records on a shared or lost device | "Remember on this device" opt-out; Disconnect deletes both, and also disconnects the other open tabs of the workspace; one-repo short-expiry PAT. A fully compromised machine is out of scope (ADR-017) |
+| Records passed between open tabs (ADR-023) | `BroadcastChannel` reaches only tabs of the same origin in the same browser, which can already read the record cache; messages never carry the token |
 | Overbroad token scope | Fine-grained repo-restricted token; instructions to expire/revoke |
 | Unauthorized collaborator access | GitHub repo permissions; onboarding explains collaborator access |
 | Accidental overwrite | Blob SHA preconditions, conflict UI |

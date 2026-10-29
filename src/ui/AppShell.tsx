@@ -1,7 +1,7 @@
 // Navigation, the connected repo, and sync status around every page (docs/08).
 import { Link } from '@tanstack/react-router';
 import { Lock, RefreshCw } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { useApp } from '@/app/store.ts';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -21,6 +21,19 @@ export function AppShell({ children }: { children: ReactNode }) {
   const sync = useApp((s) => s.sync);
   const saving = useApp((s) => s.saving);
   const lastSave = useApp((s) => s.lastSave);
+  const checksPaused = useApp((s) => s.checksPaused);
+
+  // Coming back to the tab checks main in the background (docs/04).
+  useEffect(() => {
+    const focused = () => useApp.getState().tabFocused();
+    const shown = () => document.visibilityState === 'visible' && focused();
+    window.addEventListener('focus', focused);
+    document.addEventListener('visibilitychange', shown);
+    return () => {
+      window.removeEventListener('focus', focused);
+      document.removeEventListener('visibilitychange', shown);
+    };
+  }, []);
 
   return (
     <div className="flex min-h-svh flex-col bg-background">
@@ -78,6 +91,9 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Alert>
               <AlertDescription>{access.message}</AlertDescription>
             </Alert>
+          )}
+          {checksPaused && (
+            <p className="text-sm text-muted-foreground">Automatic checks for changes are paused: fewer than 500 GitHub requests are left this hour. Refresh still works.</p>
           )}
           {children}
         </main>

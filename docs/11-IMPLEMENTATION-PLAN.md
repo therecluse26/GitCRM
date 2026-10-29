@@ -31,8 +31,9 @@ Build in **small vertical slices**. The first meaningful release must prove the 
 
 ## Phase 2 - onboarding and core CRM
 
-- [x] Connection screen; private repo validation and initialization. Includes the remembered token and record cache (ADR-017) and Disconnect. Focus checks and one syncing tab (ADR-023) come with the record screens.
+- [x] Connection screen; private repo validation and initialization. Includes the remembered token and record cache (ADR-017) and Disconnect.
 - [x] Contacts and companies CRUD + links. Includes archive and restore, list search and sort, the conflict compare panel (spec 07), the warning before leaving an unsaved form, and the `broken-link` check. Delete stays in Phase 3.
+- [x] Background checks of `main` on tab focus, the rate-limit budget guard, and one syncing tab (ADR-023). Disconnect also reaches the other open tabs.
 - [ ] Opportunity CRUD + pipeline stage board/list + stage editor (ADR-019).
 - [ ] Tasks and manual activities with relational display.
 - [ ] Responsive navigation, save feedback, and validation UX.

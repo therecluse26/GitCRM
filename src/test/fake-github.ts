@@ -35,6 +35,9 @@ export class FakeGitHub {
   archived: boolean;
   canWrite: boolean;
   truncateTrees = false;
+  // The REST budget each answer reports (ADR-023); tests lower it. Faults send their own headers.
+  rateRemaining = 4999;
+  rateReset = Math.floor(Date.now() / 1000) + 3600;
   head: string;
   readonly requests: { method: string; path: string; body: unknown }[] = [];
 
@@ -118,6 +121,8 @@ export class FakeGitHub {
     if (fault && 'run' in fault) await fault.run();
 
     const response = await this.route(method, url, body, request.headers.get('authorization'));
+    response.headers.set('x-ratelimit-remaining', String(this.rateRemaining));
+    response.headers.set('x-ratelimit-reset', String(this.rateReset));
     return fault && 'network' in fault ? 'network-error' : response;
   }
 
