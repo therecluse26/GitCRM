@@ -1,16 +1,22 @@
-// Links between records must point to records in the same workspace (docs/02). The UI cannot
-// create a broken link, but a hand edit or another app can. A broken link is reported, and the
-// record still loads.
+// Links between records must point to records in the same workspace, and an opportunity's stage
+// to a stage in .gitcrm/workspace.json (docs/02). The UI cannot create a broken link, but a hand
+// edit, another app, or a stage removed while someone moved an opportunity into it can. A broken
+// link is reported, and the record still loads.
+import { WORKSPACE_PATH } from './paths.ts';
 import type { FileIssue } from './record-file.ts';
 import type { CRMRecord, RecordType } from './schemas.ts';
 
-export function linkIssues(entries: { path: string; record: CRMRecord }[]): FileIssue[] {
+// `stageIds` is null when the workspace settings are missing or invalid.
+export function linkIssues(entries: { path: string; record: CRMRecord }[], stageIds: ReadonlySet<string> | null = null): FileIssue[] {
   const ids = new Set(entries.map(({ record }) => `${record.type}:${record.id}`));
   const issues: FileIssue[] = [];
   for (const { path, record } of entries) {
     const problems = links(record)
       .filter(({ type, id }) => !ids.has(`${type}:${id}`))
       .map(({ field, type, id }) => `${field}: no ${type} with ID ${id.slice(0, 8)} is in the workspace`);
+    if (stageIds && record.type === 'opportunity' && !stageIds.has(record.stageId)) {
+      problems.unshift(`stageId: no stage "${record.stageId}" is in ${WORKSPACE_PATH}`);
+    }
     if (problems.length > 0) issues.push({ path, code: 'broken-link', message: problems.join('; ') });
   }
   return issues;

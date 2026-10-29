@@ -117,7 +117,7 @@ function buildSnapshot(commitSha: string | null, files: Map<string, CachedFile>)
       else issues.push(parsed.issue);
     }
   }
-  issues.push(...linkIssues(records));
+  issues.push(...linkIssues(records, workspace && new Set(workspace.config.pipelineStages.map((s) => s.id))));
   const byPath = (a: { path: string }, b: { path: string }) => (a.path < b.path ? -1 : 1);
   return { commitSha, workspace, records: records.sort(byPath), issues: issues.sort(byPath) };
 }
