@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { serveFakeGitHub } from '../test/msw.ts';
-import { createGitHubClient } from './github-client.ts';
-import { inspectRepository } from './github-connect.ts';
+import { createGitHubClient } from '../storage/github-client.ts';
+import { inspectRepository } from './connect.ts';
 
 const github = serveFakeGitHub();
 

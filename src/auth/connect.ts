@@ -1,5 +1,5 @@
 // The connect checks (docs/05-AUTH-AND-ONBOARDING.md): identity, repo metadata, then a write check.
-import { GitHubError, type GitHubClient } from './github-client.ts';
+import { GitHubError, type GitHubClient } from '../storage/github-client.ts';
 
 export type RepoCheck = {
   login: string;

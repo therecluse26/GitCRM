@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { editRecord, newRecord } from '../core/records.ts';
 import type { Contact } from '../core/schemas.ts';
 import { createGitHubClient } from '../storage/github-client.ts';
-import { inspectRepository } from '../storage/github-connect.ts';
+import { inspectRepository } from '../auth/connect.ts';
 import { createGitHubWorkspace } from '../storage/github-workspace.ts';
 import { stateForError, type OperationState } from '../storage/operation-state.ts';
 import type { VersionedRecord, WorkspaceRepository, WorkspaceSnapshot } from '../storage/workspace-repository.ts';
