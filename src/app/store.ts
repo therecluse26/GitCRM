@@ -1,5 +1,6 @@
 // The app's in-memory state (ADR-012: Zustand): the connection, the snapshot, and the sync status.
 // The token lives here in memory, and in localStorage only when "Remember on this device" is on.
+// main is checked on page load, on Refresh, and in the background when a tab gains focus (docs/04).
 import { create } from 'zustand';
 import { assessRepository, describeConnectError, inspectRepository, type Access } from '../auth/connect.ts';
 import { forgetConnection, readSavedConnection, saveConnection, type SavedConnection } from '../auth/credentials.ts';
@@ -8,13 +9,15 @@ import { serializeRecord, serializeWorkspace } from '../core/record-file.ts';
 import type { CRMRecord } from '../core/schemas.ts';
 import { newWorkspaceConfig } from '../core/workspace.ts';
 import { DEFAULT_LIST_VIEW, type ListView } from '../features/list-query.ts';
-import { createGitHubClient, GitHubError } from '../storage/github-client.ts';
+import { createGitHubClient, GitHubError, type GitHubClient } from '../storage/github-client.ts';
 import { createGitHubWorkspace } from '../storage/github-workspace.ts';
 import { stateForError, type OperationState } from '../storage/operation-state.ts';
 import { ConflictError } from '../storage/errors.ts';
 import { createRecordCache } from '../storage/record-cache.ts';
 import { snapshotFromFiles, type SnapshotFiles } from '../storage/snapshot.ts';
 import type { VersionedRecord, WorkspaceRepository, WorkspaceSnapshot } from '../storage/workspace-repository.ts';
+import { backgroundCheck } from './background-check.ts';
+import { joinTabs, type TabMessage, type Tabs } from './tabs.ts';
 
 export type Screen =
   | { name: 'starting' }
@@ -30,6 +33,7 @@ type Session = {
   login: string;
   branch: string;
   access: Exclude<Access, { kind: 'refused' }>;
+  client: GitHubClient;
   workspace: WorkspaceRepository;
 };
 
@@ -43,6 +47,7 @@ export type AppState = {
   sync: OperationState;
   saving: boolean; // one write at a time (docs/04: keep mutating calls serialized)
   lastSave: { commitSha: string | null } | null;
+  checksPaused: boolean; // background checks skipped: fewer than 500 REST requests left (ADR-023)
   // List filters stay in memory, not in the URL: browsers keep URLs in history, and some sync it.
   lists: Record<'contact' | 'company', ListView>;
   start(): Promise<void>;
@@ -52,6 +57,7 @@ export type AppState = {
   // Creates the record when expectedBlobSha is null; otherwise updates it from that version.
   saveRecord<R extends CRMRecord>(record: R, expectedBlobSha: string | null): Promise<VersionedRecord<R>>;
   setListView(type: keyof AppState['lists'], changes: Partial<ListView>): void;
+  tabFocused(): void;
   disconnect(): Promise<void>;
 };
 
@@ -71,26 +77,98 @@ const cleared = {
   sync: { status: 'idle' },
   saving: false,
   lastSave: null,
+  checksPaused: false,
   lists: { contact: DEFAULT_LIST_VIEW, company: DEFAULT_LIST_VIEW },
 } satisfies Partial<AppState>;
 let started = false; // StrictMode runs effects twice in development
+// One client per token, kept across refreshes, so a wait that GitHub asked for still holds.
+let api: { token: string; client: GitHubClient } | null = null;
+let tabs: Tabs | null = null;
+let lastCheckAt: number | null = null; // when this tab last read main
+
+function clientFor(token: string): GitHubClient {
+  if (api?.token !== token) api = { token, client: createGitHubClient(token) };
+  return api.client;
+}
 
 export const useApp = create<AppState>()((set, get) => {
-  function show(snapshot: WorkspaceSnapshot, files: SnapshotFiles) {
+  // `persist` is false for files from another tab, which wrote the record cache itself.
+  function show(snapshot: WorkspaceSnapshot, files: SnapshotFiles, persist = true) {
     set({ snapshot, files, sync: { status: 'loaded' }, screen: screenFor(snapshot) });
-    if (get().credentials?.remember) void cache.write(cacheKey(get().credentials!), files);
+    if (persist && get().credentials?.remember) void cache.write(cacheKey(get().credentials!), files);
   }
 
   // The connect checks (docs/05), then main, reusing the cached files.
   async function establish(credentials: Credentials, cached: SnapshotFiles | null) {
-    const client = createGitHubClient(credentials.token);
+    lastCheckAt = Date.now();
+    const client = clientFor(credentials.token);
     const check = await inspectRepository(client, credentials.owner, credentials.repo);
     const access = assessRepository(check);
     if (access.kind === 'refused') throw new RefusedError(access.message);
     const workspace = createGitHubWorkspace({ client, owner: credentials.owner, repo: credentials.repo, branch: check.defaultBranch });
     const loaded = await workspace.loadWorkspace(cached ?? undefined);
-    set({ session: { login: check.login, branch: check.defaultBranch, access, workspace } });
+    set({ session: { login: check.login, branch: check.defaultBranch, access, client, workspace } });
     show(loaded.snapshot, loaded.files);
+    const key = cacheKey(credentials);
+    if (tabs?.key !== key) {
+      tabs?.close();
+      tabs = joinTabs(key, receive);
+    }
+  }
+
+  // A background check of main, then its result for the other tabs (ADR-023), sent also when
+  // the check was skipped: that is the answer a tab waits for.
+  async function checkMain() {
+    const moved = await readMain();
+    tabs?.send({ type: 'checked', files: moved, paused: get().checksPaused });
+  }
+
+  // Reads main only, so an unmoved main costs one request; the connect checks run on page load
+  // and Refresh. Returns the new files when main moved.
+  async function readMain(): Promise<SnapshotFiles | null> {
+    const { session, files, saving, sync } = get();
+    if (!session || !files || saving || sync.status === 'loading') return null;
+    const decision = backgroundCheck(Date.now(), lastCheckAt, session.client.limits());
+    if (decision === 'low-budget') set({ checksPaused: true });
+    if (decision !== 'run') return null;
+    lastCheckAt = Date.now();
+    try {
+      const loaded = await session.workspace.loadWorkspace(files);
+      // A save, a refresh, or another tab changed the records meanwhile, so they are newer.
+      if (get().session !== session || get().files !== files) return null;
+      set({ checksPaused: false });
+      const moved = loaded.files !== files;
+      if (moved || get().sync.status !== 'loaded') show(loaded.snapshot, loaded.files);
+      return moved ? loaded.files : null;
+    } catch {
+      // Main alone cannot tell lost access from an outage or an empty branch; the connect checks can.
+      if (get().session === session) await get().refresh();
+      return null;
+    }
+  }
+
+  function receive(message: TabMessage) {
+    if (message.type === 'disconnected') return signOut();
+    if (message.type === 'check') {
+      if (tabs?.leading()) void checkMain();
+      return;
+    }
+    set({ checksPaused: message.paused });
+    if (message.files && get().session && !get().saving) show(snapshotFromFiles(message.files), message.files, false);
+  }
+
+  // Leaves the workspace: no records on screen, and no part in the tab sync.
+  function leave(next: Partial<AppState>) {
+    tabs?.close();
+    tabs = null;
+    lastCheckAt = null;
+    set({ ...cleared, ...next });
+  }
+
+  // Forgets the token in memory too. The stored token and the cache are already gone.
+  function signOut() {
+    api = null;
+    leave({ credentials: null, repoName: '', screen: { name: 'connect', problem: null, busy: false } });
   }
 
   // What a failed connect, page load, or refresh leaves on screen.
@@ -98,14 +176,17 @@ export const useApp = create<AppState>()((set, get) => {
     const problem = error instanceof RefusedError ? error.message : describeConnectError(error, get().repoName);
     const tokenRejected = error instanceof GitHubError && (error.kind === 'unauthorized' || error.kind === 'not-found');
     if (from === 'connect' || tokenRejected) {
-      if (tokenRejected) forgetConnection();
-      set({ ...cleared, credentials: null, screen: { name: 'connect', problem, busy: false } });
+      if (tokenRejected) {
+        forgetConnection();
+        api = null;
+      }
+      leave({ credentials: null, screen: { name: 'connect', problem, busy: false } });
     } else if (!(error instanceof RefusedError) && get().snapshot) {
       // GitHub is unreachable or slowing us down: keep the records on screen, read-only (ARCHITECTURE, "Offline model").
       set({ sync: stateForError(error) });
     } else {
       // A refusal here means the repo turned public: stop showing its records.
-      set({ ...cleared, screen: { name: 'blocked', problem } });
+      leave({ screen: { name: 'blocked', problem } });
     }
   }
 
@@ -135,7 +216,7 @@ export const useApp = create<AppState>()((set, get) => {
     },
 
     async connect(credentials) {
-      set({ ...cleared, credentials, repoName: `${credentials.owner}/${credentials.repo}`, screen: { name: 'connect', problem: null, busy: true } });
+      leave({ credentials, repoName: `${credentials.owner}/${credentials.repo}`, screen: { name: 'connect', problem: null, busy: true } });
       try {
         if (!credentials.remember) {
           // A shared computer: store nothing in this browser.
@@ -202,10 +283,16 @@ export const useApp = create<AppState>()((set, get) => {
       set({ lists: { ...get().lists, [type]: { ...get().lists[type], ...changes } } });
     },
 
+    tabFocused() {
+      if (tabs && !tabs.leading()) tabs.ask(() => void checkMain());
+      else void checkMain();
+    },
+
     async disconnect() {
       forgetConnection();
       await cache.clear();
-      set({ ...cleared, credentials: null, repoName: '', screen: { name: 'connect', problem: null, busy: false } });
+      tabs?.send({ type: 'disconnected' });
+      signOut();
     },
   };
 });

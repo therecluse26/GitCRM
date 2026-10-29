@@ -33,7 +33,7 @@ Do not automatically initialize arbitrary repositories just because a user has p
 
 ## Failure UX
 
-- Repo public: **refuse** to initialize or write; explain how to create a private repository. If visibility later becomes public, stop and prominently warn (old public commits may already have leaked data). Built: every page load and refresh runs the connect checks again, and a repo that turned public hides its records behind a warning.
+- Repo public: **refuse** to initialize or write; explain how to create a private repository. If visibility later becomes public, stop and prominently warn (old public commits may already have leaked data). Built: every page load and refresh runs the connect checks again, and a repo that turned public hides its records behind a warning. Background checks on tab focus read `main` only (ADR-023), so a repo that turns public while a tab is open is caught at the next page load or Refresh.
 - Expired or revoked token: prompt to reconnect; never retry indefinitely. Built: on a page load, the app deletes the stored token and shows the connect screen with the repo name filled in. The record cache stays until Disconnect.
 - GitHub unreachable or rate-limiting on a page load: the app keeps showing the cached records, read-only, with a notice. Refresh retries.
 - Repo with no commits: the app says to add a file on GitHub first. Unverified: the status GitHub returns (the app treats `404` and `409` the same).

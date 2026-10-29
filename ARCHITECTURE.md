@@ -84,7 +84,7 @@ Each mutation is a Git commit. Creates and updates use the Contents API. Deletes
 2. Resolve `main` to a commit SHA and retrieve a record manifest/tree.
 3. Download record blobs for the current snapshot; parse and validate in memory.
 4. Build in-memory indexes/search for visible UI. Store no private data in built assets, service-worker precaches, or external analytics.
-5. When HEAD changes, incrementally refresh where feasible or safely reload the snapshot.
+5. When HEAD changes, incrementally refresh where feasible or safely reload the snapshot. `main` is checked on page load, on Refresh, and when a tab gains focus; with several tabs open, one tab runs the focus checks and shares what it finds (ADR-023).
 
 The **principal performance uncertainty is data transport from GitHub, not local full-text search**. See `docs/06-SEARCH-AND-PERFORMANCE.md`.
 

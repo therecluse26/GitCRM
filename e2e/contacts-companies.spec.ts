@@ -1,46 +1,14 @@
 // Spec 02 (contacts and companies) and the save states of spec 07, against the fake GitHub.
-import { expect, test, type Page } from '@playwright/test';
-import { recordPath, WORKSPACE_PATH } from '../src/core/paths.ts';
-import { parseRecordFile, serializeRecord, serializeWorkspace } from '../src/core/record-file.ts';
-import { newRecord } from '../src/core/records.ts';
-import type { Company, Contact, CRMRecord } from '../src/core/schemas.ts';
-import { newWorkspaceConfig } from '../src/core/workspace.ts';
+import { expect, test } from '@playwright/test';
+import { recordPath } from '../src/core/paths.ts';
+import { parseRecordFile, serializeRecord } from '../src/core/record-file.ts';
+import type { CRMRecord } from '../src/core/schemas.ts';
 import { gitBlobSha } from '../src/storage/encoding.ts';
-import type { FakeGitHub, FakeGitHubOptions } from '../src/test/fake-github.ts';
-import { connect } from './connect-page.ts';
-import { routeFakeGitHub } from './fake-route.ts';
+import type { FakeGitHub } from '../src/test/fake-github.ts';
+import { company, contact, field, go, open, openContact, status } from './workspace.ts';
 
-const now = new Date('2026-10-29T12:00:00Z');
-
-function contact(name: string, changes: Partial<Contact> = {}): Contact {
-  return { ...newRecord('contact', { name, emails: [], phones: [], companyId: null, tags: [] }, { now }), ...changes };
-}
-
-function company(name: string, changes: Partial<Company> = {}): Company {
-  return { ...newRecord('company', { name, website: null, tags: [] }, { now }), ...changes };
-}
-
-// A connected workspace holding `records`, with the home page on screen.
-async function open(page: Page, records: CRMRecord[] = [], options: FakeGitHubOptions = {}) {
-  const fake = await routeFakeGitHub(page, options);
-  await fake.seed(WORKSPACE_PATH, serializeWorkspace(newWorkspaceConfig({ name: 'Example Studio', defaultCurrency: 'USD' })));
-  for (const record of records) await fake.seed(recordPath(record.type, record.id), serializeRecord(record));
-  await connect(page, fake);
-  await expect(page.getByRole('heading', { level: 1, name: 'Example Studio' })).toBeVisible();
-  return fake;
-}
-
-const go = (page: Page, name: string) => page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name }).click();
-const status = (page: Page) => page.getByRole('banner').getByRole('status');
-const field = (page: Page, label: string) => page.getByLabel(label, { exact: true });
 const writes = (fake: FakeGitHub) => fake.requests.filter((r) => r.method === 'PUT');
 const fileOf = (fake: FakeGitHub, record: CRMRecord) => JSON.parse(fake.file(recordPath(record.type, record.id))!);
-
-async function openContact(page: Page, name: string) {
-  await go(page, 'Contacts');
-  await page.getByRole('list', { name: 'Contacts' }).getByRole('link', { name }).click();
-  await expect(page.getByRole('heading', { level: 1, name })).toBeVisible();
-}
 
 test('creates a contact as a new schema version 1 file, and it is there after a reload', async ({ page }) => {
   const fake = await open(page);
