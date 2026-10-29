@@ -33,13 +33,16 @@ Do not automatically initialize arbitrary repositories just because a user has p
 
 ## Failure UX
 
-- Repo public: **refuse** to initialize or write; explain how to create a private repository. If visibility later becomes public, stop and prominently warn (old public commits may already have leaked data).
-- Expired or revoked token: prompt to reconnect; never retry indefinitely.
+- Repo public: **refuse** to initialize or write; explain how to create a private repository. If visibility later becomes public, stop and prominently warn (old public commits may already have leaked data). Built: every page load and refresh runs the connect checks again, and a repo that turned public hides its records behind a warning.
+- Expired or revoked token: prompt to reconnect; never retry indefinitely. Built: on a page load, the app deletes the stored token and shows the connect screen with the repo name filled in. The record cache stays until Disconnect.
+- GitHub unreachable or rate-limiting on a page load: the app keeps showing the cached records, read-only, with a notice. Refresh retries.
+- Repo with no commits: the app says to add a file on GitHub first. Unverified: the status GitHub returns (the app treats `404` and `409` the same).
+- "Remember on this device" unchecked: the app stores neither the token nor records, and it clears any record cache this browser already had.
 - Missing write permission: read-only screen with explanation.
 - Archived repo (`archived = true`): read-only screen that says to unarchive the repo. Writes return `403` "Repository was archived so is read-only." (S-08).
 - Repo returns `404`: GitHub gives the same answer for a missing repo and a repo the token cannot see (S-08). The token also cannot see a repo it includes if it has no permissions (S-02 browser run). The message covers all three: check the name, that the token includes the repo, and that Contents is set to Read and write.
 - Unsupported default branch / protected `main`: show an actionable compatibility error, not a spin loop. Show it when a write fails, not from an up-front check: `protected: true` alone is compatible, because default protection only blocks force pushes and deletion. GitHub Free cannot protect private repos at all (S-08). Unverified: the error for a write to a branch that requires pull requests.
-- Personal repo owned by someone else (repo `owner.type` is `User` and differs from the token's user): explain that team workspaces must live in a GitHub organization (ADR-018).
+- Personal repo owned by someone else (repo `owner.type` is `User` and differs from the token's user): explain that team workspaces must live in a GitHub organization (ADR-018). Built as a refusal. A fine-grained PAT cannot reach another user's personal repo anyway (S-05), so this mainly catches other token types.
 - Org repo returns `404` for a valid token: say the token may be waiting for an org owner's approval, or may not include this repo. A pending token can read only public resources (S-05). Outside collaborators cannot use fine-grained PATs at all; tell them to ask for org membership.
 - Invalid workspace version: offer export/read-only diagnostics but no automatic destructive rewrite.
 - GitHub outage/rate limit: preserve current unsaved form and allow later manual retry.
