@@ -55,10 +55,11 @@ GitCRM is a static, browser-based CRM whose authoritative data lives as **one JS
 
 ## Development
 
-Requires Node 24 or later. Keep this code repository separate from end users' private data repositories (ADR-014).
+Requires Node 24 or later. Keep this code repository separate from end users' private data repositories (ADR-014). On NixOS, run `nix-shell` first: `shell.nix` provides Node and the libraries Playwright's Chromium needs.
 
 ```sh
 npm install
+npx playwright install chromium   # once, for the browser tests
 npm test            # unit and contract tests (Vitest, against a fake GitHub)
 npm run test:e2e    # browser tests (Playwright, against the same fake)
 npm run dev         # then open http://localhost:5173/dev.html
