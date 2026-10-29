@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { recordPath } from '../core/paths.ts';
-import { serializeRecord } from '../core/record-file.ts';
+import { recordPath, WORKSPACE_PATH } from '../core/paths.ts';
+import { serializeRecord, serializeWorkspace } from '../core/record-file.ts';
 import { editRecord, newRecord } from '../core/records.ts';
 import type { Contact, Opportunity } from '../core/schemas.ts';
+import { newWorkspaceConfig } from '../core/workspace.ts';
 import { serveFakeGitHub } from '../test/msw.ts';
 import { ConflictError, InvalidFileError, UnknownOutcomeError } from './errors.ts';
 import { createGitHubClient, GitHubError } from './github-client.ts';
@@ -218,3 +219,30 @@ describe('deleteWithCascade', () => {
     expect(github().count('PATCH')).toBe(1);
   });
 });
+
+describe('writeWorkspace', () => {
+  const config = newWorkspaceConfig({ name: 'Example Studio', defaultCurrency: 'USD' });
+
+  it('creates .gitcrm/workspace.json in one commit', async () => {
+    const before = github().commitCount();
+    const saved = await workspace().writeWorkspace(config, null);
+    expect(github().file(WORKSPACE_PATH)).toBe(serializeWorkspace(config));
+    expect(github().commitCount()).toBe(before + 1);
+    expect(github().lastCommitMessage()).toBe('gitcrm: initialize workspace');
+    expect(saved).toEqual({ config, blobSha: saved.blobSha, commitSha: github().head });
+  });
+
+  it('never overwrites an existing config', async () => {
+    await github().seed(WORKSPACE_PATH, 'existing');
+    expect(await rejection(workspace().writeWorkspace(config, null))).toBeInstanceOf(ConflictError);
+    expect(github().file(WORKSPACE_PATH)).toBe('existing');
+  });
+
+  it('updates with the expected blob SHA', async () => {
+    const sha = await github().seed(WORKSPACE_PATH, serializeWorkspace(config));
+    await workspace().writeWorkspace({ ...config, name: 'Renamed Studio' }, sha);
+    expect(github().file(WORKSPACE_PATH)).toContain('Renamed Studio');
+    expect(github().lastCommitMessage()).toBe('gitcrm: update workspace settings');
+  });
+});
+

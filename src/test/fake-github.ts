@@ -27,7 +27,7 @@ const CORS = {
 };
 
 export class FakeGitHub {
-  readonly token: string;
+  token: string; // tests change it to revoke the token
   readonly owner: string;
   readonly repo: string;
   readonly branch: string;
@@ -36,7 +36,7 @@ export class FakeGitHub {
   canWrite: boolean;
   truncateTrees = false;
   head: string;
-  readonly requests: { method: string; path: string }[] = [];
+  readonly requests: { method: string; path: string; body: unknown }[] = [];
 
   private readonly blobs = new Map<string, string>();
   private readonly trees = new Map<string, Files>();
@@ -108,7 +108,8 @@ export class FakeGitHub {
         headers: { ...CORS, 'access-control-allow-headers': 'authorization, content-type, x-github-api-version', 'access-control-allow-methods': 'GET, POST, PUT, PATCH, DELETE' },
       });
     }
-    this.requests.push({ method, path: url.pathname });
+    const body = request.body ? await request.json() : undefined;
+    this.requests.push({ method, path: url.pathname, body });
 
     const index = this.faults.findIndex((f) => f.method === method && f.path.test(url.pathname));
     const fault = index === -1 ? undefined : this.faults.splice(index, 1)[0].fault;
@@ -116,7 +117,6 @@ export class FakeGitHub {
     if (fault && 'network' in fault && fault.network === 'before') return 'network-error';
     if (fault && 'run' in fault) await fault.run();
 
-    const body = request.body ? await request.json() : undefined;
     const response = await this.route(method, url, body, request.headers.get('authorization'));
     return fault && 'network' in fault ? 'network-error' : response;
   }

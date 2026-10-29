@@ -92,7 +92,7 @@ export function DevPage() {
 
   function load() {
     void run('load snapshot', { status: 'loading' }, async () => {
-      setSnapshot(await session!.workspace.loadWorkspace());
+      setSnapshot((await session!.workspace.loadWorkspace()).snapshot);
       return { status: 'loaded' };
     });
   }
@@ -204,7 +204,7 @@ export function DevPage() {
         <section aria-label="Contacts">
           <h2>Contacts</h2>
           <button type="button" onClick={load}>Load snapshot</button>
-          {snapshot && <p>Commit {snapshot.commitSha.slice(0, 7)}: {contacts.length} contacts, {snapshot.issues.length} file issues.</p>}
+          {snapshot && <p>Commit {snapshot.commitSha?.slice(0, 7) ?? 'unknown'}: {contacts.length} contacts, {snapshot.issues.length} file issues.</p>}
           {snapshot?.issues.map((issue) => <p key={issue.path}>{issue.path}: {issue.message}</p>)}
           <ul>
             {contacts.map(({ record, blobSha }) => (
