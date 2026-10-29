@@ -1,23 +1,34 @@
 # Technical Decisions (Living ADR Log)
 
-Record material choices here before changing architecture. Statuses: **accepted**, **provisional**, **open**, **rejected**.
+Record material choices here before changing architecture. Statuses: **proposed** (drafted, not yet reviewed by the owner), **provisional**, **accepted**, **deferred** (decided not to build now; may revisit), **open**, **rejected**.
+
+ChatGPT drafted the original entries. The owner reviewed every entry on 2026-10-27; the statuses below record those decisions.
 
 | ID | Status | Decision | Rationale / tradeoff |
 | --- | --- | --- | --- |
-| ADR-001 | accepted | Git-backed private workspace repository | Data ownership, native version history, no application DB |
-| ADR-002 | accepted | One JSON file per record | Independent writes and targeted record-level history handling |
-| ADR-003 | accepted | `main` as current authoritative branch | Minimize merge complexity in a tiny-team product |
-| ADR-004 | accepted | Pure static SPA, no CRM backend | Central product constraint, not a temporary optimization |
-| ADR-005 | accepted | Client-side querying of current data only | Small-team scale; no Git-history searching needed |
-| ADR-006 | accepted | No scheduled CRM automation in core | Avoid operational infrastructure and GitHub Actions policy reliance |
-| ADR-007 | accepted | Plain JSON v1 with immutable UUIDs | Widely compatible tooling and reliable per-document filenames |
-| ADR-008 | provisional | Existing private repo plus memory-only fine-grained PAT for developer alpha | Demonstrates persistence without embedding OAuth secrets; onboarding friction acknowledged |
-| ADR-009 | open | Public-release authentication | Cannot assume pure browser OAuth code exchange; requires verified safe design |
-| ADR-010 | accepted | Static host must permit intended service | GitHub Pages specifically restricts commercial SaaS hosting |
-| ADR-011 | accepted | Current-tree delete in MVP; history rewrite outside MVP | User safety and impossibility of guaranteeing all replicas erased |
-| ADR-012 | provisional | React + Vite + TypeScript | Lightweight, mature SPA; no backend runtime |
-| ADR-013 | accepted | No CRM-specific role or permission system | GitHub repo permissions are the entire authorization boundary |
-| ADR-014 | accepted | Data repo separate from frontend code repo | Never publish private records as static assets |
+| ADR-001 | accepted | Git-backed private workspace repository | Owner decision 2026-10-27. Data ownership, native version history, no application DB |
+| ADR-002 | accepted | One JSON file per record at `data/{pluralType}/{2 hex}/{uuid}.json`; tasks and activities are separate files | Owner decision 2026-10-27. Independent writes, small blast radius, per-record history, mostly path-based purge. Load cost handled separately (R-02) |
+| ADR-003 | accepted | The repo's default branch, whatever its name, is the one authoritative branch; the docs call it `main` for short. A branch that requires pull requests is incompatible | Owner decision 2026-10-27. Minimizes merge complexity in a tiny-team product; also supports older `master` repos |
+| ADR-004 | accepted | Static SPA; no server stores or sees CRM data; no database. A stateless auth broker is allowed in principle but not planned (ADR-009) | Owner decision 2026-10-27. Keeps data ownership and zero data infrastructure; leaves room for easier sign-in if demand appears |
+| ADR-005 | accepted | Client-side querying of current data only | Owner decision 2026-10-27. Small-team scale; no Git-history searching needed |
+| ADR-006 | accepted | No GitHub Actions or other compute for CRM work; the browser does all reads, writes, and aggregation. Revisit only for a feature that must run while nobody has GitCRM open (reminders, webhooks, syncs) | Owner decision 2026-10-27. Faster, cheaper, and simpler than workflow-built rollups; avoids Actions minutes and the Actions terms, which forbid use "as part of a serverless application" (S-05) |
+| ADR-007 | accepted | Plain JSON v1 with immutable UUIDs as filenames; no PII in paths | Owner decision 2026-10-27. Widely compatible tooling and reliable per-document filenames |
+| ADR-008 | accepted | Auth: existing private repo plus a user-supplied fine-grained PAT, for the alpha and the public release; no broker | Owner decision 2026-10-27. Works without infrastructure; onboarding friction accepted. Token storage rule still open (see below) |
+| ADR-009 | deferred | GitHub App sign-in through a stateless auth broker, only if real demand appears; the PAT stays the supported path | Owner decision 2026-10-27: not planned. If revived, the broker holds only the client secret, has no database, and never sees CRM data (ADR-004). Device flow skipped unless a spike shows browser CORS support |
+| ADR-010 | accepted | Host-agnostic static build: hash URLs, relative asset paths, CSP in a `<meta>` tag (plus a `frame-ancestors` header where the host supports headers), no host-specific features. The official copy uses Cloudflare Pages; its `_headers` file sends the CSP as a header, with `frame-ancestors 'none'` | Owner decision 2026-10-27; Cloudflare Pages chosen 2026-10-28, and its terms permit this use (S-06). The official copy uses a `pages.dev` subdomain for now (owner decision 2026-10-28). Cloudflare may rename it with about a week's notice, which signs every user out; a custom domain would avoid that. Anyone can self-host. S-05: Pages forbids commercial SaaS, which GitCRM is not (ADR-015). Pages also says sites shouldn't be used for sending passwords, so a page where users enter a PAT is a gray area there. Pages sends no custom headers, so it gets no `frame-ancestors` |
+| ADR-011 | accepted | Current-tree delete in MVP; history rewrite outside MVP | Owner decision 2026-10-27. User safety and impossibility of guaranteeing all replicas erased |
+| ADR-012 | accepted | Stack: React + Vite + TypeScript; TanStack Router (hash history); Zustand store; `idb`; plain typed `fetch` (no Octokit); Zod with generated JSON Schema; shadcn/ui; dnd-kit; fflate; Vitest, MSW, Playwright. MiniSearch only if needed | Owner decision 2026-10-27. Small, widely used dependencies; fits the snapshot-store data flow and ADR-010. Details in `ARCHITECTURE.md` |
+| ADR-013 | accepted | No CRM-specific role or permission system | Owner decision 2026-10-27. GitHub repo permissions are the entire authorization boundary |
+| ADR-014 | accepted | Data repo separate from frontend code repo | Owner decision 2026-10-27. Never publish private records as static assets; also holds for self-hosted copies |
+| ADR-015 | accepted | GitCRM is a product for other people, not a personal tool. The audience is technical: people comfortable with GitHub and creating a PAT. It is free and non-commercial | Owner decision 2026-10-27; non-commercial decided 2026-10-28. Public onboarding, hosting terms, and privacy disclosures are release requirements. GitHub's rules on commercial SaaS on Pages and on API resale do not apply (S-05) |
+| ADR-016 | accepted | A verified rollup is allowed as a read cache: summary rows with blob SHAs, checked against the `main` tree on load; record saves never write it. Build only if spike (3) shows per-blob loads are too expensive | Owner decision 2026-10-27. Keeps ADR-002 intact while bounding first-load cost. Location: an orphan ref; with ADR-017's per-device cache it only speeds up a device's first load. Rewrite rule stays open until built |
+| ADR-017 | accepted | The PAT persists in `localStorage` and the record cache in IndexedDB, both unencrypted, until Disconnect. "Remember on this device" (default on) lets users skip storage on shared machines. Page loads reuse cached records whose blob SHA still matches `main` | Owner decision 2026-10-27. Normal web-app practice; a compromised machine is out of scope. The real defenses stay: one-repo short-expiry PAT, strict CSP, no third-party scripts |
+| ADR-018 | accepted | Team workspaces live in a GitHub organization. Each member uses their own fine-grained PAT; no shared PATs. Solo workspaces may use a personal repo | Owner decision 2026-10-27. GitHub's docs confirm fine-grained PATs cannot be used by outside or repository collaborators (S-05, R-11), so every teammate must be an org member. Keeps per-person attribution and revocation |
+| ADR-019 | accepted | Pipeline stages are editable in the MVP: rename, reorder, add, and remove when unused. `won` and `lost` always exist. Stage IDs never change | Owner decision 2026-10-27. Edits touch only `.gitcrm/workspace.json`, so no record migration is needed |
+| ADR-020 | accepted | Typed custom fields ship first after the MVP. Schema v1 reserves an optional `customFields` object on contacts, companies, and opportunities; the MVP keeps those values on save and in exports | Owner decision 2026-10-27. Keeps the MVP smaller and avoids a record migration later. Design in `docs/02-DATA-MODEL.md` |
+| ADR-021 | accepted | Delete cascades in one commit: tasks and activities related to the record are deleted; contacts, companies, and opportunities that link to it are unlinked, never deleted. Archived records count. A preview lists every change first. Uses the Git Trees/Commits APIs with a non-forced ref update | Owner decision 2026-10-27. One commit instead of one per link; no dangling links; removes notes about the deleted record from `main` |
+| ADR-022 | accepted | First-load transport: chunked GraphQL tree walk pinned to one commit, about 100 files per query (from the recursive tree), up to 10 queries in parallel. GraphQL time budget: at most 50 s of summed response time per rolling 60 s, then wait. Per-blob REST only for small syncs. Do not build the verified rollup at the target scale | Owner decision 2026-10-28. Spike S-04, 2026-10-27/28: 2,000 records in 5–9 s vs 48 s per-blob; ~47 s of GraphQL response time, near GitHub's limit of 60 s per minute (S-05); a single large query fails with 502 after ~10 s, and timeouts cost extra points |
+| ADR-023 | accepted | Rate-limit budget guard and one syncing tab: below 500 remaining REST requests, pause background checks; honor `retry-after`; one tab per workspace (chosen with Web Locks) checks `main` and shares results over `BroadcastChannel` | Owner decision 2026-10-28. Keeps normal use at a few percent of the hourly budget, and stops a runaway loop or many open tabs from exhausting it |
 
 ## Decision process
 
@@ -25,7 +36,5 @@ For changes to a product invariant: state the requirement, propose at least one 
 
 ## Not yet decided
 
-- Browser-friendly auth with a genuinely low-friction UX and no unsafe client secret.
-- Bulk snapshot transport optimization after a measurement spike.
 - Whether default record export should additionally include a single portable ZIP in MVP.
 - When, if ever, to ship a local history-purge utility.

@@ -31,7 +31,7 @@ Path: `.gitcrm/workspace.json`
 }
 ```
 
-For MVP: stage IDs are predefined, labels configurable later. Exactly one `won` and one `lost` terminal stage. Workflow configuration itself is not an automation system.
+Users edit stages in Settings (ADR-019): rename, reorder, add, and remove. Stage IDs never change; a new stage gets a lowercase ID derived from its first label, with a numeric suffix on collision. A stage can be removed only when no opportunity uses it. Exactly one `won` and one `lost` terminal stage always exist; they can be renamed but not removed. Workflow configuration itself is not an automation system.
 
 ## Contact
 
@@ -131,6 +131,33 @@ For MVP: stage IDs are predefined, labels configurable later. Exactly one `won` 
 ```
 
 Allowed `kind` values: `note`, `call`, `meeting`, `email_manual`. Activity is **manual documentation**, not automated email capture. Each item gets its own document so a record can be targeted by a future purge tool.
+
+## Custom fields (reserved in v1, built after the MVP; ADR-020)
+
+Schema v1 allows an optional `customFields` object on contacts, companies, and opportunities, mapping field IDs to values. The MVP has no UI for it, but it keeps these values unchanged on save and includes them in exports.
+
+Planned design, using the same ID-plus-label pattern as pipeline stages:
+
+```json
+// .gitcrm/workspace.json
+"customFields": {
+  "contact": [
+    { "id": "linkedin", "label": "LinkedIn", "type": "url", "position": 0 },
+    { "id": "source", "label": "Lead source", "type": "select", "position": 1,
+      "options": [{ "id": "conference", "label": "Conference" },
+                  { "id": "referral", "label": "Referral" }] }
+  ]
+}
+
+// a contact file
+"customFields": { "linkedin": "https://linkedin.com/in/ava", "source": "referral" }
+```
+
+- Types: text, number, date, checkbox, URL, select (single choice).
+- A field's type never changes; to change type, create a new field.
+- Removing a field or a select option archives it. Record values stay in place, hidden, and return on restore.
+- A value that does not fit its definition is a visible validation issue, never silently dropped.
+- Out of scope: required fields, defaults, formulas, multi-select, record-link fields, per-field permissions.
 
 ## Schema evolution
 

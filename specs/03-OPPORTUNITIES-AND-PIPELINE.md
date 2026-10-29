@@ -12,6 +12,7 @@ As a solo founder, I want to track opportunities across a small set of stages an
 - Show a Kanban board and an accessible list-view alternative.
 - Move between configured stages; changes persist as a record commit.
 - Defaults: Lead, Qualified, Proposal, Won, Lost.
+- Edit stages in Settings: rename, reorder, add, and remove a stage no opportunity uses. Won and Lost always exist (ADR-019).
 - Show active pipeline (excluding Won/Lost by default when user chooses Open filter) and optional archived items.
 - No complex forecast probabilities, tax calculation, product catalog, or quote generation.
 
@@ -34,6 +35,21 @@ Scenario: Move via keyboard
   Given I cannot use drag and drop
   When I use the opportunity's Move to stage menu
   Then I can select an allowed stage without a mouse
+
+Scenario: Rename a stage
+  Given opportunities exist in Proposal
+  When I rename Proposal to "Quote sent"
+  Then only .gitcrm/workspace.json changes, in one commit
+  And those opportunities appear in the "Quote sent" column
+
+Scenario: Remove a stage in use
+  Given an opportunity is in Qualified
+  When I try to remove Qualified
+  Then the removal is blocked with the count of opportunities in it
+
+Scenario: Terminal stages stay
+  When I try to remove Won or Lost
+  Then the removal is not offered
 
 Scenario: Missing relation
   Given I select a contact UUID that is not in the workspace

@@ -32,7 +32,7 @@ UUID v4's first two hex characters distribute records across 256 directories and
 
 ## Branch model
 
-- `main` is authoritative for MVP, with an initial commit in place before initialization.
+- The repo's default branch is authoritative (ADR-003), whatever its name; these docs call it `main` for short. It must have an initial commit before initialization.
 - The app reads only `main`; do not treat unmerged pull requests as current CRM data.
 - A selected branch may be protected or require PRs; for MVP, flag as incompatible with direct writes rather than implementing a PR approval workflow.
 - Repositories may contain other files, but the app only reads/writes `.gitcrm/workspace.json` and `data/**`.
@@ -41,9 +41,10 @@ UUID v4's first two hex characters distribute records across 256 directories and
 
 - One ordinary UI record save = one commit with an informative message, e.g. `gitcrm: update contact d13d0f69`.
 - Use GitHub's Contents API for single-document writes. An update requires the **previous Git blob SHA**.
+- A delete is one commit through the Git Trees/Commits APIs: it removes the record, deletes its related tasks and activities, and unlinks other records (ADR-021). The ref update is never forced.
 - Write `updatedAt` only when user-visible content changes. Avoid commit loops from formatting differences.
 - Unknown files outside the managed paths are never touched.
-- No generated index or aggregated CRM records file is committed as part of normal operation.
+- No generated index or aggregated CRM records file is committed to `main` as part of normal operation. ADR-016 allows a verified rollup as a read cache, kept on a separate orphan ref; see `docs/04-GITHUB-INTEGRATION.md`.
 
 ## Initialization and validation
 

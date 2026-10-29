@@ -10,9 +10,9 @@ As a user, I want records to stop cluttering the active workspace. If I decide t
 
 - **Archive:** set `archivedAt` to UTC timestamp; retain same file and UUID; default lists hide it.
 - **Restore from archive:** set `archivedAt` to `null` using SHA-aware update.
-- **Delete from current state:** remove the single file using GitHub Contents API `DELETE` and its expected SHA. Show the exact warning that historical commits may still contain it.
+- **Delete from current state (ADR-021):** one commit through the Git Trees/Commits APIs removes the record file, deletes tasks and activities related to it, and unlinks contacts, companies, and opportunities that point to it. Archived records count. A preview lists every change and warns that historical commits may still contain the data.
 - **Undo current-state delete:** not an instantaneous transactional undo. Restore by retrieving a historical file version through Git history (explicit manual/advanced future feature). A newly created replacement must not accidentally reuse a deleted ID without deliberate restoration.
-- **Inbound relations:** block current-state delete of a record with existing active linked records unless those relations are explicitly cleared first.
+- **Inbound relations:** handled by the cascade above; a delete never leaves a dangling link.
 
 ## Acceptance criteria
 
@@ -28,20 +28,28 @@ Scenario: Archive and restore
 Scenario: Delete from current snapshot
   Given an unreferenced contact
   When I confirm Delete
-  Then the contact's JSON file is removed from main by a commit
+  Then the contact's JSON file is removed from main by one commit
   And the dialog previously warned that old Git commits are not erased
 
-Scenario: Prevent broken references
-  Given an opportunity links to a company
-  When I try deleting the company
-  Then the app blocks the operation with linked record details
-  And offers navigation to resolve the links
+Scenario: Delete with a cascade preview
+  Given a contact has 2 notes and 1 task
+  And an opportunity lists the contact
+  When I choose Delete
+  Then the dialog says it deletes 2 notes and 1 task and unlinks 1 opportunity
+  When I confirm
+  Then one commit removes the contact, the 2 notes, and the task
+  And the same commit removes the contact's ID from the opportunity
+
+Scenario: Archived records count
+  Given an archived note relates to a contact
+  When I delete the contact
+  Then the archived note is deleted in the same commit
 
 Scenario: Concurrent deletion
-  Given another user edited the contact after I loaded it
-  When I try to delete using a stale blob SHA
+  Given another user edited the contact or an affected record after I loaded it
+  When I confirm Delete
   Then the app shows a conflict
-  And does not delete the newer record without fresh confirmation
+  And nothing is deleted without fresh confirmation
 ```
 
 ## Future `purge-history` utility (NOT MVP)
