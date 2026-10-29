@@ -19,7 +19,7 @@ CRM records contain personal or commercially sensitive information. A private re
 | Corrupt/partial export | Validate all files and fail closed on partial snapshot |
 | Sensitive information in history | Ordinary delete vs. purge distinction, clear warnings |
 | Exposure through logs/telemetry | No third-party analytics by default; redact payloads and bearer tokens |
-| Supply-chain compromise | Lockfiles, dependency review, CI scans, static-host integrity checks |
+| Supply-chain compromise | Lockfiles, dependency review, CI scans, static-host integrity checks; `.npmrc` installs only versions at least 14 days old, and any exception is pinned and explained there |
 | Compromised auth broker (only if ADR-009 is revived) | Stateless, no database; holds only the client secret; logs no codes or tokens; small reviewed codebase; secret rotation plan |
 
 ## Data boundaries

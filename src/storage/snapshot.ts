@@ -15,15 +15,27 @@ export type RepoLocation = { owner: string; repo: string; branch: string };
 type FileText = { oid: string; text: string | null; isTruncated: boolean };
 type TreeResult = { entries: { name: string; oid: string; object: { text?: string | null; isTruncated?: boolean } }[] } | null;
 
+// Every managed file (the workspace config and data/**) at one commit: what the record cache
+// keeps (ADR-017). `text` is null for a file that is not read as text: binary, cut off by GitHub,
+// or outside the record layout. `commitSha` is null when the files may not match one commit,
+// as after a save; the next load then compares blob SHAs instead.
+export type CachedFile = { blobSha: string; text: string | null; isTruncated: boolean };
+export type SnapshotFiles = { commitSha: string | null; files: Map<string, CachedFile> };
+
 export function repoPath({ owner, repo }: RepoLocation): string {
   return `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`;
 }
 
-export async function readHead(client: GitHubClient, location: RepoLocation): Promise<{ sha: string; tree: string }> {
+async function readRef(client: GitHubClient, location: RepoLocation): Promise<string> {
   const branch = location.branch.split('/').map(encodeURIComponent).join('/');
   const ref = await client.rest<{ object: { sha: string } }>('GET', `${repoPath(location)}/git/ref/heads/${branch}`);
-  const commit = await client.rest<{ tree: { sha: string } }>('GET', `${repoPath(location)}/git/commits/${ref.object.sha}`);
-  return { sha: ref.object.sha, tree: commit.tree.sha };
+  return ref.object.sha;
+}
+
+export async function readHead(client: GitHubClient, location: RepoLocation): Promise<{ sha: string; tree: string }> {
+  const sha = await readRef(client, location);
+  const commit = await client.rest<{ tree: { sha: string } }>('GET', `${repoPath(location)}/git/commits/${sha}`);
+  return { sha, tree: commit.tree.sha };
 }
 
 // Every file on main: path -> blob SHA.
@@ -37,43 +49,75 @@ export async function readTree(client: GitHubClient, location: RepoLocation, tre
   return new Map(tree.tree.filter((entry) => entry.type === 'blob').map((entry) => [entry.path, entry.sha]));
 }
 
-export async function loadSnapshot(client: GitHubClient, location: RepoLocation): Promise<WorkspaceSnapshot> {
-  const head = await readHead(client, location);
-  const files = await readTree(client, location, head.tree);
-  const issues: FileIssue[] = [];
+// Loads main. With a cached snapshot, an unmoved main costs one request, and otherwise only
+// files whose blob SHA changed are downloaded (docs/04, "Page load with a cached snapshot").
+export async function loadSnapshot(client: GitHubClient, location: RepoLocation, cached?: SnapshotFiles): Promise<{ snapshot: WorkspaceSnapshot; files: SnapshotFiles }> {
+  let commitSha: string;
+  try {
+    commitSha = await readRef(client, location);
+  } catch (error) {
+    // Unverified: the status GitHub returns for a repo with no commits; 409 is the documented guess.
+    if (error instanceof GitHubError && (error.kind === 'not-found' || error.kind === 'conflict')) {
+      throw new SnapshotError('The default branch has no commits yet. Add a file on GitHub, such as a README, then connect again.');
+    }
+    throw error;
+  }
+  if (cached && cached.commitSha === commitSha) return { snapshot: buildSnapshot(commitSha, cached.files), files: cached };
 
-  let workspace: WorkspaceSnapshot['workspace'] = null;
-  const configSha = files.get(WORKSPACE_PATH);
-  if (configSha) {
-    const blob = await client.rest<{ content: string }>('GET', `${repoPath(location)}/git/blobs/${configSha}`);
-    const parsed = parseWorkspaceFile(base64ToUtf8(blob.content));
-    if (parsed.ok) workspace = { config: parsed.config, blobSha: configSha };
-    else issues.push(parsed.issue);
+  const commit = await client.rest<{ tree: { sha: string } }>('GET', `${repoPath(location)}/git/commits/${commitSha}`);
+  const tree = await readTree(client, location, commit.tree.sha);
+  const files = new Map<string, CachedFile>();
+  const toFetch: string[] = [];
+  for (const [path, blobSha] of tree) {
+    if (path !== WORKSPACE_PATH && !path.startsWith('data/')) continue;
+    const known = cached?.files.get(path);
+    if (known?.blobSha === blobSha) files.set(path, known);
+    else if (path !== WORKSPACE_PATH && !parseRecordPath(path)) files.set(path, { blobSha, text: null, isTruncated: false });
+    else toFetch.push(path);
   }
 
-  const wanted = new Map<string, string>();
-  for (const [path, sha] of files) {
-    if (!path.startsWith('data/')) continue;
-    if (parseRecordPath(path)) wanted.set(path, sha);
-    else issues.push(unrecognizedPath(path));
+  if (toFetch.includes(WORKSPACE_PATH)) {
+    const blobSha = tree.get(WORKSPACE_PATH)!;
+    const blob = await client.rest<{ content: string }>('GET', `${repoPath(location)}/git/blobs/${blobSha}`);
+    files.set(WORKSPACE_PATH, { blobSha, text: base64ToUtf8(blob.content), isTruncated: false });
   }
-
-  const texts = await readFiles(client, location, head.sha, [...wanted.keys()]);
-  const records: VersionedRecord[] = [];
-  for (const [path, sha] of wanted) {
+  const recordPaths = toFetch.filter((path) => path !== WORKSPACE_PATH);
+  const texts = await readFiles(client, location, commitSha, recordPaths);
+  for (const path of recordPaths) {
     const file = texts.get(path);
-    if (!file || file.oid !== sha) throw new SnapshotError(`GitHub did not return ${path}, so GitCRM cannot load every record`);
-    if (file.isTruncated) issues.push({ path, code: 'too-large', message: 'GitHub cut this file off because it is too large' });
+    if (!file || file.oid !== tree.get(path)) throw new SnapshotError(`GitHub did not return ${path}, so GitCRM cannot load every record`);
+    files.set(path, { blobSha: file.oid, text: file.text, isTruncated: file.isTruncated });
+  }
+
+  return { snapshot: buildSnapshot(commitSha, files), files: { commitSha, files } };
+}
+
+// Builds a snapshot from cached files without GitHub, for example to show records while a page loads.
+export function snapshotFromFiles({ commitSha, files }: SnapshotFiles): WorkspaceSnapshot {
+  return buildSnapshot(commitSha, files);
+}
+
+// Validates every file again, whether it came from GitHub or from the cache.
+function buildSnapshot(commitSha: string | null, files: Map<string, CachedFile>): WorkspaceSnapshot {
+  const issues: FileIssue[] = [];
+  const records: VersionedRecord[] = [];
+  let workspace: WorkspaceSnapshot['workspace'] = null;
+  for (const [path, file] of files) {
+    if (path === WORKSPACE_PATH) {
+      const parsed = parseWorkspaceFile(file.text ?? '');
+      if (parsed.ok) workspace = { config: parsed.config, blobSha: file.blobSha };
+      else issues.push(parsed.issue);
+    } else if (!parseRecordPath(path)) issues.push(unrecognizedPath(path));
+    else if (file.isTruncated) issues.push({ path, code: 'too-large', message: 'GitHub cut this file off because it is too large' });
     else if (file.text === null) issues.push({ path, code: 'invalid-json', message: 'The file is binary, not JSON' });
     else {
       const parsed = parseRecordFile(path, file.text);
-      if (parsed.ok) records.push({ record: parsed.record, path, blobSha: sha, commitSha: head.sha });
+      if (parsed.ok) records.push({ record: parsed.record, path, blobSha: file.blobSha, commitSha });
       else issues.push(parsed.issue);
     }
   }
-
   const byPath = (a: { path: string }, b: { path: string }) => (a.path < b.path ? -1 : 1);
-  return { commitSha: head.sha, workspace, records: records.sort(byPath), issues: issues.sort(byPath) };
+  return { commitSha, workspace, records: records.sort(byPath), issues: issues.sort(byPath) };
 }
 
 async function readFiles(client: GitHubClient, location: RepoLocation, commitSha: string, paths: string[]): Promise<Map<string, FileText>> {

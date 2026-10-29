@@ -1,8 +1,8 @@
 // WorkspaceRepository on GitHub. Creates and updates use the Contents API with the expected blob
 // SHA; a delete is one commit through the Git Trees/Commits APIs with a non-forced ref update
 // (ADR-021). Nothing retries blindly: after a lost response, main decides what happened.
-import { recordPath } from '../core/paths.ts';
-import { parseRecordFile, serializeRecord } from '../core/record-file.ts';
+import { recordPath, WORKSPACE_PATH } from '../core/paths.ts';
+import { parseRecordFile, serializeRecord, serializeWorkspace } from '../core/record-file.ts';
 import type { CRMRecord, RecordType } from '../core/schemas.ts';
 import { base64ToUtf8, gitBlobSha, utf8ToBase64 } from './encoding.ts';
 import { ConflictError, InvalidFileError, UnknownOutcomeError } from './errors.ts';
@@ -41,57 +41,75 @@ export function createGitHubWorkspace({ client, ...location }: RepoLocation & { 
     return file && versioned(path, file);
   }
 
-  // expectedBlobSha is null for a create.
-  async function write<R extends CRMRecord>(record: R, text: string, expectedBlobSha: string | null): Promise<VersionedRecord<R>> {
-    const path = recordPath(record.type, record.id);
-    const verb = expectedBlobSha === null ? 'create' : 'update';
+  // One Contents API write. expectedBlobSha is null for a create. `remote` turns main's file into
+  // the version a conflict shows.
+  async function writeFile(
+    path: string,
+    text: string,
+    expectedBlobSha: string | null,
+    message: string,
+    remote: (path: string, file: ContentsFile) => VersionedRecord | null,
+  ): Promise<{ blobSha: string; commitSha: string | null }> {
+    const conflict = (file: ContentsFile | null) =>
+      new ConflictError(file && remote(path, file), expectedBlobSha === null ? 'This already exists on main' : 'Someone else changed this after it was loaded');
     try {
       const result = await client.rest<ContentsWrite>('PUT', `${base}/contents/${path}`, {
-        message: `gitcrm: ${verb} ${record.type} ${record.id.slice(0, 8)}`,
+        message,
         content: utf8ToBase64(text),
         branch: location.branch,
         ...(expectedBlobSha !== null && { sha: expectedBlobSha }),
       });
-      return { record, path, blobSha: result.content.sha, commitSha: result.commit.sha };
+      return { blobSha: result.content.sha, commitSha: result.commit.sha };
     } catch (error) {
       if (!(error instanceof GitHubError)) throw error;
-      if (error.kind === 'network') return afterLostResponse(record, path, text, expectedBlobSha, error);
+      if (error.kind === 'network') {
+        // The request may or may not have reached GitHub. Compare main's file with ours and with the expected one.
+        let file: ContentsFile | null;
+        try {
+          file = await currentFile(path);
+        } catch {
+          throw new UnknownOutcomeError();
+        }
+        const remoteSha = file?.sha ?? null;
+        if (remoteSha === (await gitBlobSha(text))) return { blobSha: remoteSha!, commitSha: null };
+        if (remoteSha === expectedBlobSha) throw error; // the write never landed, so a retry is safe
+        throw conflict(file);
+      }
       if (error.kind !== 'conflict' && error.kind !== 'unprocessable') throw error;
       const file = await currentFile(path);
       // The file is as expected, so GitHub refused for another reason: pass that on.
       if ((file?.sha ?? null) === expectedBlobSha) throw error;
-      throw new ConflictError(file && versioned(path, file), verb === 'create' ? 'A record with this ID already exists' : 'Someone else changed this record after it was loaded');
+      throw conflict(file);
     }
   }
 
-  // The request may or may not have reached GitHub. Compare main's file with ours and with the expected one.
-  async function afterLostResponse<R extends CRMRecord>(record: R, path: string, text: string, expectedBlobSha: string | null, lost: GitHubError): Promise<VersionedRecord<R>> {
-    let file: ContentsFile | null;
-    try {
-      file = await currentFile(path);
-    } catch {
-      throw new UnknownOutcomeError();
-    }
-    const remoteSha = file?.sha ?? null;
-    if (remoteSha === (await gitBlobSha(text))) return { record, path, blobSha: remoteSha!, commitSha: null };
-    if (remoteSha === expectedBlobSha) throw lost; // the write never landed, so a retry is safe
-    throw new ConflictError(file && versioned(path, file), 'Someone else changed this record after it was loaded');
+  async function writeRecord<R extends CRMRecord>(record: R, text: string, expectedBlobSha: string | null): Promise<VersionedRecord<R>> {
+    const path = recordPath(record.type, record.id);
+    const verb = expectedBlobSha === null ? 'create' : 'update';
+    const saved = await writeFile(path, text, expectedBlobSha, `gitcrm: ${verb} ${record.type} ${record.id.slice(0, 8)}`, versioned);
+    return { record, path, ...saved };
   }
 
   return {
-    loadWorkspace: () => loadSnapshot(client, location),
+    loadWorkspace: (cached) => loadSnapshot(client, location, cached),
 
     readRecord,
 
     async createRecord(record) {
-      return write(record, serializeRecord(record), null);
+      return writeRecord(record, serializeRecord(record), null);
     },
 
     async updateRecord(record, expectedBlobSha) {
       const text = serializeRecord(record);
       // Same bytes as main: nothing to commit.
       if ((await gitBlobSha(text)) === expectedBlobSha) return { record, path: recordPath(record.type, record.id), blobSha: expectedBlobSha, commitSha: null };
-      return write(record, text, expectedBlobSha);
+      return writeRecord(record, text, expectedBlobSha);
+    },
+
+    async writeWorkspace(config, expectedBlobSha) {
+      const message = expectedBlobSha === null ? 'gitcrm: initialize workspace' : 'gitcrm: update workspace settings';
+      const saved = await writeFile(WORKSPACE_PATH, serializeWorkspace(config), expectedBlobSha, message, () => null);
+      return { config, ...saved };
     },
 
     async deleteWithCascade(plan: DeletePlan) {

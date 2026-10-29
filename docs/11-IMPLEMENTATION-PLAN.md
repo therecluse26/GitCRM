@@ -31,7 +31,7 @@ Build in **small vertical slices**. The first meaningful release must prove the 
 
 ## Phase 2 - onboarding and core CRM
 
-- [ ] Connection screen; private repo validation and initialization.
+- [x] Connection screen; private repo validation and initialization. Includes the remembered token and record cache (ADR-017) and Disconnect. Focus checks and one syncing tab (ADR-023) come with the record screens.
 - [ ] Contacts and companies CRUD + links.
 - [ ] Opportunity CRUD + pipeline stage board/list + stage editor (ADR-019).
 - [ ] Tasks and manual activities with relational display.

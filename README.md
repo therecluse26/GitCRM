@@ -1,6 +1,6 @@
 # GitCRM - Project Starter
 
-**Status:** Phase 1 (domain and storage) built; no CRM user interface yet  
+**Status:** Phase 2 in progress: connecting and setting up a workspace work; record screens come next  
 **Last reviewed:** 2026-10-28  
 **Audience:** solo developers and tiny teams who want a useful CRM without operating a database or backend.
 
@@ -62,7 +62,7 @@ npm install
 npx playwright install chromium   # once, for the browser tests
 npm test            # unit and contract tests (Vitest, against a fake GitHub)
 npm run test:e2e    # browser tests (Playwright, against the same fake)
-npm run dev         # then open http://localhost:5173/dev.html
+npm run dev         # the app at http://localhost:5173/, the developer page at /dev.html
 ```
 
 `dev.html` is the developer page from Phase 1. It connects to a repo with a fine-grained PAT and creates, reads, edits, and deletes one contact. The token stays in that tab's memory. Writes go straight to the repo's default branch, so use a disposable private repo. The dev server serves the page; `npm run build` leaves it out.

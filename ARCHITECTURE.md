@@ -51,7 +51,7 @@ search/      in-memory workspace index derived from current snapshot
 auth/        runtime token management and identity checks
 ```
 
-Phase 1 built `core/`, `storage/`, and the connect checks in `auth/`. `dev/` holds the developer page (`dev.html`, dev server only). `test/` holds the fake GitHub that Vitest (through MSW) and Playwright both use.
+Phase 1 built `core/`, `storage/`, and the connect checks in `auth/`. Phase 2 adds `app/` (the router and the Zustand store) and `ui/` (screens; shadcn/ui components live in `components/ui/`). `dev/` holds the developer page (`dev.html`, dev server only). `test/` holds the fake GitHub that Vitest (through MSW) and Playwright both use.
 
 `WorkspaceRepository` is an abstraction around **repository persistence behavior**, not an attempt to support every Git provider (`src/storage/workspace-repository.ts`):
 

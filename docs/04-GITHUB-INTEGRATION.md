@@ -37,8 +37,8 @@ Git Trees has response-size/truncation limits. If `truncated = true`, recursivel
 
 1. Read the PAT from `localStorage`; if absent, show the connect screen.
 2. Load the cached snapshot from IndexedDB into the in-memory store, re-validate each record, and render. Save stays disabled until step 3 finishes.
-3. Sync: if `main`'s commit SHA equals the cached one, the cache is current. Otherwise fetch the recursive tree, compare blob SHAs, fetch only new or changed records, and drop deleted ones.
-4. Apply the result to the in-memory store, and to IndexedDB in one transaction, so the cache is always one coherent snapshot.
+3. Run the connect checks again (`GET /user`, `GET` repo, the write check), so a revoked token or a repo that turned public is caught. Then sync: if `main`'s commit SHA equals the cached one, the cache is current. Otherwise fetch the recursive tree, compare blob SHAs, fetch only new or changed records (GraphQL, by shard folder), and drop deleted ones. An unchanged `main` costs 4 requests in all, with no record downloads.
+4. Apply the result to the in-memory store, and to IndexedDB in one transaction, so the cache is always one coherent snapshot. The cache is one IndexedDB entry per workspace (`src/storage/record-cache.ts`).
 
 Saves write to GitHub first, then update the in-memory store and IndexedDB. After a save, clear the cached commit SHA: `main` may now include other people's commits, so the next sync compares blob SHAs. A change to the app's record schema version clears the cache. Unverified: Safari may delete script-written storage for a site unused for 7 days; the app then falls back to a full load.
 
