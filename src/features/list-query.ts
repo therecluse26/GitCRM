@@ -7,17 +7,18 @@ export const DEFAULT_LIST_VIEW: ListView = { query: '', showArchived: false, sor
 type Listed = { id: string; name: string; updatedAt: string; archivedAt: string | null };
 
 // Case and accents do not matter: "zoe" finds "Zoë".
-const fold = (text: string) => text.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
+export const fold = (text: string) => text.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
+// Every word of a search must appear in a record's search text.
+export const searchWords = (query: string) => fold(query).split(/\s+/).filter(Boolean);
 
 const compare = {
   name: (a: Listed, b: Listed) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }) || (a.id < b.id ? -1 : 1),
   updated: (a: Listed, b: Listed) => (a.updatedAt === b.updatedAt ? compare.name(a, b) : a.updatedAt > b.updatedAt ? -1 : 1),
 };
 
-// Every word of the query must appear in the record's search text. `hiddenArchived` counts the
-// archived records that match but are not shown.
+// `hiddenArchived` counts the archived records that match but are not shown.
 export function listRecords<R extends Listed>(records: R[], view: ListView, searchText: (record: R) => string[]): { shown: R[]; hiddenArchived: number } {
-  const words = fold(view.query).split(/\s+/).filter(Boolean);
+  const words = searchWords(view.query);
   const matching = records.filter((record) => {
     const text = fold(searchText(record).join('\n'));
     return words.every((word) => text.includes(word));
