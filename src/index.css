@@ -127,4 +127,8 @@
   html {
     @apply font-sans;
     }
+  /* Focus targets after the skip link or a page change (spec 08). They are not controls. */
+  main[tabindex='-1'], main h1[tabindex='-1'] {
+    @apply outline-none;
+    }
 }

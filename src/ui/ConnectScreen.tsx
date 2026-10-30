@@ -9,23 +9,29 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { TextField } from './form-fields.tsx';
+import { useFocusFirstError } from './use-focus-first-error.ts';
 
 export function ConnectScreen({ problem, busy }: { problem: string | null; busy: boolean }) {
   const [repoName, setRepoName] = useState(useApp.getState().repoName);
   const [token, setToken] = useState('');
   const [remember, setRemember] = useState(true);
-  const [formProblem, setFormProblem] = useState<string | null>(null);
+  const [errors, setErrors] = useState<{ repo?: string; token?: string }>({});
+  const form = useFocusFirstError(errors);
   const repo = parseRepoName(repoName);
 
   function submit(event: FormEvent) {
     event.preventDefault();
-    if (!repo) return setFormProblem('Enter the repository as owner/repo, for example octo-dev/crm.');
-    if (!token.trim()) return setFormProblem('Paste the token from GitHub.');
-    setFormProblem(null);
+    setErrors({
+      ...(!repo && { repo: 'Enter the repository as owner/repo, for example octo-dev/crm.' }),
+      ...(!token.trim() && { token: 'Paste the token from GitHub.' }),
+    });
+    if (!repo || !token.trim()) return;
     void useApp.getState().connect({ ...repo, token: token.trim(), remember });
   }
 
-  const shown = formProblem ?? problem;
+  // A problem from GitHub, such as a refused token, shows only when the fields are filled in.
+  const shown = Object.keys(errors).length === 0 ? problem : null;
   return (
     <main className="mx-auto flex min-h-svh max-w-xl flex-col justify-center p-4">
       <Card>
@@ -38,11 +44,22 @@ export function ConnectScreen({ problem, busy }: { problem: string | null; busy:
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
+          <form ref={form} onSubmit={submit} className="flex flex-col gap-4" noValidate>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="repo">Repository</Label>
-              <Input id="repo" name="username" autoComplete="username" placeholder="owner/repo" spellCheck={false} value={repoName} onChange={(e) => setRepoName(e.target.value)} />
-              <p className="text-sm text-muted-foreground">
+              <Input
+                id="repo"
+                name="username"
+                autoComplete="username"
+                placeholder="owner/repo"
+                spellCheck={false}
+                value={repoName}
+                onChange={(e) => setRepoName(e.target.value)}
+                aria-invalid={Boolean(errors.repo)}
+                aria-describedby={errors.repo ? 'repo-error repo-hint' : 'repo-hint'}
+              />
+              {errors.repo && <p id="repo-error" className="text-sm text-destructive">{errors.repo}</p>}
+              <p id="repo-hint" className="text-sm text-muted-foreground">
                 An existing private repository, ideally one used only for GitCRM.{' '}
                 <a className="underline" href="https://github.com/new" target="_blank" rel="noopener noreferrer">Create one on GitHub</a>.
               </p>
@@ -63,10 +80,17 @@ export function ConnectScreen({ problem, busy }: { problem: string | null; busy:
               </ol>
             )}
 
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="token">Fine-grained personal access token</Label>
-              <Input id="token" name="password" type="password" autoComplete="current-password" spellCheck={false} value={token} onChange={(e) => setToken(e.target.value)} />
-            </div>
+            <TextField
+              id="token"
+              label="Fine-grained personal access token"
+              name="password"
+              type="password"
+              autoComplete="current-password"
+              spellCheck={false}
+              value={token}
+              error={errors.token}
+              onChange={(e) => setToken(e.target.value)}
+            />
 
             <div className="flex flex-col gap-1.5">
               <div className="flex items-center gap-2">

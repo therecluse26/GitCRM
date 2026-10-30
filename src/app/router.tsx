@@ -16,6 +16,7 @@ import { EditTaskPage, NewTaskPage } from '@/features/tasks/TaskEditor.tsx';
 import { TaskPage } from '@/features/tasks/TaskPage.tsx';
 import { TasksPage } from '@/features/tasks/TasksPage.tsx';
 import { HomePage } from '@/ui/HomePage.tsx';
+import { PageNotFound } from '@/ui/PageNotFound.tsx';
 import { Root } from '@/ui/Root.tsx';
 import { SettingsPage } from '@/ui/SettingsPage.tsx';
 
@@ -48,8 +49,13 @@ const routeTree = rootRoute.addChildren([
   page('/settings', SettingsPage),
 ]);
 
-// A page for another record starts fresh, with no form or message left from the last one.
-export const router = createRouter({ routeTree, history: createHashHistory(), defaultRemountDeps: ({ params }) => params });
+export const router = createRouter({
+  routeTree,
+  history: createHashHistory(),
+  // A page for another record starts fresh, with no form or message left from the last one.
+  defaultRemountDeps: ({ params }) => params,
+  defaultNotFoundComponent: PageNotFound,
+});
 
 declare module '@tanstack/react-router' {
   interface Register {

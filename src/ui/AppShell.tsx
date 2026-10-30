@@ -1,7 +1,7 @@
 // Navigation, the connected repo, and sync status around every page (docs/08).
-import { Link } from '@tanstack/react-router';
+import { Link, useRouter } from '@tanstack/react-router';
 import { Lock, RefreshCw } from 'lucide-react';
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { useApp } from '@/app/store.ts';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -24,6 +24,22 @@ export function AppShell({ children }: { children: ReactNode }) {
   const saving = useApp((s) => s.saving);
   const lastSave = useApp((s) => s.lastSave);
   const checksPaused = useApp((s) => s.checksPaused);
+  const router = useRouter();
+  const main = useRef<HTMLElement>(null);
+
+  // After a page change, focus moves to the new page's heading, so a screen reader reads it
+  // (spec 08). Not on the first load. The focus move never scrolls: the router and the browser
+  // set the scroll position, such as the old position after Back.
+  useEffect(
+    () =>
+      router.subscribe('onRendered', ({ fromLocation, pathChanged }) => {
+        const heading = main.current?.querySelector('h1');
+        if (!fromLocation || !pathChanged || !heading) return;
+        heading.tabIndex = -1;
+        heading.focus({ preventScroll: true });
+      }),
+    [router],
+  );
 
   // Coming back to the tab checks main in the background (docs/04).
   useEffect(() => {
@@ -39,6 +55,10 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex min-h-svh flex-col bg-background">
+      {/* A button, not a link: with hash addresses, a link to #main would change the page address. */}
+      <Button variant="outline" size="lg" className="absolute -top-16 left-2 z-10 shadow-md transition-none focus-visible:top-2" onClick={() => main.current?.focus()}>
+        Skip to main content
+      </Button>
       <header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b px-4 py-3">
         <span className="font-semibold">GitCRM</span>
         <span className="text-muted-foreground">{workspaceName}</span>
@@ -83,7 +103,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </Link>
           ))}
         </nav>
-        <main className="flex min-w-0 flex-1 flex-col gap-4 p-4 md:p-6">
+        <main ref={main} tabIndex={-1} className="flex min-w-0 flex-1 flex-col gap-4 p-4 md:p-6">
           {'message' in sync && (
             <Alert role="alert">
               <AlertDescription>{sync.message} GitCRM is showing the records it has, read-only, until a refresh succeeds.</AlertDescription>
