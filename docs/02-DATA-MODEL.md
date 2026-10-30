@@ -134,6 +134,8 @@ Money (`src/core/money.ts`): the decimal places come from the currency through `
 
 `related` may be null. Task completion is manual; due dates are displayed, not scheduled in the background.
 
+Built rules (`src/features/tasks/task-list.ts`, `src/core/local-time.ts`): a task is overdue when its `dueDate` is before today's date in the browser's time zone. A task due today is not overdue. "Today" moves on at local midnight while the page is open. Complete sets `completedAt` to the UTC time, to the second; Reopen sets it to null. The task form never changes `completedAt`.
+
 ## Activity
 
 ```json
@@ -152,6 +154,8 @@ Money (`src/core/money.ts`): the decimal places come from the currency through `
 ```
 
 Allowed `kind` values: `note`, `call`, `meeting`, `email_manual`. Activity is **manual documentation**, not automated email capture. Each item gets its own document so a record can be targeted by a future purge tool.
+
+Built rules (`src/features/activities/`): `occurredAt` is entered in local time and stored in UTC, to the second. A timeline shows the latest activity first; activities at the same moment are ordered by ID. The body is plain text. The UI never renders it as HTML, so markup in a note shows as typed.
 
 ## Custom fields (reserved in v1, built after the MVP; ADR-020)
 
