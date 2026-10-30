@@ -85,14 +85,14 @@ test('at 390 pixels wide, no page scrolls sideways, and the navigation shows eve
   await page.setViewportSize({ width: 390, height: 844 });
   const { ava, records } = avasRecords();
   await open(page, records);
-  for (const path of ['/', '/contacts', `/contacts/${ava.id}`, '/companies', '/pipeline', '/tasks', '/settings', '/contacts/new', '/tasks/new', '/activities/new']) {
+  for (const path of ['/', '/contacts', `/contacts/${ava.id}`, '/companies', '/pipeline', '/tasks', '/search', '/settings', '/contacts/new', '/tasks/new', '/activities/new']) {
     await page.goto(`/#${path}`);
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth), path).toBe(0);
   }
 
   const links = await page.getByRole('navigation', { name: 'Main' }).getByRole('link').all();
-  expect(links).toHaveLength(6);
+  expect(links).toHaveLength(7);
   for (const link of links) {
     await expect(link).toBeInViewport();
     const box = (await link.boundingBox())!;

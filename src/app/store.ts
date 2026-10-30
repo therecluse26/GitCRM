@@ -11,6 +11,7 @@ import { newWorkspaceConfig } from '../core/workspace.ts';
 import { DEFAULT_LIST_VIEW, type ListView } from '../features/list-query.ts';
 import { DEFAULT_PIPELINE_VIEW, type PipelineView } from '../features/opportunities/pipeline.ts';
 import { DEFAULT_TASK_VIEW, type TaskView } from '../features/tasks/task-list.ts';
+import { DEFAULT_SEARCH_VIEW, type SearchView } from '../search/search.ts';
 import { createGitHubClient, GitHubError, type GitHubClient } from '../storage/github-client.ts';
 import { createGitHubWorkspace } from '../storage/github-workspace.ts';
 import { stateForError, type OperationState } from '../storage/operation-state.ts';
@@ -54,6 +55,7 @@ export type AppState = {
   lists: Record<'contact' | 'company', ListView>;
   pipeline: PipelineView;
   tasks: TaskView;
+  search: SearchView;
   start(): Promise<void>;
   connect(credentials: Credentials): Promise<void>;
   refresh(): Promise<void>;
@@ -65,6 +67,7 @@ export type AppState = {
   setListView(type: keyof AppState['lists'], changes: Partial<ListView>): void;
   setPipelineView(changes: Partial<PipelineView>): void;
   setTaskView(changes: Partial<TaskView>): void;
+  setSearchView(changes: Partial<SearchView>): void;
   tabFocused(): void;
   disconnect(): Promise<void>;
 };
@@ -89,6 +92,7 @@ const cleared = {
   lists: { contact: DEFAULT_LIST_VIEW, company: DEFAULT_LIST_VIEW },
   pipeline: DEFAULT_PIPELINE_VIEW,
   tasks: DEFAULT_TASK_VIEW,
+  search: DEFAULT_SEARCH_VIEW,
 } satisfies Partial<AppState>;
 let started = false; // StrictMode runs effects twice in development
 // One client per token, kept across refreshes, so a wait that GitHub asked for still holds.
@@ -316,6 +320,10 @@ export const useApp = create<AppState>()((set, get) => {
 
     setTaskView(changes) {
       set({ tasks: { ...get().tasks, ...changes } });
+    },
+
+    setSearchView(changes) {
+      set({ search: { ...get().search, ...changes } });
     },
 
     tabFocused() {

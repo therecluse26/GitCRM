@@ -42,7 +42,7 @@ Build in **small vertical slices**. The first meaningful release must prove the 
 
 ## Phase 3 - portability and hardening
 
-- [ ] Search over current fully loaded snapshot.
+- [x] Search over current fully loaded snapshot (spec 05). Includes the Search page in the main navigation, every record type, the record type filter, archived records on request, and the first 10 results per group. Measured at 100, 500, and 2,000 records (docs/06); no search package.
 - [ ] Full JSON snapshot ZIP, per-entity CSV, data dictionary.
 - [ ] Delete with a cascade preview in one commit (ADR-021). Archive is built in Phase 2.
 - [ ] Browser and GitHub adapter failure-path E2E tests.

@@ -11,6 +11,7 @@ import type { VersionedRecord } from '@/storage/workspace-repository.ts';
 import { linkButton } from '@/ui/link-button.ts';
 import { ArchivedBadge, ArchivedToggle, Problem } from '@/ui/record-page.tsx';
 import { formatDateTime, useRecords } from '../records.ts';
+import { RelatedLink } from '../RelatedRecord.tsx';
 import { isRelatedTo, relatedKey, type Related } from '../related.ts';
 import { useArchive } from '../use-archive.ts';
 import { kindLabel } from './activity-form.ts';
@@ -43,7 +44,7 @@ export function ActivityTimeline({ name, related }: { name: string; related: Rel
         ) : (
           <ol aria-label={`Activity with ${name}`} className="flex flex-col divide-y">
             {order.map((activity) => (
-              <ActivityItem key={activity.id} saved={versionOf(activity.id)} />
+              <ActivityItem key={activity.id} saved={versionOf(activity.id)} showRelated={false} />
             ))}
           </ol>
         )}
@@ -53,7 +54,8 @@ export function ActivityTimeline({ name, related }: { name: string; related: Rel
   );
 }
 
-function ActivityItem({ saved }: { saved: VersionedRecord<Activity> }) {
+// One activity in a list, with Edit and Archive: an activity has no page of its own.
+export function ActivityItem({ saved, showRelated }: { saved: VersionedRecord<Activity>; showRelated: boolean }) {
   const readOnly = useApp(selectReadOnly);
   const canWrite = useApp(selectCanWrite);
   const archive = useArchive(saved);
@@ -63,6 +65,11 @@ function ActivityItem({ saved }: { saved: VersionedRecord<Activity> }) {
       <div className="flex flex-wrap items-center gap-2">
         <span className="font-medium">{kindLabel(activity.kind)}</span>
         <span className="text-muted-foreground">{formatDateTime(activity.occurredAt)}</span>
+        {showRelated && activity.related && (
+          <span className="text-muted-foreground">
+            with <RelatedLink related={activity.related} />
+          </span>
+        )}
         {archive.archived && <ArchivedBadge />}
         {!readOnly && (
           <span className="ml-auto flex gap-1">
