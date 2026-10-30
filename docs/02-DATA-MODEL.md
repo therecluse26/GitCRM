@@ -26,7 +26,7 @@
 - A file over 100 KiB is an issue and is not parsed (the size cap in `docs/07`).
 - Issue codes: `too-large`, `invalid-json`, `unsupported-version` (a newer `schemaVersion`), `invalid-record`, `path-mismatch` (the type or ID differs from the path), `unrecognized-path` (a file under `data/` outside the layout), and `broken-link`.
 - `broken-link` (`src/core/links.ts`): a `companyId`, `contactIds` entry, or `related` link names no record of that type in the snapshot. An archived record counts as present. The record still loads, and Settings lists the issue. The UI offers only existing records, so it cannot create a broken link.
-- Not yet checked: an unknown `stageId`. That check comes with the opportunity screens.
+- `broken-link` also covers an opportunity whose `stageId` is not in `.gitcrm/workspace.json`. The pipeline shows it in an "Unknown stage" column until someone moves it. This can happen when one person removes a stage while another moves an opportunity into it.
 
 ## Workspace configuration
 
@@ -49,6 +49,10 @@ Path: `.gitcrm/workspace.json`
 ```
 
 Users edit stages in Settings (ADR-019): rename, reorder, add, and remove. Stage IDs never change; a new stage gets a lowercase ID derived from its first label, with a numeric suffix on collision. A stage can be removed only when no opportunity uses it. Exactly one `won` and one `lost` terminal stage always exist; they can be renamed but not removed. Workflow configuration itself is not an automation system.
+
+Built rules (`src/core/stages.ts`): a new stage goes before the first terminal stage. Its ID base is cut to 56 characters, so a suffix such as `-12` stays within 64. Positions are written as 0 to n-1 on every save. Two stages cannot have the same name, ignoring case and outer spaces.
+
+Money (`src/core/money.ts`): the decimal places come from the currency through `Intl`, for example 2 for USD, 0 for JPY, and 3 for KWD. The form accepts a period for decimals, and commas only between thousands. It refuses a negative amount and extra decimal places, and never uses binary floating point.
 
 ## Contact
 
@@ -130,6 +134,8 @@ Users edit stages in Settings (ADR-019): rename, reorder, add, and remove. Stage
 
 `related` may be null. Task completion is manual; due dates are displayed, not scheduled in the background.
 
+Built rules (`src/features/tasks/task-list.ts`, `src/core/local-time.ts`): a task is overdue when its `dueDate` is before today's date in the browser's time zone. A task due today is not overdue. "Today" moves on at local midnight while the page is open. Complete sets `completedAt` to the UTC time, to the second; Reopen sets it to null. The task form never changes `completedAt`.
+
 ## Activity
 
 ```json
@@ -148,6 +154,8 @@ Users edit stages in Settings (ADR-019): rename, reorder, add, and remove. Stage
 ```
 
 Allowed `kind` values: `note`, `call`, `meeting`, `email_manual`. Activity is **manual documentation**, not automated email capture. Each item gets its own document so a record can be targeted by a future purge tool.
+
+Built rules (`src/features/activities/`): `occurredAt` is entered in local time and stored in UTC, to the second. A timeline shows the latest activity first; activities at the same moment are ordered by ID. The body is plain text. The UI never renders it as HTML, so markup in a note shows as typed.
 
 ## Custom fields (reserved in v1, built after the MVP; ADR-020)
 

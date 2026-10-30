@@ -8,6 +8,8 @@ Professional, minimal, and fast. Users should see CRM concepts, not Git internal
 
 Primary: Home, Contacts, Companies, Pipeline, Tasks, Search, Settings. A unified record view includes tabs/sections for details, linked records, activities, and related tasks.
 
+Built (spec 08): on a phone, the main navigation wraps into rows, with no menu button. An address that matches no page shows "Page not found" inside the app.
+
 ## Screen behaviors
 
 ### Home
@@ -40,6 +42,7 @@ Primary: Home, Contacts, Companies, Pipeline, Tasks, Search, Settings. A unified
 
 - Search across all loaded current records with entity-type filter.
 - Keyboard-accessible results; never show archived records unless requested.
+- Built (spec 05): a Search page in the main navigation. Results come in groups by record type; with "All types", each group shows its first 10. The search text stays in memory, never in the page address.
 
 ### Settings
 
@@ -68,6 +71,7 @@ Primary: Home, Contacts, Companies, Pipeline, Tasks, Search, Settings. A unified
 - Label inputs and validation errors; focus management on dialogs.
 - Sufficient contrast; honor reduced motion; avoid color-only stage cues.
 - Provide a list view alternative to Kanban for keyboard users and narrow screens.
+- Built (spec 08): a "Skip to main content" button, and focus on the page heading after each page change. Each form error is linked to its field, and focus moves to the first field with an error.
 
 ## Copywriting tone
 

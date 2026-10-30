@@ -34,15 +34,15 @@ Build in **small vertical slices**. The first meaningful release must prove the 
 - [x] Connection screen; private repo validation and initialization. Includes the remembered token and record cache (ADR-017) and Disconnect.
 - [x] Contacts and companies CRUD + links. Includes archive and restore, list search and sort, the conflict compare panel (spec 07), the warning before leaving an unsaved form, and the `broken-link` check. Delete stays in Phase 3.
 - [x] Background checks of `main` on tab focus, the rate-limit budget guard, and one syncing tab (ADR-023). Disconnect also reaches the other open tabs.
-- [ ] Opportunity CRUD + pipeline stage board/list + stage editor (ADR-019).
-- [ ] Tasks and manual activities with relational display.
-- [ ] Responsive navigation, save feedback, and validation UX.
+- [x] Opportunity CRUD + pipeline stage board/list + stage editor (ADR-019). Includes archive and restore, moves by menu and by drag and drop, opportunities on company and contact pages, open opportunities by stage on Home, and the unknown-stage check. Delete stays in Phase 3.
+- [x] Tasks and manual activities with relational display. Includes complete and reopen, archive and restore, task and activity cards on contact, company, and opportunity pages, and tasks due and recent activity on Home. Delete stays in Phase 3.
+- [x] Responsive navigation, save feedback, and validation UX (spec 08). Includes the skip link, focus on the page heading after a page change, a page for unknown addresses, a form message while another save runs, and field errors on the connect and setup screens.
 
-**Exit:** full "company -> contact -> opportunity -> note -> follow-up task" user journey works.
+**Exit:** full "company -> contact -> opportunity -> note -> follow-up task" user journey works. Met on 2026-10-29 against the fake GitHub (`e2e/journey.spec.ts`). Still to do: a manual run against a disposable private repo.
 
 ## Phase 3 - portability and hardening
 
-- [ ] Search over current fully loaded snapshot.
+- [x] Search over current fully loaded snapshot (spec 05). Includes the Search page in the main navigation, every record type, the record type filter, archived records on request, and the first 10 results per group. Measured at 100, 500, and 2,000 records (docs/06); no search package.
 - [ ] Full JSON snapshot ZIP, per-entity CSV, data dictionary.
 - [ ] Delete with a cascade preview in one commit (ADR-021). Archive is built in Phase 2.
 - [ ] Browser and GitHub adapter failure-path E2E tests.

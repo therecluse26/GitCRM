@@ -24,6 +24,20 @@ describe('linkIssues', () => {
     ]);
   });
 
+  it('reports an opportunity whose stage is not in the workspace settings', () => {
+    const deal = newRecord(
+      'opportunity',
+      { title: 'Website rebuild', stageId: 'negotiation', companyId: null, contactIds: [], valueMinor: null, currency: 'USD', expectedCloseDate: null },
+      { now, id: 'e8c756c7-f1b2-4c47-9d3d-26457c6b0979' },
+    );
+    expect(linkIssues(entries(deal), new Set(['lead', 'won', 'lost']))).toEqual([
+      { path: recordPath('opportunity', deal.id), code: 'broken-link', message: 'stageId: no stage "negotiation" is in .gitcrm/workspace.json' },
+    ]);
+    expect(linkIssues(entries(deal), new Set(['negotiation']))).toEqual([]);
+    // Without valid workspace settings there is nothing to check against; that file has its own issue.
+    expect(linkIssues(entries(deal), null)).toEqual([]);
+  });
+
   it('counts an archived record as present', () => {
     expect(linkIssues(entries({ ...company, archivedAt: '2026-10-29T12:00:00Z' }, contact(companyId)))).toEqual([]);
   });

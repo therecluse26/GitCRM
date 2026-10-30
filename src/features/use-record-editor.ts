@@ -8,7 +8,7 @@ import { editRecord, newRecord, type RecordFields } from '@/core/records.ts';
 import type { RecordOf, RecordType } from '@/core/schemas.ts';
 import { stateForError, type OperationState } from '@/storage/operation-state.ts';
 import type { VersionedRecord } from '@/storage/workspace-repository.ts';
-import { changedFields, conflictRows, rebaseFields, type ConflictRow, type FieldErrors, type FormResult } from './record-form.ts';
+import { changedFields, conflictRows, rebaseFields, type ConflictRow, type FieldErrors, type FieldGroups, type FormResult } from './record-form.ts';
 
 export type EditorOptions<T extends RecordType, F extends object, V> = {
   type: T;
@@ -17,11 +17,14 @@ export type EditorOptions<T extends RecordType, F extends object, V> = {
   fieldsOf: (record: RecordOf<T>) => F;
   valuesOf: (fields: F | null) => V;
   read: (values: V, base: RecordOf<T> | null) => FormResult<F>;
+  groups?: FieldGroups<F>; // fields that a conflict retry takes from one side only
+  // A new record's fields, when the form does not edit all of them, such as a task's completedAt.
+  newFields?: (fields: F) => RecordFields<T>;
   onSaved: (saved: VersionedRecord<RecordOf<T>>) => void;
 };
 
 export function useRecordEditor<T extends RecordType, F extends object, V>(options: EditorOptions<T, F, V>) {
-  const { type, fieldsOf, valuesOf, read } = options;
+  const { type, fieldsOf, valuesOf, read, groups } = options;
   const [base, setBase] = useState(options.saved); // the version this form edits
   const [initial, setInitial] = useState<V>(() => options.initial ?? valuesOf(options.saved && fieldsOf(options.saved.record)));
   const [values, setValues] = useState<V>(initial);
@@ -46,7 +49,8 @@ export function useRecordEditor<T extends RecordType, F extends object, V>(optio
     setState({ status: 'saving' });
     try {
       const now = new Date();
-      const record = from ? editRecord(from.record, fields, now) : newRecord(type, fields as unknown as RecordFields<T>, { now, id });
+      const created = options.newFields ? options.newFields(fields) : (fields as unknown as RecordFields<T>);
+      const record = from ? editRecord(from.record, fields, now) : newRecord(type, created, { now, id });
       const saved = await useApp.getState().saveRecord(record, from?.blobSha ?? null);
       leaving.current = true;
       setState({ status: 'committed', commitSha: saved.commitSha });
@@ -87,7 +91,7 @@ export function useRecordEditor<T extends RecordType, F extends object, V>(optio
   // Save my changes on top of the remote version.
   async function retryAfterReview() {
     if (!remote || !attempt) return;
-    const rebased = base ? rebaseFields(attempt, fieldsOf(base.record), fieldsOf(remote.record)) : attempt;
+    const rebased = base ? rebaseFields(attempt, fieldsOf(base.record), fieldsOf(remote.record), groups) : attempt;
     setBase(remote);
     setInitial(valuesOf(fieldsOf(remote.record)));
     setValues(valuesOf(rebased));
@@ -95,7 +99,7 @@ export function useRecordEditor<T extends RecordType, F extends object, V>(optio
   }
 
   const rows: ConflictRow<F>[] =
-    conflict && remote && attempt ? conflictRows(attempt, fieldsOf((base ?? remote).record), fieldsOf(remote.record)) : [];
+    conflict && remote && attempt ? conflictRows(attempt, fieldsOf((base ?? remote).record), fieldsOf(remote.record), groups) : [];
 
   // The user chose to leave, for example after "Discard mine" on a deleted record.
   function allowLeave() {

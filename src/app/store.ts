@@ -6,9 +6,12 @@ import { assessRepository, describeConnectError, inspectRepository, type Access 
 import { forgetConnection, readSavedConnection, saveConnection, type SavedConnection } from '../auth/credentials.ts';
 import { WORKSPACE_PATH } from '../core/paths.ts';
 import { serializeRecord, serializeWorkspace } from '../core/record-file.ts';
-import type { CRMRecord } from '../core/schemas.ts';
+import type { CRMRecord, WorkspaceConfig } from '../core/schemas.ts';
 import { newWorkspaceConfig } from '../core/workspace.ts';
 import { DEFAULT_LIST_VIEW, type ListView } from '../features/list-query.ts';
+import { DEFAULT_PIPELINE_VIEW, type PipelineView } from '../features/opportunities/pipeline.ts';
+import { DEFAULT_TASK_VIEW, type TaskView } from '../features/tasks/task-list.ts';
+import { DEFAULT_SEARCH_VIEW, type SearchView } from '../search/search.ts';
 import { createGitHubClient, GitHubError, type GitHubClient } from '../storage/github-client.ts';
 import { createGitHubWorkspace } from '../storage/github-workspace.ts';
 import { stateForError, type OperationState } from '../storage/operation-state.ts';
@@ -50,13 +53,21 @@ export type AppState = {
   checksPaused: boolean; // background checks skipped: fewer than 500 REST requests left (ADR-023)
   // List filters stay in memory, not in the URL: browsers keep URLs in history, and some sync it.
   lists: Record<'contact' | 'company', ListView>;
+  pipeline: PipelineView;
+  tasks: TaskView;
+  search: SearchView;
   start(): Promise<void>;
   connect(credentials: Credentials): Promise<void>;
   refresh(): Promise<void>;
   initialize(input: { name: string; defaultCurrency: string }): Promise<void>;
   // Creates the record when expectedBlobSha is null; otherwise updates it from that version.
   saveRecord<R extends CRMRecord>(record: R, expectedBlobSha: string | null): Promise<VersionedRecord<R>>;
+  // Updates .gitcrm/workspace.json from the version with that blob SHA, in one commit.
+  saveWorkspace(config: WorkspaceConfig, expectedBlobSha: string): Promise<void>;
   setListView(type: keyof AppState['lists'], changes: Partial<ListView>): void;
+  setPipelineView(changes: Partial<PipelineView>): void;
+  setTaskView(changes: Partial<TaskView>): void;
+  setSearchView(changes: Partial<SearchView>): void;
   tabFocused(): void;
   disconnect(): Promise<void>;
 };
@@ -79,6 +90,9 @@ const cleared = {
   lastSave: null,
   checksPaused: false,
   lists: { contact: DEFAULT_LIST_VIEW, company: DEFAULT_LIST_VIEW },
+  pipeline: DEFAULT_PIPELINE_VIEW,
+  tasks: DEFAULT_TASK_VIEW,
+  search: DEFAULT_SEARCH_VIEW,
 } satisfies Partial<AppState>;
 let started = false; // StrictMode runs effects twice in development
 // One client per token, kept across refreshes, so a wait that GitHub asked for still holds.
@@ -155,6 +169,35 @@ export const useApp = create<AppState>()((set, get) => {
     }
     set({ checksPaused: message.paused });
     if (message.files && get().session && !get().saving) show(snapshotFromFiles(message.files), message.files, false);
+  }
+
+  // One write at a time (docs/04: keep mutating calls serialized). `file` is the file the write
+  // left on main, for the snapshot and the record cache.
+  async function write<T extends { blobSha: string; commitSha: string | null }>(
+    run: (workspace: WorkspaceRepository) => Promise<T>,
+    file: (saved: T) => { path: string; text: string },
+  ): Promise<T> {
+    const { session } = get();
+    if (!session || !selectCanWrite(get())) throw new Error('GitCRM cannot save right now');
+    set({ saving: true });
+    let saved: T;
+    try {
+      saved = await run(session.workspace);
+    } catch (error) {
+      set({ saving: false });
+      // GitHub has a newer version: load it for the rest of the app (ARCHITECTURE, "Write path").
+      // The form keeps its own copy, so the user's changes stay.
+      if (error instanceof ConflictError && get().session === session) void get().refresh();
+      throw error;
+    }
+    set({ saving: false });
+    if (get().session !== session) return saved; // disconnected while saving
+    const { path, text } = file(saved);
+    // main may now hold other people's commits too, so the next load compares blob SHAs (docs/04).
+    const next: SnapshotFiles = { commitSha: null, files: new Map(get().files?.files).set(path, { blobSha: saved.blobSha, text, isTruncated: false }) };
+    show(snapshotFromFiles(next), next);
+    set({ lastSave: { commitSha: saved.commitSha } });
+    return saved;
   }
 
   // Leaves the workspace: no records on screen, and no part in the tab sync.
@@ -253,34 +296,34 @@ export const useApp = create<AppState>()((set, get) => {
       show(snapshotFromFiles(next), next);
     },
 
-    async saveRecord(record, expectedBlobSha) {
-      const { session } = get();
-      if (!session || !selectCanWrite(get())) throw new Error('GitCRM cannot save right now');
-      set({ saving: true });
-      let saved: VersionedRecord<typeof record>;
-      try {
-        saved = expectedBlobSha === null ? await session.workspace.createRecord(record) : await session.workspace.updateRecord(record, expectedBlobSha);
-      } catch (error) {
-        set({ saving: false });
-        // GitHub has a newer version: load it for the rest of the app (ARCHITECTURE, "Write path").
-        // The form keeps its own copy, so the user's changes stay.
-        if (error instanceof ConflictError && get().session === session) void get().refresh();
-        throw error;
-      }
-      set({ saving: false });
-      if (get().session !== session) return saved; // disconnected while saving
-      // main may now hold other people's commits too, so the next load compares blob SHAs (docs/04).
-      const next: SnapshotFiles = {
-        commitSha: null,
-        files: new Map(get().files?.files).set(saved.path, { blobSha: saved.blobSha, text: serializeRecord(record), isTruncated: false }),
-      };
-      show(snapshotFromFiles(next), next);
-      set({ lastSave: { commitSha: saved.commitSha } });
-      return saved;
+    saveRecord(record, expectedBlobSha) {
+      return write(
+        (workspace) => (expectedBlobSha === null ? workspace.createRecord(record) : workspace.updateRecord(record, expectedBlobSha)),
+        (saved) => ({ path: saved.path, text: serializeRecord(record) }),
+      );
+    },
+
+    async saveWorkspace(config, expectedBlobSha) {
+      await write(
+        (workspace) => workspace.writeWorkspace(config, expectedBlobSha),
+        () => ({ path: WORKSPACE_PATH, text: serializeWorkspace(config) }),
+      );
     },
 
     setListView(type, changes) {
       set({ lists: { ...get().lists, [type]: { ...get().lists[type], ...changes } } });
+    },
+
+    setPipelineView(changes) {
+      set({ pipeline: { ...get().pipeline, ...changes } });
+    },
+
+    setTaskView(changes) {
+      set({ tasks: { ...get().tasks, ...changes } });
+    },
+
+    setSearchView(changes) {
+      set({ search: { ...get().search, ...changes } });
     },
 
     tabFocused() {
