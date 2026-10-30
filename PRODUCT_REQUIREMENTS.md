@@ -51,7 +51,7 @@ Create a company and contact; open an opportunity associated with them; record a
 - Portability: stable documented schema, stable record IDs, no proprietary serialization.
 - Safety: no silent overwrite; unsaved edits are explicit; local network failures do not pretend data was saved.
 - Responsiveness: client-side text search must remain comfortable for a small dataset. Load and save targets are in `docs/06-SEARCH-AND-PERFORMANCE.md`; the P0 spike confirms or revises them.
-- Accessibility: keyboard navigation, accessible form labels, visible error states, WCAG 2.2 AA as target.
+- Accessibility: keyboard navigation, accessible form labels, visible error states, WCAG 2.2 AA as target. Acceptance cases: `specs/08-NAVIGATION-FEEDBACK-AND-VALIDATION.md`.
 - Compatibility: evergreen desktop browsers first; mobile web usable but not a dedicated mobile-first MVP.
 
 ## Definition of done

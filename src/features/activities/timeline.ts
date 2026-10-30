@@ -2,6 +2,8 @@
 // ordered by ID, so the order never changes between loads.
 import type { Activity } from '@/core/schemas.ts';
 
+export const latestFirst = (a: Activity, b: Activity) => Date.parse(b.occurredAt) - Date.parse(a.occurredAt) || (a.id < b.id ? -1 : 1);
+
 export function timeline(activities: Activity[]): Activity[] {
-  return activities.toSorted((a, b) => Date.parse(b.occurredAt) - Date.parse(a.occurredAt) || (a.id < b.id ? -1 : 1));
+  return activities.toSorted(latestFirst);
 }

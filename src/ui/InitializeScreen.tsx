@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { stateForError } from '@/storage/operation-state.ts';
+import { useFocusFirstError } from './use-focus-first-error.ts';
 
 export function InitializeScreen() {
   const repoName = useApp((s) => s.repoName);
@@ -15,6 +16,7 @@ export function InitializeScreen() {
   const [name, setName] = useState(repoName.split('/')[1] ?? '');
   const [currency, setCurrency] = useState('USD');
   const [errors, setErrors] = useState<{ name?: string; currency?: string }>({});
+  const form = useFocusFirstError(errors);
   const [problem, setProblem] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -50,7 +52,7 @@ export function InitializeScreen() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
+          <form ref={form} onSubmit={submit} className="flex flex-col gap-4" noValidate>
             {access?.kind === 'read-only' && (
               <Alert role="alert">
                 <AlertDescription>{access.message}</AlertDescription>

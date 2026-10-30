@@ -1,11 +1,12 @@
 // The frame of every record form: the unsaved and saving states, a failed save, and the conflict
 // panel (docs/08, "Important system states"). A failed save never clears the form.
-import { useEffect, useRef, type FormEvent, type ReactNode } from 'react';
+import type { FormEvent, ReactNode } from 'react';
 import { selectCanWrite, selectReadOnly, useApp } from '@/app/store.ts';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import type { FieldErrors } from '@/features/record-form.ts';
 import type { OperationState } from '@/storage/operation-state.ts';
+import { useFocusFirstError } from './use-focus-first-error.ts';
 
 export function EditorForm({
   heading,
@@ -30,14 +31,10 @@ export function EditorForm({
 }) {
   const canWrite = useApp(selectCanWrite);
   const readOnly = useApp(selectReadOnly);
-  const form = useRef<HTMLFormElement>(null);
+  const otherSave = useApp((s) => s.saving); // one write at a time, such as a task checked off before this page opened
+  const form = useFocusFirstError(errors);
   const saving = state.status === 'saving';
   const failure = state.status === 'failed' || state.status === 'unauthorized' || state.status === 'rate-limited' ? state.message : null;
-
-  // After a failed check, move focus to the first field with an error.
-  useEffect(() => {
-    form.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
-  }, [errors]);
 
   function submit(event: FormEvent) {
     event.preventDefault();
@@ -66,7 +63,11 @@ export function EditorForm({
         </div>
         {!canWrite && !saving && (
           <p className="text-sm text-muted-foreground">
-            {readOnly ? 'GitCRM is read-only here, so changes cannot be saved.' : 'You can save when GitCRM finishes checking GitHub.'}
+            {readOnly
+              ? 'GitCRM is read-only here, so changes cannot be saved.'
+              : otherSave
+                ? 'You can save when the other save finishes.'
+                : 'You can save when GitCRM finishes checking GitHub.'}
           </p>
         )}
       </form>

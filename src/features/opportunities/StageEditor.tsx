@@ -2,7 +2,7 @@
 // Edits stay in a draft until "Save stages" writes .gitcrm/workspace.json in one commit.
 import { useBlocker } from '@tanstack/react-router';
 import { ArrowDown, ArrowUp, Plus, X } from 'lucide-react';
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { selectCanWrite, selectReadOnly, useApp } from '@/app/store.ts';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,7 @@ import { addStage, isTerminal, moveStage, removeStage, renameStage, sortStages, 
 import { stateForError, type OperationState } from '@/storage/operation-state.ts';
 import type { WorkspaceSnapshot } from '@/storage/workspace-repository.ts';
 import { TextField } from '@/ui/form-fields.tsx';
+import { useFocusFirstError } from '@/ui/use-focus-first-error.ts';
 import { useRecords, useStages } from '../records.ts';
 
 type Workspace = NonNullable<WorkspaceSnapshot['workspace']>;
@@ -28,16 +29,13 @@ export function StageEditor() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [blocked, setBlocked] = useState<string | null>(null);
   const [state, setState] = useState<OperationState>({ status: 'idle' });
-  const form = useRef<HTMLFormElement>(null);
+  const form = useFocusFirstError(errors);
   const stages = draft?.stages ?? latest;
   const dirty = draft !== null && JSON.stringify(draft.stages) !== JSON.stringify(sortStages(draft.base.config.pipelineStages));
   const saving = state.status === 'saving';
   const conflict = state.status === 'conflict';
 
   useBlocker({ shouldBlockFn: () => !window.confirm('Leave this page? Your unsaved stage changes will be lost.'), enableBeforeUnload: true, disabled: !dirty });
-  useEffect(() => {
-    form.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
-  }, [errors]);
 
   if (!workspace) return null;
   const edit = (next: Stage[]) => {
