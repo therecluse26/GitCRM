@@ -18,6 +18,8 @@ export type EditorOptions<T extends RecordType, F extends object, V> = {
   valuesOf: (fields: F | null) => V;
   read: (values: V, base: RecordOf<T> | null) => FormResult<F>;
   groups?: FieldGroups<F>; // fields that a conflict retry takes from one side only
+  // A new record's fields, when the form does not edit all of them, such as a task's completedAt.
+  newFields?: (fields: F) => RecordFields<T>;
   onSaved: (saved: VersionedRecord<RecordOf<T>>) => void;
 };
 
@@ -47,7 +49,8 @@ export function useRecordEditor<T extends RecordType, F extends object, V>(optio
     setState({ status: 'saving' });
     try {
       const now = new Date();
-      const record = from ? editRecord(from.record, fields, now) : newRecord(type, fields as unknown as RecordFields<T>, { now, id });
+      const created = options.newFields ? options.newFields(fields) : (fields as unknown as RecordFields<T>);
+      const record = from ? editRecord(from.record, fields, now) : newRecord(type, created, { now, id });
       const saved = await useApp.getState().saveRecord(record, from?.blobSha ?? null);
       leaving.current = true;
       setState({ status: 'committed', commitSha: saved.commitSha });

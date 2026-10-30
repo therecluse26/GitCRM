@@ -1,4 +1,5 @@
-// One company (spec 02): details, its contacts and opportunities, Edit, and Archive or Restore.
+// One company (spec 02): details, its contacts, opportunities, tasks, and activity, Edit, and
+// Archive or Restore.
 import { Link, useParams } from '@tanstack/react-router';
 import { Plus } from 'lucide-react';
 import { selectCanWrite, selectReadOnly, useApp } from '@/app/store.ts';
@@ -7,6 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { linkButton } from '@/ui/link-button.ts';
 import { ArchivedBadge, Detail, Problem, RecordNotFound, Tags } from '@/ui/record-page.tsx';
 import { RelatedOpportunities } from '../opportunities/RelatedOpportunities.tsx';
+import { ActivityTimeline } from '../activities/ActivityTimeline.tsx';
+import { RelatedTasks } from '../tasks/RelatedTasks.tsx';
 import { formatDate, useRecord, useRecords } from '../records.ts';
 import { useArchive } from '../use-archive.ts';
 
@@ -84,6 +87,8 @@ export function CompanyPage() {
         </CardContent>
       </Card>
       <RelatedOpportunities name={company.name} linked={(o) => o.companyId === companyId} search={{ companyId }} />
+      <RelatedTasks name={company.name} related={{ type: 'company', id: companyId }} />
+      <ActivityTimeline name={company.name} related={{ type: 'company', id: companyId }} />
     </>
   );
 }

@@ -39,6 +39,22 @@ export function SelectField({ id, label, error, hint, children, ...props }: Fiel
   );
 }
 
+export function TextAreaField({ id, label, error, hint, ...props }: FieldProps & ComponentProps<'textarea'>) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <Label htmlFor={id}>{label}</Label>
+      <textarea
+        id={id}
+        className="min-h-24 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1.5 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30"
+        aria-invalid={Boolean(error)}
+        aria-describedby={error || hint ? `${id}-message` : undefined}
+        {...props}
+      />
+      <Message id={`${id}-message`} error={error} hint={hint} />
+    </div>
+  );
+}
+
 // Several values of one kind, such as email addresses. Errors use the keys `${name}.${index}`.
 export function ValueListField({
   name,
