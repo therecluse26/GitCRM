@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { useApp, type AppState } from '@/app/store.ts';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -38,6 +39,20 @@ export function ListSummary({ shown, hiddenArchived, singular, plural }: { shown
     <p role="status" className="text-sm text-muted-foreground">
       {count(shown)}
       {hiddenArchived > 0 && `. ${count(hiddenArchived, 'archived ')} hidden.`}
+    </p>
+  );
+}
+
+// On a record page, a card hides its archived items until asked (spec 06).
+export function ArchivedToggle({ hidden, showing, singular, plural, onToggle }: { hidden: number; showing: boolean; singular: string; plural: string; onToggle: () => void }) {
+  if (hidden === 0) return null;
+  const count = `${hidden} archived ${hidden === 1 ? singular : plural}`;
+  return (
+    <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+      {showing ? `Showing ${count}.` : `${count} hidden.`}
+      <Button type="button" variant="link" size="sm" className="h-auto p-0" onClick={onToggle}>
+        {showing ? 'Hide archived' : 'Show archived'}
+      </Button>
     </p>
   );
 }

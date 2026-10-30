@@ -1,4 +1,5 @@
-// One opportunity (spec 03): details, its company and contacts, Edit, and Archive or Restore.
+// One opportunity (spec 03): details, its company and contacts, its tasks and activity, Edit, and
+// Archive or Restore.
 import { Link, useParams } from '@tanstack/react-router';
 import { selectCanWrite, selectReadOnly, useApp } from '@/app/store.ts';
 import { Button } from '@/components/ui/button';
@@ -8,6 +9,8 @@ import { linkButton } from '@/ui/link-button.ts';
 import { ArchivedBadge, Detail, Problem, RecordNotFound } from '@/ui/record-page.tsx';
 import { formatCalendarDate, formatDate, useRecord, useRecords, useStages } from '../records.ts';
 import { useArchive } from '../use-archive.ts';
+import { ActivityTimeline } from '../activities/ActivityTimeline.tsx';
+import { RelatedTasks } from '../tasks/RelatedTasks.tsx';
 import { stageName } from './pipeline.ts';
 
 const none = <span className="text-muted-foreground">None</span>;
@@ -86,6 +89,8 @@ export function OpportunityPage() {
           </dl>
         </CardContent>
       </Card>
+      <RelatedTasks name={opportunity.title} related={{ type: 'opportunity', id: opportunityId }} />
+      <ActivityTimeline name={opportunity.title} related={{ type: 'opportunity', id: opportunityId }} />
     </>
   );
 }

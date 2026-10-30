@@ -12,7 +12,7 @@ import { EditorForm } from '@/ui/EditorForm.tsx';
 import { SelectField, TextField } from '@/ui/form-fields.tsx';
 import { linkButton } from '@/ui/link-button.ts';
 import { RecordNotFound } from '@/ui/record-page.tsx';
-import { formatCalendarDate, useRecord, useRecords, useStages } from '../records.ts';
+import { formatCalendarDate, useRecord, useRecords, useStages, type NewRecordSearch } from '../records.ts';
 import { useRecordEditor } from '../use-record-editor.ts';
 import { opportunityFields, opportunityValues, readOpportunityForm, type OpportunityFields, type OpportunityFormValues } from './opportunity-form.ts';
 import { stageName } from './pipeline.ts';
@@ -31,8 +31,6 @@ const CURRENCIES = Intl.supportedValuesOf('currency');
 const GROUPS: (keyof OpportunityFields)[][] = [['valueMinor', 'currency']];
 const byName = <T extends { name: string }>(a: T, b: T) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
 
-export type NewOpportunitySearch = { companyId?: string; contactId?: string };
-
 export function NewOpportunityPage() {
   const search = useSearch({ from: '/opportunities/new' });
   return <OpportunityEditor saved={null} search={search} />;
@@ -47,7 +45,7 @@ export function EditOpportunityPage() {
   return <OpportunityEditor saved={opened} search={{}} />;
 }
 
-function OpportunityEditor({ saved, search }: { saved: VersionedRecord<Opportunity> | null; search: NewOpportunitySearch }) {
+function OpportunityEditor({ saved, search }: { saved: VersionedRecord<Opportunity> | null; search: NewRecordSearch }) {
   const navigate = useNavigate();
   const stages = useStages();
   const defaultCurrency = useApp((s) => s.snapshot?.workspace?.config.defaultCurrency ?? 'USD');

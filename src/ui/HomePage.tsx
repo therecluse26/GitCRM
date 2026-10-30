@@ -1,11 +1,13 @@
-// Home (docs/08): counts of active records and the open pipeline by stage. Tasks and recent
-// activity come with their slice.
+// Home (docs/08): counts of active records, the open pipeline by stage, tasks due, and recent
+// activity.
 import { Link } from '@tanstack/react-router';
 import { useApp } from '@/app/store.ts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { RecordType } from '@/core/schemas.ts';
 import { isTerminal } from '@/core/stages.ts';
+import { RecentActivity } from '@/features/activities/RecentActivity.tsx';
 import { useStages } from '@/features/records.ts';
+import { DueTasks } from '@/features/tasks/DueTasks.tsx';
 
 const COUNTED: { type: RecordType; label: string; to: '/contacts' | '/companies' | '/pipeline' }[] = [
   { type: 'contact', label: 'Contacts', to: '/contacts' },
@@ -43,6 +45,7 @@ export function HomePage() {
           </Card>
         ))}
       </section>
+      <DueTasks />
       <section aria-labelledby="open-pipeline-heading">
         <Card>
           <CardHeader>
@@ -62,6 +65,7 @@ export function HomePage() {
           </CardContent>
         </Card>
       </section>
+      <RecentActivity />
     </>
   );
 }

@@ -35,10 +35,10 @@ Build in **small vertical slices**. The first meaningful release must prove the 
 - [x] Contacts and companies CRUD + links. Includes archive and restore, list search and sort, the conflict compare panel (spec 07), the warning before leaving an unsaved form, and the `broken-link` check. Delete stays in Phase 3.
 - [x] Background checks of `main` on tab focus, the rate-limit budget guard, and one syncing tab (ADR-023). Disconnect also reaches the other open tabs.
 - [x] Opportunity CRUD + pipeline stage board/list + stage editor (ADR-019). Includes archive and restore, moves by menu and by drag and drop, opportunities on company and contact pages, open opportunities by stage on Home, and the unknown-stage check. Delete stays in Phase 3.
-- [ ] Tasks and manual activities with relational display.
+- [x] Tasks and manual activities with relational display. Includes complete and reopen, archive and restore, task and activity cards on contact, company, and opportunity pages, and tasks due and recent activity on Home. Delete stays in Phase 3.
 - [ ] Responsive navigation, save feedback, and validation UX.
 
-**Exit:** full "company -> contact -> opportunity -> note -> follow-up task" user journey works.
+**Exit:** full "company -> contact -> opportunity -> note -> follow-up task" user journey works. Met on 2026-10-29 against the fake GitHub (`e2e/journey.spec.ts`). Still to do: the item above on navigation, save feedback, and validation, and a manual run against a disposable private repo.
 
 ## Phase 3 - portability and hardening
 

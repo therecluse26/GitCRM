@@ -7,11 +7,10 @@ import { formatMoney } from '@/core/money.ts';
 import type { Opportunity } from '@/core/schemas.ts';
 import { linkButton } from '@/ui/link-button.ts';
 import { ArchivedBadge } from '@/ui/record-page.tsx';
-import { useRecords, useStages } from '../records.ts';
-import type { NewOpportunitySearch } from './OpportunityEditor.tsx';
+import { useRecords, useStages, type NewRecordSearch } from '../records.ts';
 import { stageName } from './pipeline.ts';
 
-export function RelatedOpportunities({ name, linked, search }: { name: string; linked: (o: Opportunity) => boolean; search: NewOpportunitySearch }) {
+export function RelatedOpportunities({ name, linked, search }: { name: string; linked: (o: Opportunity) => boolean; search: NewRecordSearch }) {
   const stages = useStages();
   const readOnly = useApp(selectReadOnly);
   const opportunities = useRecords('opportunity')
