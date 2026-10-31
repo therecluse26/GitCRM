@@ -2,7 +2,7 @@
 // the messages for each failure.
 import { SnapshotError } from '../storage/errors.ts';
 import { GitHubError, type GitHubClient } from '../storage/github-client.ts';
-import { stateForError } from '../storage/operation-state.ts';
+import { refusal, stateForError } from '../storage/operation-state.ts';
 
 export type RepoCheck = {
   login: string; // the token's user
@@ -76,6 +76,7 @@ export function describeConnectError(error: unknown, repoName: string): string {
   if (error instanceof GitHubError && error.kind === 'not-found') {
     return `GitHub found no repository ${repoName} for this token. Check that the name is right, that the token includes this repository under "Only select repositories", and that Contents is set to "Read and write". In an organization, an owner may still need to approve the token.`;
   }
+  if (error instanceof GitHubError && error.kind === 'forbidden') return refusal(error); // the connect screen has no Refresh
   if (error instanceof SnapshotError) return error.message;
   const state = stateForError(error);
   return 'message' in state ? state.message : 'Could not connect.';

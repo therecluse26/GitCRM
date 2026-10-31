@@ -50,6 +50,8 @@ Scenario: Repository permission revoked
   When I try to save
   Then the operation fails with a clear permission message
   And no alternative credential is silently used
+  And the unsaved form remains available
+  And after a 403, the message says to Refresh, which runs the connect checks again
 
 Scenario: Low API budget
   Given fewer than 500 REST requests remain this hour
