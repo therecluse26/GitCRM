@@ -60,6 +60,13 @@ If first load misses the target at 2,000 records, use a faster transport or the 
 
 After "Show all", one record type draws every result. At 2,000 records, "e" took 29 ms for 600 contacts, 255 ms for 500 tasks, and 318 ms for 400 activities. A task or activity row costs about 0.5 to 0.8 ms. Building each date formatter once halved the activity time but not the task time, so that change was not kept. No search package: the filter is not the slow part.
 
+**Export time, measured 2026-10-30** (spec 05): the same setup, three exports at each size, from the click until the browser starts the download. The records are 15% companies, 30% contacts, 10% opportunities, 25% tasks, and 20% activities with notes of about 380 characters. fflate's `zipSync` builds the ZIP on the page.
+
+| Export | 100 records | 500 records | 2,000 records |
+| --- | --- | --- | --- |
+| JSON snapshot | 50–60 ms, 50 KiB | 63–97 ms, 220 KiB | 155–175 ms, 860 KiB |
+| CSV | 26–46 ms, 13 KiB | 37–50 ms, 34 KiB | 49–62 ms, 113 KiB |
+
 **Measured in spike S-04** (Node, OAuth token, one run each; see `docs/12-RISKS-AND-OPEN-QUESTIONS.md`):
 
 | Measurement | Target | Result |

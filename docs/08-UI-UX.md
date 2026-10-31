@@ -48,6 +48,7 @@ Built (spec 08): on a phone, the main navigation wraps into rows, with no menu b
 
 - Workspace name, connected GitHub repo, private status, connection health.
 - Export complete snapshot / CSV.
+- Built (spec 05): an Export card with "Export JSON snapshot" and "Export CSV". It waits for a complete, current snapshot, and says why when it waits.
 - Disconnect and token safety guidance.
 - Pipeline stage editor: rename, reorder, add, and remove-when-unused; Won and Lost always present (ADR-019).
 

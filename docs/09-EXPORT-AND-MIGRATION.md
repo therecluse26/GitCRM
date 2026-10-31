@@ -10,6 +10,8 @@ Exiting GitCRM should be straightforward. The data format itself is portable, an
 2. **CSV per entity type**: contacts, companies, opportunities, tasks, and activities. Use stable headers, UTF-8, proper CSV quoting, and IDs for relationships.
 3. **Data dictionary**: include a generated Markdown or JSON schema manifest specifying schemaVersion, export date, counts, and field definitions.
 
+**Built (spec 05):** Settings has "Export JSON snapshot" and "Export CSV". Each one downloads a ZIP that also holds `DATA-DICTIONARY.md` and generated JSON Schemas in `schemas/`. Spec 05, "Export rules", gives the file names, the CSV rules, and when export is blocked.
+
 CSV exports must keep relationships through IDs (e.g. opportunity `companyId` and semicolon-separated `contactIds`, with escaping rules documented). Avoid silently dropping nested fields. The JSON archive remains the authoritative lossless export.
 
 ## Safe browser export
@@ -18,7 +20,7 @@ CSV exports must keep relationships through IDs (e.g. opportunity `companyId` an
 - Data is assembled and downloaded in the browser; never uploaded to third-party services.
 - Filename includes workspace-safe name and UTC date, not a contact's PII.
 - Test export with commas, quotes, newlines, Unicode, nulls, long notes, and large datasets.
-- Spreadsheet CSV formula injection: escape cells beginning with `=`, `+`, `-`, or `@` in spreadsheet-targeted exports, and document the transformation. Provide raw JSON for exact fidelity.
+- Spreadsheet CSV formula injection: escape cells beginning with `=`, `+`, `-`, or `@` in spreadsheet-targeted exports, and document the transformation. Provide raw JSON for exact fidelity. Built: OWASP also lists the full-width forms of these four, a tab, a carriage return, and a line feed (docs/13). Each of these, and `'`, gets a `'` in front.
 
 ## Data ownership and migration
 

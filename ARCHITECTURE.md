@@ -31,9 +31,9 @@ The application code repository and the user's private CRM data repository are *
 - Zustand for the in-memory snapshot store. No TanStack Query: the data is one local snapshot synced by SHA, not many separate server queries.
 - `idb` for IndexedDB access.
 - A plain typed `fetch` client for GitHub REST and GraphQL; no Octokit.
-- Zod for runtime validation, with JSON Schema generated for the export's data dictionary (from memory, Zod 4 can emit JSON Schema; verify).
+- Zod for runtime validation, with JSON Schema generated for the export's data dictionary (`z.toJSONSchema`, checked with Zod 4.6.7).
 - shadcn/ui for accessible components; dnd-kit for Kanban drag and drop with keyboard support.
-- fflate for the ZIP export.
+- fflate for the ZIP export (`zipSync`, which needs no Web Worker).
 - MiniSearch **only if** basic in-memory filtering proves inadequate.
 - Browser Web Crypto APIs for UUID creation.
 - Vitest for unit and contract tests, MSW to mock the GitHub API, Playwright for E2E.
@@ -51,7 +51,7 @@ search/      in-memory workspace index derived from current snapshot
 auth/        runtime token management and identity checks
 ```
 
-Phase 1 built `core/`, `storage/`, and the connect checks in `auth/`. Phase 2 adds `app/` (the router and the Zustand store), `ui/` (the app shell and shared form and page parts; shadcn/ui components live in `components/ui/`), and `features/` (each record type's screens, with pure form and list logic beside them). Phase 3 adds `search/`: the search index and the Search page. `dev/` holds the developer page (`dev.html`, dev server only). `test/` holds the fake GitHub that Vitest (through MSW) and Playwright both use.
+Phase 1 built `core/`, `storage/`, and the connect checks in `auth/`. Phase 2 adds `app/` (the router and the Zustand store), `ui/` (the app shell and shared form and page parts; shadcn/ui components live in `components/ui/`), and `features/` (each record type's screens, with pure form and list logic beside them). Phase 3 adds `search/`: the search index and the Search page. Export is in `core/` (`export.ts`, `csv.ts`, `data-dictionary.ts`), and its card is `ui/ExportCard.tsx`. `dev/` holds the developer page (`dev.html`, dev server only). `test/` holds the fake GitHub that Vitest (through MSW) and Playwright both use.
 
 `WorkspaceRepository` is an abstraction around **repository persistence behavior**, not an attempt to support every Git provider (`src/storage/workspace-repository.ts`):
 
