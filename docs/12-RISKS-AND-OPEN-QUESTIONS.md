@@ -7,16 +7,45 @@ These are **real unresolved dependencies**, not minor TODOs. The docs deliberate
 | R-01 | High | PAT setup friction limits adoption by less technical users | Usability test of the PAT setup instructions with target users | Accepted for now (ADR-008); GitHub App sign-in through a broker if demand appears (ADR-009, deferred) |
 | R-02 | High | First load of thousands of JSON files may consume excessive GitHub requests | Benchmark the GraphQL tree walk and Git Trees + blob fetches (archive ruled out, S-01); incremental SHA caching | Measured (S-04): chunked GraphQL loads 2,000 records in ~5 s. Fallbacks: verified rollup (ADR-016), then a published size limit |
 | R-03 | Low | GitHub Pages says sites shouldn't be used for sending passwords, and users enter a PAT on GitCRM's page (S-05). Its commercial SaaS ban does not apply, because GitCRM is non-commercial (ADR-015) | Done: the official copy uses Cloudflare Pages, whose terms permit it (S-06) | Host-agnostic build (ADR-010): move the official copy to any compliant static host |
-| R-04 | High | Small concurrent edits can conflict | Two-client live proof; GitHub Contents API SHA behavior | Conflict UI, serialize/retry nonoverlapping writes conservatively |
-| R-05 | High | User may accidentally expose repository or token | Visibility checks, narrow scopes, browser security review | Fail closed; disclose and direct to rotate/restrict |
-| R-06 | High | Delete != full erasure from Git | Validate history rewrite workflow against a disposable repo and support policy | Keep history purge out of MVP; accurately label deletion |
-| R-07 | Medium | Limited account/org policies block PATs or branch writes | Test collaborator and organization permission failures | Clear unsupported-state messaging, no hidden privilege escalation |
+| R-04 | High | Small concurrent edits can conflict | SHA behavior done (S-02): `409` for a stale blob SHA, `422` for a stale ref update. Still to do: two browsers saving to one real repo | Conflict UI, built (spec 07); serialize/retry nonoverlapping writes conservatively |
+| R-05 | High | User may accidentally expose repository or token | Built: connect refuses a public repo (S-08), the PAT link asks for Contents only, and onboarding says to select one repo (S-07). A strict CSP and the build audit guard the page (docs/07). Still to do: the auth and security review before release (docs/10) | Fail closed; disclose and direct to rotate/restrict |
+| R-06 | High | Delete != full erasure from Git | Validate history rewrite workflow against a disposable repo and support policy. Not in the MVP (ADR-011) | Keep history purge out of MVP; accurately label deletion. Built: the delete page warns that Git history keeps the record |
+| R-07 | Medium | Limited account/org policies block PATs or branch writes | Collaborators: answered (S-05). Branch protection exists only on paid plans and public repos (S-08). Still to do: the org approval flow (S-03), and a branch that requires pull requests | Clear unsupported-state messaging, no hidden privilege escalation |
 | R-08 | Medium | GitHub API rate limits and provider terms can change | Monitor current docs; conservative API usage | Budget guard and one syncing tab (ADR-023); publish bounded scale expectations |
-| R-09 | Medium | Multiuser data becomes inconsistent during partial refresh | Pin to commit/tree and compare SHAs | Abort partial load, manual refresh |
-| R-10 | Medium | CRM migration CSV can lose relationships/notes | Contract tests + lossless JSON snapshot | Raw JSON always available |
+| R-09 | Medium | Multiuser data becomes inconsistent during partial refresh | Built: the first load reads one commit (ADR-022), and a sync compares blob SHAs. A truncated tree stops the load (docs/10) | Abort partial load, manual refresh |
+| R-10 | Medium | CRM migration CSV can lose relationships/notes | Built (spec 05): the JSON snapshot holds each file with the same text, and the CSV export reads back to the same records (`src/core/export.test.ts`) | Raw JSON always available |
 | R-11 | High | Fine-grained PATs cannot be used by outside or repository collaborators (GitHub docs, S-05), so collaborators on a personal repo cannot use GitCRM | Answered by S-05. S-03 still checks the org approval flow live | Decided: team workspaces live in a GitHub organization, and every teammate is an org member (ADR-018); never ask users for classic or shared PATs |
 | R-12 | Medium | Each Cloudflare Pages deployment stays reachable at its own address, `<hash>.gitcrm.pages.dev`, and is public by default. An old copy keeps any bug fixed since, and a phishing link could send a user there to type a PAT. Each address is its own origin, with its own storage | Read Cloudflare's preview deployment docs again before the public release | After a security fix, delete the older deployments (`wrangler pages deployment delete`), or put them behind Cloudflare Access |
 | R-13 | High | Anyone with the Cloudflare deploy token, or control of a deploy dependency, can replace the official copy and read each PAT typed into it | Done (spec 09): the token has only Pages: Edit; only the deploy job sees it; wrangler comes from its own lockfile; actions are pinned to commit SHAs; the live check compares the site with the tested build | If the token leaks: revoke it in Cloudflare, make a new one, and deploy `main` again |
+
+## P0 results
+
+The five P0 questions (`CLAUDE.md`, docs/11 Phase 0), as of 2026-10-31:
+
+| P0 question | Answer | Spikes | Still open |
+| --- | --- | --- | --- |
+| 1. Browser access to GitHub REST with a narrow token | Yes. A fine-grained PAT with only `Contents: Read and write` on one repo does every MVP call from a browser page: REST reads and writes, the Git Trees/Commits path, and GraphQL. A read-only token gets `403` from the write check | S-01, S-02, S-08 | Nothing for a personal repo |
+| 2. The auth flow | The PAT route works end to end in a browser (ADR-008). A link fills in the PAT form, except the repository (S-07). Outside and repository collaborators cannot use fine-grained PATs, so teams use an organization (ADR-018) | S-02, S-05, S-07 | The org approval flow, live (S-03) |
+| 3. Loading 100, 500, and 2,000 records | Chunked GraphQL loads 2,000 records in 5–9 s; per-blob REST takes 48 s (ADR-022). With a warm cache, one ref check takes about 0.2 s. The verified rollup is not needed (ADR-016) | S-04; the app's own times are in docs/06 | Times from other networks: every S-04 run came from one home connection |
+| 4. Concurrent updates to one file | GitHub refuses a stale blob SHA with `409`, and a non-forced ref update after `main` moved with `422`. Two racing runs overwrote nothing | S-02 | Two browsers saving to one real repo (the manual run in docs/11) |
+| 5. A safe static host | Cloudflare Pages permits the official copy (ADR-010, ADR-024). GitHub Pages says its sites shouldn't take passwords (R-03) | S-05, S-06 | Read both hosts' terms again before the public release |
+
+The Phase 0 exit, "verified authenticated CRUD in a browser for a private repo", was met by the S-02 browser run on 2026-10-28.
+
+### Not verified yet
+
+No spike has checked these provider behaviors. For each one, GitCRM works with either answer.
+
+| Behavior | Where it matters | What GitCRM does now | How to check |
+| --- | --- | --- | --- |
+| The org approval flow for a fine-grained PAT | ADR-018, R-07, R-11 | Onboarding explains a pending token (docs/05) | S-03 in `spikes/README.md`. It needs a second person's GitHub account |
+| The error for a write to a branch that requires pull requests | ADR-003, R-07 | A refused write shows GitHub's message, and the form stays (docs/10) | Needs a paid plan, or a public test repo |
+| The status GitHub returns for a repo with no commits | docs/05 | Treats `404` and `409` the same | One empty private `gitcrm-spike*` repo |
+| API calls to the old name of a renamed repo | S-08 | Treats a failed call like any other | Rename a spike repo, then call the old name from a page |
+| Whether API commits count toward "6 pushes per minute" | S-05 | Each save is one user action. A bulk change is one commit | Many quick saves to a spike repo |
+| Whether the S-07 link fills in `Contents: Read and write` | S-07 | Onboarding tells users to check that Contents is set to Read and write | Open the link while signed in to GitHub |
+| Save prompts for the PAT in browsers and password managers | docs/05 | The PAT field is a real password field | By hand, in each major browser |
+| First-load times from other networks | S-04 | The GraphQL time budget slows a large load instead of failing (ADR-022) | Run `spikes/bench-load.js` from another network |
 
 ## P0 spike record template
 
@@ -44,7 +73,17 @@ For each spike, write: **Date; hypothesis; exact repo/config; documented API beh
 
 - **Threat/privacy assessment:** no token or private data was used.
 - **Decision:** a Git clone in the browser and the archive download both need a proxy, which ADR-004 rules out. GraphQL stays the first bulk-read transport; per-blob reads are the baseline.
-- **Follow-up:** S-02 confirms GraphQL with a real fine-grained PAT on a private repo (`spikes/p0-crud.html`). Spike (3) then measures GraphQL load times at 100/500/2000 records.
+- **Follow-up:** done. The S-02 browser run used GraphQL with a fine-grained PAT on a private repo (`spikes/p0-crud.html`), and S-04 measured GraphQL load times at 100/500/2000 records.
+
+#### S-01 addendum: rate-limit headers (2026-10-31, 14:06 EDT)
+
+- **Question:** can a page read `x-ratelimit-reset` and `retry-after`? The budget guard uses them (ADR-023).
+- **Config:** headless Chrome 146 via Playwright; page origin `https://example.com`; no token. A Node `fetch` with `Origin: https://example.com` read the CORS headers.
+- **Results:**
+  - `GET api.github.com/repos/octocat/Hello-World`: the page read `x-ratelimit-reset` and `x-ratelimit-remaining`.
+  - The REST and GraphQL answers both list `Retry-After` and every `X-RateLimit-*` header in `Access-Control-Expose-Headers`. So a page can read each of them when GitHub sends it.
+  - A GraphQL `401` for an invalid token sent no rate-limit headers.
+- **Decision:** the budget guard can use the reset time. The pause for an answer with no reset time stays.
 
 ### S-02: REST CRUD, conflicts, multi-file commit, and GraphQL
 
@@ -69,7 +108,7 @@ For each spike, write: **Date; hypothesis; exact repo/config; documented API beh
 
 - **Threat/privacy assessment:** test data only; the token was never printed or stored.
 - **Decision:** the write model works as designed. Blob-SHA preconditions stop silent overwrites (spec 07), and the non-forced ref update protects the ADR-021 delete. Single saves (0.7–0.8 s) meet the 2-second target. A cascade delete takes about 2 seconds, so the delete UI should show progress.
-- **Follow-up:** repeat from the browser page with a fine-grained PAT that has only Contents: Read and write. That confirms the Git Data API and GraphQL work with that permission, and that `PUT` and `PATCH` preflights pass. Then run S-03 and the load benchmark.
+- **Follow-up:** repeat from the browser page with a fine-grained PAT that has only Contents: Read and write. That confirms the Git Data API and GraphQL work with that permission, and that `PUT` and `PATCH` preflights pass. Done on 2026-10-28 (below). S-04 ran the load benchmark. S-03 is still open.
 
 #### S-02 browser run with a fine-grained PAT
 
@@ -115,7 +154,7 @@ For each spike, write: **Date; hypothesis; exact repo/config; documented API beh
 
 - **Threat/privacy assessment:** generated data only; the token was never printed or stored.
 - **Decision (ADR-022, accepted 2026-10-28, revised by the addendum below):** load the first snapshot with chunked GraphQL, at about 100 files per query (from the recursive tree) and up to 10 queries in parallel, all pinned to one commit. Keep the summed GraphQL response time under 50 s per rolling minute. Per-blob REST is fine for small syncs. Per-blob REST is not viable for first loads: at 2,000 records it takes 48 s and spends 40% of the hourly 5,000-request limit. The verified rollup (ADR-016) is not needed at the target scale. Any single GraphQL query must stay well under ~10 s of server time; on a 502 the app splits that chunk and retries once.
-- **Follow-up:** confirm in a browser with a fine-grained PAT (S-02 follow-up). Single runs from one location, so variance is unknown; repeat before treating the numbers as stable.
+- **Follow-up:** the S-02 browser run confirmed GraphQL with a fine-grained PAT in a browser. The second run (addendum below) showed large variance between runs. Every run came from one home connection, so times from other networks are not known.
 
 #### S-04 addendum: GraphQL server time (2026-10-28, 07:46 EDT)
 
@@ -152,11 +191,11 @@ GitHub allows 60 s of GraphQL server time per minute, and says to estimate it fr
 | GraphQL timeout | A request over 10 s returns `502` or `504`. A timeout also costs extra primary rate-limit points for the next hour | Matches the S-04 failures. Keep queries small |
 | Fine-grained PAT gaps | Fine-grained PATs cannot be used to contribute to repos "where the user is an outside or repository collaborator" | Answers R-11: teammates must be organization members (ADR-018). Personal-repo collaborators and outside collaborators cannot use GitCRM, because it never asks for a classic PAT |
 | Org PAT approval | If the org requires approval, a new token stays `pending` and can read only public resources. Org owners are approved automatically. Orgs can set a maximum token lifetime | Onboarding must explain a pending token (docs/05) |
-| PAT permissions | Every Git endpoint GitCRM uses (`GET git/ref`, `git/trees`, `git/commits`, `git/blobs`, `PATCH git/refs`) is listed under `Contents`. `PATCH git/refs` is also listed under `Workflows`; we read that as applying only to commits that change workflow files (unverified) | A PAT with only `Contents: Read and write` should be enough. Still to confirm live (S-02 follow-up) |
+| PAT permissions | Every Git endpoint GitCRM uses (`GET git/ref`, `git/trees`, `git/commits`, `git/blobs`, `PATCH git/refs`) is listed under `Contents`. `PATCH git/refs` is also listed under `Workflows` | Confirmed live (S-02 browser run): a PAT with only `Contents: Read and write` does every call, `PATCH git/refs` too, for files that are not workflow files |
 | Repo limits (recommended, not enforced) | Directory width 3,000 entries; single object 1 MB; 6 pushes per minute per repository | Shards stay far below 3,000 entries, and records far below 1 MB. Unverified: whether API commits count as pushes |
 
 - **Decision:** nothing in GitHub's terms forbids GitCRM's design. The limits are: no shared tokens, no bulk automation, no commercial SaaS on Pages, and staying inside the documented rate limits.
-- **Follow-up:** confirm the PAT permissions live (S-02 follow-up). Check the terms of the static host chosen for the official copy (done in S-06). Read these pages again before the public release.
+- **Follow-up:** confirm the PAT permissions live (done in the S-02 browser run). Check the terms of the static host chosen for the official copy (done in S-06). Read these pages again before the public release.
 
 ### S-06: Cloudflare Pages terms
 

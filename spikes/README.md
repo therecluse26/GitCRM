@@ -6,7 +6,9 @@ Throwaway code for Phase 0 (`docs/11-IMPLEMENTATION-PLAN.md`). Spike records go 
 
 See the S-01 record in `docs/12-RISKS-AND-OPEN-QUESTIONS.md`.
 
-## S-02: REST CRUD, conflicts, multi-file commit, and GraphQL with a fine-grained PAT
+## S-02: REST CRUD, conflicts, multi-file commit, and GraphQL with a fine-grained PAT (done)
+
+See the S-02 record in `docs/12-RISKS-AND-OPEN-QUESTIONS.md`. To reproduce:
 
 1. Create a private repo whose name starts with `gitcrm-spike`, with a README so it has an initial commit.
 2. Create a fine-grained PAT from this link, with `<you>` replaced by your GitHub login. It fills in the name, the owner, a 7-day expiry, and `Contents: Read and write` (S-07):

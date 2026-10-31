@@ -129,7 +129,7 @@ Other results:
 - Records are cached in IndexedDB, keyed by blob SHA (ADR-017). The cache hydrates the in-memory store at startup; see `docs/04-GITHUB-INTEGRATION.md`. Disconnect deletes the cache; nothing sensitive goes into static assets or service-worker caches.
 - If HEAD SHA is unchanged, reuse the current snapshot.
 - If HEAD moves, fetch a new tree and only changed blobs, then rebuild affected indexes.
-- If spike (3) shows per-blob first loads are too expensive, use the verified rollup (ADR-016, `docs/04-GITHUB-INTEGRATION.md`).
+- The verified rollup (ADR-016, `docs/04-GITHUB-INTEGRATION.md`) is not built: S-04 showed that chunked GraphQL meets the targets (ADR-022).
 - Never mix record versions from different snapshots without visibly reporting partial/inconsistent load.
 
 ## Intended scale

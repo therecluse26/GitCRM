@@ -15,9 +15,9 @@ Build in **small vertical slices**. The first meaningful release must prove the 
 - [x] Verify a multi-file commit through the Git Trees/Commits APIs with a fine-grained PAT, including a non-forced ref update after `main` has moved (ADR-021). Works with an OAuth token and with a fine-grained PAT that has only Contents: Read and write (S-02).
 - [x] Check whether GitHub's Git-over-HTTP endpoints accept browser CORS calls. They don't, so a browser shallow clone is ruled out (S-01).
 - [x] Confirm chosen static hosting provider permits intended use (S-06: Cloudflare Pages); never assume GitHub Pages can host commercial SaaS.
-- [ ] Record P0 spike findings in `docs/12-RISKS-AND-OPEN-QUESTIONS.md` and update ADRs.
+- [x] Record P0 spike findings in `docs/12-RISKS-AND-OPEN-QUESTIONS.md` and update ADRs. docs/12 "P0 results" answers the five P0 questions and lists each provider behavior not verified yet. The risk table, the spike follow-ups, and ADR-003, -008, -016, -018, -021, and -023 now cite the spikes. A new check (S-01 addendum) showed that a page can read `x-ratelimit-reset` and `retry-after`.
 
-**Exit:** verified authenticated CRUD in a browser for a private repo, with explicit boundary/limits.
+**Exit:** verified authenticated CRUD in a browser for a private repo, with explicit boundary/limits. Met on 2026-10-28 (S-02 browser run).
 
 ## Phase 1 - minimal domain and storage
 
