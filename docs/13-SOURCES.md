@@ -1,6 +1,6 @@
 # Primary Research References
 
-**Checked:** 2026-10-26; terms, limits, and PAT pages read again on 2026-10-28 (S-05); Cloudflare terms read on 2026-10-28 (S-06). Provider documentation evolves; validate again before implementing or publishing hard promises. Links are references, not substitutes for an end-to-end security test.
+**Checked:** 2026-10-26; terms, limits, and PAT pages read again on 2026-10-28 (S-05); Cloudflare terms read on 2026-10-28 (S-06); Cloudflare Pages deployment pages and GitHub's plans read on 2026-10-31 (spec 09). Provider documentation evolves; validate again before implementing or publishing hard promises. Links are references, not substitutes for an end-to-end security test.
 
 ## GitHub API
 
@@ -39,6 +39,10 @@
 - [Cloudflare Developer Platform Service-Specific Terms - Pages](https://www.cloudflare.com/service-specific-terms-developer-platform/)
 - [Cloudflare Pages limits](https://developers.cloudflare.com/pages/platform/limits/)
 - [Cloudflare Pages headers - `_headers` file](https://developers.cloudflare.com/pages/configuration/headers/)
+- [Cloudflare Pages serving - default headers, single-page fallback](https://developers.cloudflare.com/pages/configuration/serving-pages/)
+- [Cloudflare Pages preview deployments - each deployment's own address, public by default](https://developers.cloudflare.com/pages/configuration/preview-deployments/)
+- [Cloudflare Pages Direct Upload with CI - API token with Pages: Edit](https://developers.cloudflare.com/pages/how-to/use-direct-upload-with-continuous-integration/)
+- [GitHub's plans - Pages in private repositories needs GitHub Pro or Team](https://docs.github.com/en/get-started/learning-about-github/githubs-plans)
 - [Cloudflare Privacy Policy - End User data](https://www.cloudflare.com/privacypolicy/)
 
 ## Export

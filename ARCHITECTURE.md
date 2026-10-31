@@ -91,7 +91,7 @@ The **principal performance uncertainty is data transport from GitHub, not local
 
 ## Hosting
 
-The build is host-agnostic (ADR-010): hash URLs, relative asset paths, CSP in a `<meta>` tag (the policy and the build audit are in docs/07), and no host-specific features, so any static host works, including GitHub Pages for self-hosted copies. The official copy uses Cloudflare Pages, whose terms permit it (S-06). GitCRM has no server-side dependency; users connect with a fine-grained PAT (ADR-008). A stateless auth broker for GitHub App sign-in is deferred (ADR-009) and would never receive CRM data. Any server-side component requires an explicit owner decision.
+The build is host-agnostic (ADR-010): hash URLs, relative asset paths, CSP in a `<meta>` tag (the policy and the build audit are in docs/07), and no host-specific features, so any static host works, including GitHub Pages for self-hosted copies. The official copy uses Cloudflare Pages, whose terms permit it (S-06). `.github/workflows/deploy.yml` tests each push to `main`, then deploys that same build there; a browser test also serves it from a folder with no custom headers, the GitHub Pages shape (ADR-024, spec 09). GitCRM has no server-side dependency; users connect with a fine-grained PAT (ADR-008). A stateless auth broker for GitHub App sign-in is deferred (ADR-009) and would never receive CRM data. Any server-side component requires an explicit owner decision.
 
 ## Offline model
 

@@ -15,6 +15,8 @@ These are **real unresolved dependencies**, not minor TODOs. The docs deliberate
 | R-09 | Medium | Multiuser data becomes inconsistent during partial refresh | Pin to commit/tree and compare SHAs | Abort partial load, manual refresh |
 | R-10 | Medium | CRM migration CSV can lose relationships/notes | Contract tests + lossless JSON snapshot | Raw JSON always available |
 | R-11 | High | Fine-grained PATs cannot be used by outside or repository collaborators (GitHub docs, S-05), so collaborators on a personal repo cannot use GitCRM | Answered by S-05. S-03 still checks the org approval flow live | Decided: team workspaces live in a GitHub organization, and every teammate is an org member (ADR-018); never ask users for classic or shared PATs |
+| R-12 | Medium | Each Cloudflare Pages deployment stays reachable at its own address, `<hash>.gitcrm.pages.dev`, and is public by default. An old copy keeps any bug fixed since, and a phishing link could send a user there to type a PAT. Each address is its own origin, with its own storage | Read Cloudflare's preview deployment docs again before the public release | After a security fix, delete the older deployments (`wrangler pages deployment delete`), or put them behind Cloudflare Access |
+| R-13 | High | Anyone with the Cloudflare deploy token, or control of a deploy dependency, can replace the official copy and read each PAT typed into it | Done (spec 09): the token has only Pages: Edit; only the deploy job sees it; wrangler comes from its own lockfile; actions are pinned to commit SHAs; the live check compares the site with the tested build | If the token leaks: revoke it in Cloudflare, make a new one, and deploy `main` again |
 
 ## P0 spike record template
 
@@ -178,6 +180,7 @@ GitHub allows 60 s of GraphQL server time per minute, and says to estimate it fr
 
 - **Decision:** Cloudflare's terms permit the official copy on Cloudflare Pages. The owner chose it on 2026-10-28 (ADR-010). The same Developer Platform terms cover Workers, so a later move to Workers static assets changes nothing here.
 - **Follow-up:** the owner chose a `pages.dev` subdomain for now (2026-10-28, ADR-010). If Cloudflare announces a rename, consider a custom domain. Read these pages again before the public release.
+- **2026-10-31:** wrangler 4.151.1 calls Pages "now part of Cloudflare Workers". When an AI agent runs it, it makes a new project on Workers unless `--force` is set. The official copy stays on Pages (ADR-010, docs/07 "Deployment"). A move to Workers static assets needs an owner decision; the terms above already cover Workers.
 
 ### S-07: Pre-filled fine-grained PAT form
 
