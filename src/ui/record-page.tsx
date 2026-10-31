@@ -1,5 +1,5 @@
 // Parts that the record lists and detail pages share.
-import type { ReactNode } from 'react';
+import type { ReactNode, RefObject } from 'react';
 import { useApp, type AppState } from '@/app/store.ts';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import type { Page } from '@/features/list-page.ts';
 import { selectClassName } from './form-fields.tsx';
 
 export function ListToolbar({ type, plural }: { type: keyof AppState['lists']; plural: string }) {
@@ -33,13 +34,38 @@ export function ListToolbar({ type, plural }: { type: keyof AppState['lists']; p
   );
 }
 
-export function ListSummary({ shown, hiddenArchived, singular, plural }: { shown: number; hiddenArchived: number; singular: string; plural: string }) {
+// With `page`, a list longer than one page says which rows show: "Showing 51–100 of 120 contacts".
+export function ListSummary({ shown, hiddenArchived, singular, plural, page }: { shown: number; hiddenArchived: number; singular: string; plural: string; page?: Page<unknown> }) {
   const count = (n: number, archived = '') => `${n} ${archived}${n === 1 ? singular : plural}`;
   return (
     <p role="status" className="text-sm text-muted-foreground">
-      {count(shown)}
+      {page && page.count > 1 ? `Showing ${page.from}–${page.to} of ${count(shown)}` : count(shown)}
       {hiddenArchived > 0 && `. ${count(hiddenArchived, 'archived ')} hidden.`}
     </p>
+  );
+}
+
+// Previous and Next for a list in pages (spec 08). Focus moves to the list, so a screen reader reads
+// the new rows, and the list's first row scrolls into view.
+export function Pager({ page, label, list, onPage }: { page: Page<unknown>; label: string; list: RefObject<HTMLElement | null>; onPage: (index: number) => void }) {
+  if (page.count <= 1) return null;
+  const go = (index: number) => {
+    onPage(index);
+    list.current?.focus({ preventScroll: true });
+    list.current?.scrollIntoView({ block: 'start' });
+  };
+  return (
+    <nav aria-label={`${label} pages`} className="flex flex-wrap items-center gap-2 text-sm">
+      <Button type="button" variant="outline" size="sm" disabled={page.index === 0} onClick={() => go(page.index - 1)}>
+        Previous page
+      </Button>
+      <span className="text-muted-foreground">
+        Page {page.index + 1} of {page.count}
+      </span>
+      <Button type="button" variant="outline" size="sm" disabled={page.index === page.count - 1} onClick={() => go(page.index + 1)}>
+        Next page
+      </Button>
+    </nav>
   );
 }
 

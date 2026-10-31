@@ -1,15 +1,16 @@
-// The activity timeline on a contact, company, or opportunity page (spec 04): the latest first.
-// A body shows as plain text, so markup in a note never runs.
+// The activity timeline on a contact, company, or opportunity page (spec 04): the latest first, in
+// pages of 50 (spec 08). A body shows as plain text, so markup in a note never runs.
 import { Link } from '@tanstack/react-router';
 import { Plus } from 'lucide-react';
-import { useState } from 'react';
+import { memo, useMemo, useRef, useState } from 'react';
 import { selectCanWrite, selectReadOnly, useApp } from '@/app/store.ts';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { Activity } from '@/core/schemas.ts';
 import type { VersionedRecord } from '@/storage/workspace-repository.ts';
 import { linkButton } from '@/ui/link-button.ts';
-import { ArchivedBadge, ArchivedToggle, Problem } from '@/ui/record-page.tsx';
+import { ArchivedBadge, ArchivedToggle, Pager, Problem } from '@/ui/record-page.tsx';
+import { onePage } from '../list-page.ts';
 import { formatDateTime, useRecords } from '../records.ts';
 import { RelatedLink } from '../RelatedRecord.tsx';
 import { isRelatedTo, relatedKey, type Related } from '../related.ts';
@@ -20,10 +21,15 @@ import { timeline } from './timeline.ts';
 export function ActivityTimeline({ name, related }: { name: string; related: Related }) {
   const readOnly = useApp(selectReadOnly);
   const [showArchived, setShowArchived] = useState(false);
-  const linked = useRecords('activity').filter((v) => isRelatedTo(v.record, related));
-  const active = linked.filter((v) => v.record.archivedAt === null);
-  const order = timeline((showArchived ? linked : active).map((v) => v.record));
-  const versionOf = (id: string) => linked.find((v) => v.record.id === id)!;
+  const [index, setIndex] = useState(0);
+  const list = useRef<HTMLOListElement>(null);
+  const activities = useRecords('activity');
+  const { type, id } = related;
+  const linked = useMemo(() => activities.filter((v) => isRelatedTo(v.record, { type, id })), [activities, type, id]);
+  const active = useMemo(() => linked.filter((v) => v.record.archivedAt === null), [linked]);
+  const order = useMemo(() => timeline((showArchived ? linked : active).map((v) => v.record)), [linked, active, showArchived]);
+  const versions = useMemo(() => new Map(linked.map((v) => [v.record.id, v])), [linked]);
+  const page = onePage(order, index);
 
   return (
     <Card>
@@ -42,20 +48,31 @@ export function ActivityTimeline({ name, related }: { name: string; related: Rel
         {order.length === 0 ? (
           <p className="text-sm text-muted-foreground">No activity yet.</p>
         ) : (
-          <ol aria-label={`Activity with ${name}`} className="flex flex-col divide-y">
-            {order.map((activity) => (
-              <ActivityItem key={activity.id} saved={versionOf(activity.id)} showRelated={false} />
+          <ol ref={list} tabIndex={-1} aria-label={`Activity with ${name}`} className="flex flex-col divide-y outline-none">
+            {page.rows.map((activity) => (
+              <ActivityItem key={activity.id} saved={versions.get(activity.id)!} showRelated={false} />
             ))}
           </ol>
         )}
-        <ArchivedToggle hidden={linked.length - active.length} showing={showArchived} singular="activity" plural="activities" onToggle={() => setShowArchived(!showArchived)} />
+        <Pager page={page} label={`Activity with ${name}`} list={list} onPage={setIndex} />
+        <ArchivedToggle
+          hidden={linked.length - active.length}
+          showing={showArchived}
+          singular="activity"
+          plural="activities"
+          onToggle={() => {
+            setShowArchived(!showArchived);
+            setIndex(0);
+          }}
+        />
       </CardContent>
     </Card>
   );
 }
 
-// One activity in a list, with Edit, Archive, and Delete: an activity has no page of its own.
-export function ActivityItem({ saved, showRelated }: { saved: VersionedRecord<Activity>; showRelated: boolean }) {
+// One activity in a list, with Edit, Archive, and Delete: an activity has no page of its own. A memo:
+// a save draws again only the row of the activity that changed (docs/06).
+export const ActivityItem = memo(function ActivityItem({ saved, showRelated }: { saved: VersionedRecord<Activity>; showRelated: boolean }) {
   const readOnly = useApp(selectReadOnly);
   const canWrite = useApp(selectCanWrite);
   const archive = useArchive(saved);
@@ -91,4 +108,4 @@ export function ActivityItem({ saved, showRelated }: { saved: VersionedRecord<Ac
       {archive.message && <Problem>{archive.message}</Problem>}
     </li>
   );
-}
+});

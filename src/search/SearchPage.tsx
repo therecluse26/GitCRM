@@ -16,7 +16,8 @@ import { TaskItem } from '@/features/tasks/TaskItem.tsx';
 import { useCompletion } from '@/features/tasks/use-completion.ts';
 import { useToday } from '@/features/use-today.ts';
 import { selectClassName } from '@/ui/form-fields.tsx';
-import { ArchivedBadge, ListSummary, Problem } from '@/ui/record-page.tsx';
+import { onePage } from '@/features/list-page.ts';
+import { ArchivedBadge, ListSummary, Pager, Problem } from '@/ui/record-page.tsx';
 import { indexRecords, search, type SearchView } from './search.ts';
 
 const GROUPS: Record<RecordType, string> = { contact: 'Contacts', company: 'Companies', opportunity: 'Opportunities', task: 'Tasks', activity: 'Activities' };
@@ -33,7 +34,8 @@ export function SearchPage() {
   const completion = useCompletion();
   const today = useToday();
   const index = useMemo(() => indexRecords(snapshot?.records ?? [], stages), [snapshot, stages]);
-  const { found, shown, hiddenArchived } = useMemo(() => search(index, view), [index, view]);
+  const { query, type, showArchived } = view;
+  const { found, shown, hiddenArchived } = useMemo(() => search(index, { query, type, showArchived }), [index, query, type, showArchived]);
   const companyNames = useMemo(() => new Map(companies.map(({ record }) => [record.id, record.name])), [companies]);
   const companyOf = (companyId: string | null) => (companyId && companyNames.get(companyId)) || '';
   const set = (changes: Partial<SearchView>) => useApp.getState().setSearchView(changes);
@@ -88,7 +90,7 @@ export function SearchPage() {
             )}
           </Group>
           <Group type="task" items={found.task} all={view.type !== 'all'}>
-            {(saved) => <TaskItem key={saved.record.id} saved={saved} today={today} completion={completion} showRelated />}
+            {(saved) => <TaskItem key={saved.record.id} saved={saved} today={today} pending={completion.pending === saved.record.id} onToggle={completion.toggle} showRelated />}
           </Group>
           <Group type="activity" items={found.activity} all={view.type !== 'all'}>
             {(saved) => <ActivityItem key={saved.record.id} saved={saved} showRelated />}
@@ -100,16 +102,26 @@ export function SearchPage() {
 }
 
 // "Show all" chooses the record type, and focus moves to the heading, above the first new result.
+// One record type shows in pages of 50 (spec 08).
 function Group<V>({ type, items, all, children }: { type: RecordType; items: V[]; all: boolean; children: (item: V) => ReactNode }) {
   const heading = useRef<HTMLHeadingElement>(null);
+  const list = useRef<HTMLUListElement>(null);
+  const index = useApp((s) => s.search.page);
   if (items.length === 0) return null;
-  const shown = all ? items : items.slice(0, FIRST);
+  const page = onePage(items, index);
+  const shown = all ? page.rows : items.slice(0, FIRST);
   const noun = GROUPS[type].toLowerCase();
   return (
     <section aria-labelledby={`results-${type}`} className="flex flex-col gap-2">
       <h2 ref={heading} id={`results-${type}`} tabIndex={-1} className="text-lg font-semibold">{GROUPS[type]}</h2>
-      <ul aria-labelledby={`results-${type}`} className="divide-y rounded-lg border px-3">{shown.map(children)}</ul>
-      {shown.length < items.length && (
+      <ul ref={list} tabIndex={-1} aria-labelledby={`results-${type}`} className="divide-y rounded-lg border px-3 outline-none">{shown.map(children)}</ul>
+      {all && page.count > 1 && (
+        <p className="text-sm text-muted-foreground">
+          Showing {page.from}–{page.to} of {items.length} {noun}.
+        </p>
+      )}
+      {all && <Pager page={page} label={GROUPS[type]} list={list} onPage={(page) => useApp.getState().setSearchView({ page })} />}
+      {!all && shown.length < items.length && (
         <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
           Showing {shown.length} of {items.length} {noun}.
           <Button

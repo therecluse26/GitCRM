@@ -1,5 +1,6 @@
-// Home's due and overdue tasks (docs/08). Each one can be completed from here.
+// Home's due and overdue tasks (docs/08): the first 10 (spec 08). Each one can be completed here.
 import { Link } from '@tanstack/react-router';
+import { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Problem } from '@/ui/record-page.tsx';
 import { useRecords } from '../records.ts';
@@ -8,13 +9,19 @@ import { compareOpen, isDue } from './task-list.ts';
 import { TaskItem } from './TaskItem.tsx';
 import { useCompletion } from './use-completion.ts';
 
+const FIRST = 10;
+
 export function DueTasks() {
   const today = useToday();
   const completion = useCompletion();
+  const tasks = useRecords('task');
+  const { pending } = completion;
   // A task stays on the list while its completion is saving, so the checkbox does not jump away.
-  const due = useRecords('task')
-    .filter((v) => v.record.archivedAt === null && (isDue(v.record, today) || completion.pending === v.record.id))
-    .sort((a, b) => compareOpen(a.record, b.record));
+  const due = useMemo(
+    () => tasks.filter((v) => v.record.archivedAt === null && (isDue(v.record, today) || pending === v.record.id)).sort((a, b) => compareOpen(a.record, b.record)),
+    [tasks, today, pending],
+  );
+  const shown = due.slice(0, FIRST);
 
   return (
     <section aria-labelledby="due-tasks-heading">
@@ -31,10 +38,15 @@ export function DueTasks() {
             <p className="text-sm text-muted-foreground">No task is due today or overdue.</p>
           ) : (
             <ul aria-label="Tasks due" className="flex flex-col divide-y">
-              {due.map((saved) => (
-                <TaskItem key={saved.record.id} saved={saved} today={today} completion={completion} showRelated />
+              {shown.map((saved) => (
+                <TaskItem key={saved.record.id} saved={saved} today={today} pending={pending === saved.record.id} onToggle={completion.toggle} showRelated />
               ))}
             </ul>
+          )}
+          {shown.length < due.length && (
+            <p className="text-sm text-muted-foreground">
+              Showing {shown.length} of {due.length} tasks due.
+            </p>
           )}
         </CardContent>
       </Card>
