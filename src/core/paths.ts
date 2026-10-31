@@ -4,7 +4,7 @@ import type { RecordType } from './schemas.ts';
 
 export const WORKSPACE_PATH = '.gitcrm/workspace.json';
 
-const FOLDERS: Record<RecordType, string> = {
+export const FOLDERS: Record<RecordType, string> = {
   contact: 'contacts',
   company: 'companies',
   opportunity: 'opportunities',
