@@ -98,6 +98,22 @@ export function snapshotFromFiles({ commitSha, files }: SnapshotFiles): Workspac
   return buildSnapshot(commitSha, files);
 }
 
+// The next snapshot keeps the previous object of each file with the same blob SHA: the workspace
+// settings and each record. So a list row with a memo draws again only when its record changed
+// (docs/06). A kept record's commitSha stays the commit that it was read at.
+export function keepUnchanged(next: WorkspaceSnapshot, previous: WorkspaceSnapshot | null): WorkspaceSnapshot {
+  if (!previous) return next;
+  const known = new Map(previous.records.map((version) => [version.path, version]));
+  return {
+    ...next,
+    workspace: next.workspace && previous.workspace?.blobSha === next.workspace.blobSha ? previous.workspace : next.workspace,
+    records: next.records.map((version) => {
+      const old = known.get(version.path);
+      return old?.blobSha === version.blobSha ? old : version;
+    }),
+  };
+}
+
 // Validates every file again, whether it came from GitHub or from the cache.
 function buildSnapshot(commitSha: string | null, files: Map<string, CachedFile>): WorkspaceSnapshot {
   const issues: FileIssue[] = [];
