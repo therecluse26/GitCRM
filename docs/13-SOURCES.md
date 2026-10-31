@@ -41,6 +41,11 @@
 - [Cloudflare Pages headers - `_headers` file](https://developers.cloudflare.com/pages/configuration/headers/)
 - [Cloudflare Privacy Policy - End User data](https://www.cloudflare.com/privacypolicy/)
 
+## Export
+
+- [OWASP: CSV Injection - dangerous first characters, and the fix](https://owasp.org/www-community/attacks/CSV_Injection) (read 2026-10-30; it now redirects to community.owasp.org)
+- [GHSA-px8p-9vwx-vf98: fflate `unzipSync` can loop on a malformed ZIP64 archive; fixed in 0.8.3](https://github.com/advisories/GHSA-px8p-9vwx-vf98) (read 2026-10-30; GitCRM pins 0.8.3 and only writes ZIPs)
+
 ## Notes
 
 - GitHub supports PKCE, but the current official OAuth app code-exchange docs still describe `client_secret` as required. Treat this as a **production auth feasibility question**, not a solved browser-only OAuth recipe.

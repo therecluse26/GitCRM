@@ -1,10 +1,11 @@
-// Settings (docs/08): workspace, pipeline stages, connection health, files that need attention, and Disconnect.
+// Settings (docs/08): workspace, pipeline stages, connection health, files that need attention, export, and Disconnect.
 import { useNavigate } from '@tanstack/react-router';
 import { useState, type ReactNode } from 'react';
 import { useApp } from '@/app/store.ts';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { StageEditor } from '@/features/opportunities/StageEditor.tsx';
+import { ExportCard } from './ExportCard.tsx';
 
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -90,6 +91,8 @@ export function SettingsPage() {
           )}
         </CardContent>
       </Card>
+
+      <ExportCard />
 
       <Card>
         <CardHeader>
