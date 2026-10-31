@@ -10,12 +10,14 @@ These rules apply to every page (docs/08). They close the Phase 2 item "Responsi
 - As a user on a phone, I want to reach every page without a sideways scroll.
 - As a user, I want to know when a save is running, when it is done, and why it failed.
 - As a user, I want each form problem shown at the field that has it.
+- As a user with a long list, I want it in pages, so that each page opens at once.
 
 ## In scope
 
 - A skip link, focus after a page change, the current page in the main navigation, a page for unknown addresses, and phone width.
 - The save states from docs/08 on every control that saves.
 - Field errors on every form, including the connect and setup screens.
+- Long lists in pages of 50.
 
 Out of scope: page titles that name a record (docs/07: the title stays "GitCRM"), a menu button for the navigation, and checks while the user types.
 
@@ -77,6 +79,47 @@ Scenario Outline: A required field is empty
     | workspace setup  | Workspace name                     | Enter a name for the workspace.                               |
 ```
 
+```gherkin
+Scenario: A long list comes in pages of 50
+  Given 120 active contacts
+  When I open Contacts
+  Then the list shows contacts 1 to 50
+  And the page says "Showing 1–50 of 120 contacts"
+  When I select "Next page"
+  Then the list shows contacts 51 to 100
+  And focus moves to the list
+  When I select "Next page" again
+  Then the page says "Showing 101–120 of 120 contacts"
+  And "Next page" is disabled
+
+Scenario: A changed view starts at the first page
+  Given I am on page 2 of Contacts
+  When I change the search text, "Sort by", or "Show archived"
+  Then the list shows its first page
+
+Scenario: Back to the list keeps the page
+  Given I am on page 3 of Contacts
+  When I open a contact, then go back
+  Then the list still shows page 3
+
+Scenario: A list that gets shorter
+  Given I am on the last page of Tasks, and it has one task
+  When I complete that task
+  Then the list shows the new last page
+
+Scenario: A short list has no pages
+  Given 12 active contacts
+  When I open Contacts
+  Then the list shows all 12, and the page says "12 contacts"
+  And there is no "Next page"
+
+Scenario: Home shows the first 10 tasks due
+  Given 14 tasks are due today or overdue
+  When I open Home
+  Then "Tasks due" shows the first 10
+  And it says "Showing 10 of 14 tasks due." and links to all tasks
+```
+
 Specs 02, 03, 04, and 07 already cover these save states: "Saving…" on the control, "Saved · View commit" after a commit, a failed save that keeps the form, and the conflict panel.
 
 ## Notes
@@ -85,4 +128,7 @@ Specs 02, 03, 04, and 07 already cover these save states: "Saving…" on the con
 - The focus move does not scroll. A new page starts at the top. Back returns to the old scroll position. The test cannot prove the first sentence: in Chromium, the old position comes back after the focus move either way.
 - The skip link is a button. With hash addresses, a link to `#main` would change the page address and show "Page not found".
 - An error stays until the next Save, as on GOV.UK forms. The page does not change while the user types, and focus does not jump.
+- Pages of 50 apply to Contacts, Companies, Tasks, the Pipeline list, each Pipeline board column, Search after "Show all" (spec 05), and the lists on a record page: activity, tasks, opportunities, and a company's contacts. A page draws its rows only, so a page change and a save stay fast at 2,000 records (docs/06, "Measured in the browser").
+- The page number of a main list stays in memory with its search text and sort, never in the page address. A board column and a list on a record page start at page 1 each time the page opens.
+- After "Next page" or "Previous page", focus moves to the list, so a screen reader reads the new rows. The status above the list says which rows show.
 - On a phone, the main navigation wraps into two rows. GitCRM is usable on mobile web, but it is not mobile-first (PRODUCT_REQUIREMENTS), so there is no menu button.
