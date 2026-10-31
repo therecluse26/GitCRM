@@ -9,6 +9,7 @@ import { serializeRecord, serializeWorkspace } from '../core/record-file.ts';
 import type { CRMRecord, WorkspaceConfig } from '../core/schemas.ts';
 import { newWorkspaceConfig } from '../core/workspace.ts';
 import { DEFAULT_LIST_VIEW, type ListView } from '../features/list-query.ts';
+import { changeView } from '../features/list-page.ts';
 import { DEFAULT_PIPELINE_VIEW, type PipelineView } from '../features/opportunities/pipeline.ts';
 import { DEFAULT_TASK_VIEW, type TaskView } from '../features/tasks/task-list.ts';
 import { DEFAULT_SEARCH_VIEW, type SearchView } from '../search/search.ts';
@@ -17,7 +18,7 @@ import { createGitHubWorkspace } from '../storage/github-workspace.ts';
 import { stateForError, type OperationState } from '../storage/operation-state.ts';
 import { ConflictError } from '../storage/errors.ts';
 import { createRecordCache } from '../storage/record-cache.ts';
-import { snapshotFromFiles, type CachedFile, type SnapshotFiles } from '../storage/snapshot.ts';
+import { keepUnchanged, snapshotFromFiles, type CachedFile, type SnapshotFiles } from '../storage/snapshot.ts';
 import type { DeletePlan, VersionedRecord, WorkspaceRepository, WorkspaceSnapshot } from '../storage/workspace-repository.ts';
 import { backgroundCheck } from './background-check.ts';
 import { joinTabs, type TabMessage, type Tabs } from './tabs.ts';
@@ -109,7 +110,8 @@ function clientFor(token: string): GitHubClient {
 
 export const useApp = create<AppState>()((set, get) => {
   // `persist` is false for files from another tab, which wrote the record cache itself.
-  function show(snapshot: WorkspaceSnapshot, files: SnapshotFiles, persist = true) {
+  function show(next: WorkspaceSnapshot, files: SnapshotFiles, persist = true) {
+    const snapshot = keepUnchanged(next, get().snapshot);
     set({ snapshot, files, sync: { status: 'loaded' }, screen: screenFor(snapshot) });
     if (persist && get().credentials?.remember) void cache.write(cacheKey(get().credentials!), files);
   }
@@ -330,19 +332,19 @@ export const useApp = create<AppState>()((set, get) => {
     },
 
     setListView(type, changes) {
-      set({ lists: { ...get().lists, [type]: { ...get().lists[type], ...changes } } });
+      set({ lists: { ...get().lists, [type]: changeView(get().lists[type], changes) } });
     },
 
     setPipelineView(changes) {
-      set({ pipeline: { ...get().pipeline, ...changes } });
+      set({ pipeline: changeView(get().pipeline, changes) });
     },
 
     setTaskView(changes) {
-      set({ tasks: { ...get().tasks, ...changes } });
+      set({ tasks: changeView(get().tasks, changes) });
     },
 
     setSearchView(changes) {
-      set({ search: { ...get().search, ...changes } });
+      set({ search: changeView(get().search, changes) });
     },
 
     tabFocused() {

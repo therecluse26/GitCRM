@@ -1,8 +1,8 @@
 // Filtering and sorting for record lists (spec 02): search in memory, archived records hidden
 // unless asked for (spec 06).
 
-export type ListView = { query: string; showArchived: boolean; sort: 'name' | 'updated' };
-export const DEFAULT_LIST_VIEW: ListView = { query: '', showArchived: false, sort: 'name' };
+export type ListView = { query: string; showArchived: boolean; sort: 'name' | 'updated'; page: number };
+export const DEFAULT_LIST_VIEW: ListView = { query: '', showArchived: false, sort: 'name', page: 0 };
 
 type Listed = { id: string; name: string; updatedAt: string; archivedAt: string | null };
 
@@ -17,7 +17,7 @@ const compare = {
 };
 
 // `hiddenArchived` counts the archived records that match but are not shown.
-export function listRecords<R extends Listed>(records: R[], view: ListView, searchText: (record: R) => string[]): { shown: R[]; hiddenArchived: number } {
+export function listRecords<R extends Listed>(records: R[], view: Pick<ListView, 'query' | 'showArchived' | 'sort'>, searchText: (record: R) => string[]): { shown: R[]; hiddenArchived: number } {
   const words = searchWords(view.query);
   const matching = records.filter((record) => {
     const text = fold(searchText(record).join('\n'));
