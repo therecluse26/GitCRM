@@ -17,7 +17,7 @@ const REVIEWED_HOSTS = new Set([
   'tailwindcss.com', // Tailwind's license comment
 ]);
 
-const FILE = /^(index\.html|assets\/[\w.-]+\.(js|css|woff2))$/;
+const FILE = /^(index\.html|_headers|assets\/[\w.-]+\.(js|css|woff2))$/;
 const TOKEN = /\b(gh[pousr]_[A-Za-z0-9]{36,}|github_pat_[A-Za-z0-9_]{60,})/;
 const EMAIL = /[A-Za-z0-9._%+-]+@([A-Za-z0-9-]+\.)+[A-Za-z]{2,}/g;
 // Reserved for examples (RFC 2606, RFC 6761): an address here is a hint, not someone's address.
@@ -50,6 +50,28 @@ function auditPage(html: string): string[] {
   return problems;
 }
 
+// Cloudflare Pages reads _headers (spec 09): a URL pattern on its own line, then indented
+// `Name: value` lines, or `! Name` to remove a header. A line may hold at most 2,000 characters.
+function auditHeaders(text: string, policy: string | undefined): string[] {
+  const problems: string[] = [];
+  const rules: { pattern: string; headers: string[] }[] = [];
+  text.split('\n').forEach((line, i) => {
+    if (line.length > 2000) problems.push(`_headers: line ${i + 1} is longer than 2,000 characters`);
+    if (line.trim() === '' || line.trim().startsWith('#')) return;
+    if (/^\s/.test(line)) rules.at(-1)?.headers.push(line.trim());
+    else rules.push({ pattern: line.trim(), headers: [] });
+  });
+  const touchesPolicy = (header: string) => /^(!\s*)?content-security-policy\s*(:|$)/i.test(header);
+  const all = rules.find(({ pattern }) => pattern === '/*')?.headers.filter(touchesPolicy) ?? [];
+  if (all.length !== 1 || all[0] !== `Content-Security-Policy: ${policy}; frame-ancestors 'none'`) {
+    problems.push(`_headers: the /* rule must send the policy from index.html, then "; frame-ancestors 'none'"`);
+  }
+  for (const { pattern, headers } of rules) {
+    if (pattern !== '/*' && headers.some(touchesPolicy)) problems.push(`_headers: the ${pattern} rule changes the Content-Security-Policy header`);
+  }
+  return problems;
+}
+
 // `files`: each built file's path, relative to the build folder, and its text.
 export function auditBuild(files: Map<string, string>): string[] {
   const problems: string[] = [];
@@ -60,6 +82,7 @@ export function auditBuild(files: Map<string, string>): string[] {
     }
     if (path.endsWith('.woff2')) continue;
     if (path === 'index.html') problems.push(...auditPage(text));
+    if (path === '_headers') problems.push(...auditHeaders(text, POLICY_META.exec(files.get('index.html') ?? '')?.[1]));
     if (/sourceMappingURL=/.test(text)) problems.push(`${path} links a source map`);
     if (TOKEN.test(text)) problems.push(`${path} holds something shaped like a GitHub token`);
     for (const [email] of text.matchAll(EMAIL)) if (!EXAMPLE_DOMAIN.test(email)) problems.push(`${path} holds an email address: ${email}`);
@@ -67,6 +90,7 @@ export function auditBuild(files: Map<string, string>): string[] {
     for (const host of hosts) if (!REVIEWED_HOSTS.has(host)) problems.push(`${path} names a host that nobody reviewed: ${host}`);
   }
   if (!files.has('index.html')) problems.push('The build has no index.html');
+  if (!files.has('_headers')) problems.push('The build has no _headers file');
   return problems;
 }
 

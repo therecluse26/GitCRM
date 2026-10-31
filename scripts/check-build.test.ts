@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { auditBuild } from './check-build.ts';
-import { CSP } from './csp.ts';
+import { CSP, HEADERS } from './csp.ts';
 
 const meta = (policy = CSP) => `<meta http-equiv="Content-Security-Policy" content="${policy}" />`;
 const page = (head = meta(), body = '') => `<!doctype html>
@@ -24,6 +24,7 @@ function audit(changes: Record<string, string | null> = {}) {
     ['assets/index-a1b2c3d4.js', 'fetch("https://api.github.com/user");const ns="http://www.w3.org/2000/svg";'],
     ['assets/index-a1b2c3d4.css', 'body{font-family:Geist}'],
     ['assets/geist-latin-wght-normal-a1b2c3d4.woff2', ''],
+    ['_headers', HEADERS],
   ]);
   for (const [path, text] of Object.entries(changes)) {
     if (text === null) files.delete(path);
@@ -44,19 +45,23 @@ describe('auditBuild', () => {
   });
 
   it('needs the policy before any script or stylesheet', () => {
-    expect(audit({ 'index.html': page('') })).toEqual(['index.html has no Content Security Policy meta tag']);
+    expect(audit({ 'index.html': page('') })).toEqual([
+      'index.html has no Content Security Policy meta tag',
+      `_headers: the /* rule must send the policy from index.html, then "; frame-ancestors 'none'"`,
+    ]);
     const late = page('').replace('</head>', `${meta()}\n</head>`);
     expect(audit({ 'index.html': late })).toEqual(['index.html: the Content Security Policy must come before every script and stylesheet']);
   });
 
   it('refuses a weaker policy', () => {
-    const weaker = (from: string, to: string) => audit({ 'index.html': page(meta(CSP.replace(from, to))) });
+    const weaker = (from: string, to: string) => audit({ 'index.html': page(meta(CSP.replace(from, to))), _headers: HEADERS.replace(from, to) });
     expect(weaker("script-src 'self'", "script-src 'self' 'unsafe-inline'")).toEqual(["The policy's script-src must be exactly 'self'", "The policy allows 'unsafe-inline'"]);
     expect(weaker("default-src 'none'", "default-src 'self'")).toEqual(["The policy's default-src must be 'none'"]);
     expect(weaker("; require-trusted-types-for 'script'", '')).toEqual(["The policy must require Trusted Types for scripts"]);
     expect(weaker('connect-src https://api.github.com', 'connect-src https://api.github.com https://collector.example')).toEqual([
       "The policy's connect-src must be exactly https://api.github.com",
       'index.html names a host that nobody reviewed: collector.example',
+      '_headers names a host that nobody reviewed: collector.example',
     ]);
   });
 
@@ -84,5 +89,25 @@ describe('auditBuild', () => {
     expect(audit({ 'assets/index-a1b2c3d4.js': 'fetch("https://collector.example/t");a="https://github.com/settings"' })).toEqual([
       'assets/index-a1b2c3d4.js names a host that nobody reviewed: collector.example',
     ]);
+  });
+
+  // Cloudflare Pages reads _headers (spec 09). Only a header can set frame-ancestors.
+  it('needs a headers file that sends the policy from index.html, with frame-ancestors', () => {
+    const wrong = `_headers: the /* rule must send the policy from index.html, then "; frame-ancestors 'none'"`;
+    expect(audit({ _headers: null })).toEqual(['The build has no _headers file']);
+    expect(audit({ _headers: `/*\n  Content-Security-Policy: ${CSP}\n` })).toEqual([wrong]);
+    expect(audit({ _headers: `/*\n  Content-Security-Policy: default-src *; frame-ancestors 'none'\n` })).toEqual([wrong]);
+    expect(audit({ _headers: `/assets/*\n  Content-Security-Policy: ${CSP}; frame-ancestors 'none'\n` })).toEqual([
+      wrong,
+      '_headers: the /assets/* rule changes the Content-Security-Policy header',
+    ]);
+  });
+
+  it('refuses a headers rule that changes or removes the policy, and a line over 2,000 characters', () => {
+    expect(audit({ _headers: `${HEADERS}/assets/*\n  ! Content-Security-Policy\n` })).toEqual(['_headers: the /assets/* rule changes the Content-Security-Policy header']);
+    expect(audit({ _headers: `${HEADERS}/index.html\n  content-security-policy: default-src *\n` })).toEqual(['_headers: the /index.html rule changes the Content-Security-Policy header']);
+    expect(audit({ _headers: `# The official copy\n${HEADERS}/assets/*\n  Cache-Control: public, max-age=31536000, immutable\n` })).toEqual([]);
+    const line = HEADERS.split('\n').length + 1;
+    expect(audit({ _headers: `${HEADERS}/*\n  X-Note: ${'a'.repeat(2000)}\n` })).toEqual([`_headers: line ${line} is longer than 2,000 characters`]);
   });
 });
