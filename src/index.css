@@ -48,6 +48,8 @@
     --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* Three tokens are darker than the shadcn defaults, to meet WCAG 2.2 AA (docs/08, "Accessibility
+   checks"): --destructive, --input (field borders), and --ring (focus rings). */
 :root {
     --background: oklch(1 0 0);
     --foreground: oklch(0.145 0 0);
@@ -63,10 +65,10 @@
     --muted-foreground: oklch(0.556 0 0);
     --accent: oklch(0.97 0 0);
     --accent-foreground: oklch(0.205 0 0);
-    --destructive: oklch(0.577 0.245 27.325);
+    --destructive: oklch(0.505 0.213 27.518);
     --border: oklch(0.922 0 0);
-    --input: oklch(0.922 0 0);
-    --ring: oklch(0.708 0 0);
+    --input: oklch(0.62 0 0);
+    --ring: oklch(0.205 0 0);
     --chart-1: oklch(0.87 0 0);
     --chart-2: oklch(0.556 0 0);
     --chart-3: oklch(0.439 0 0);

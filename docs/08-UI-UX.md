@@ -74,6 +74,31 @@ Built (spec 08): on a phone, the main navigation wraps into rows, with no menu b
 - Provide a list view alternative to Kanban for keyboard users and narrow screens.
 - Built (spec 08): a "Skip to main content" button, and focus on the page heading after each page change. Each form error is linked to its field, and focus moves to the first field with an error.
 
+### Accessibility checks
+
+The target is WCAG 2.2 AA (PRODUCT_REQUIREMENTS). `e2e/accessibility.spec.ts` checks each page, and these states: the connect screen with field errors, workspace setup, a form with field errors, a failed save, the conflict panel, and a read-only workspace.
+
+- **axe:** axe-core's WCAG 2.2 A and AA rules, and its best-practice rules, find no problem.
+- **Focus indicator:** each control that Tab reaches shows a ring or an outline. Its contrast against the background behind it is at least 3:1 (WCAG 1.4.11 and 2.4.7). axe does not check this.
+- **Field borders:** each field, select, and checkbox border has at least 3:1 contrast against the background behind it (WCAG 1.4.11). axe does not check this either.
+- **Keyboard only:** with Tab, Enter, typing, and arrow keys only, a user creates a contact, fixes an empty Name on the way, and moves an opportunity to the next stage.
+- **No motion:** no CSS animation runs on any page. Hover colors fade in 150 ms; nothing moves. So reduced motion needs no change.
+- **Reflow:** at 320 pixels wide, no page scrolls sideways (WCAG 1.4.10, spec 08 "Phone width").
+
+Things that need no check: GitCRM has no dialogs, because a delete is its own page; so no focus trap is needed. The stage always shows as text: the column heading on the board, and the Stage column in the list.
+
+The theme is light only. Three tokens in `src/index.css` were darkened to meet AA:
+
+| Token | Before | After | Contrast now |
+| --- | --- | --- | --- |
+| `--destructive` | `oklch(0.577 0.245 27.325)` | `oklch(0.505 0.213 27.518)` | 5.3:1 on its 10% tint (the "Delete" button) |
+| `--input` | `oklch(0.922 0 0)` | `oklch(0.62 0 0)` | 3.6:1 on `--background` (field borders) |
+| `--ring` | `oklch(0.708 0 0)` | `oklch(0.205 0 0)` | 3.4:1 at 50% on `--background` (focus rings) |
+
+The "Delete" button used its own faint focus ring (`--destructive` at 20%). It now uses the same ring as every other button. A field with an error had a faint red ring that hid its focus ring. Now the red border (5.3:1) and the error text mark the field, and focus shows the usual ring.
+
+Not checked yet: a screen reader run (NVDA, VoiceOver), text at 200%, and Windows contrast themes. These need a person.
+
 ## Copywriting tone
 
 - "Save contact" not "Commit blob".

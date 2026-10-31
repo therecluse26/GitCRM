@@ -8,7 +8,7 @@
 
 **E2E:** browser user flows against the fake GitHub (`src/test/fake-github.ts`), so the real adapter runs in the browser. The tests run against the built app (`vite build`, then `vite preview`), so the Content Security Policy applies, and a policy violation fails the test (docs/07). Only the developer page's test uses the dev server. An optional separate suite against a **disposable private GitHub repo** tests real API semantics, never production CRM data.
 
-**Tools (ADR-012):** Vitest for unit and contract tests, MSW to mock the GitHub API, Playwright for E2E. Run them with `npm test` and `npm run test:e2e`.
+**Tools (ADR-012):** Vitest for unit and contract tests, MSW to mock the GitHub API, Playwright for E2E, and axe-core inside Playwright for the accessibility checks (docs/08). Run them with `npm test` and `npm run test:e2e`.
 
 ## Core test cases
 
@@ -67,7 +67,7 @@ No spike recorded GitHub's response for a branch that requires pull requests, or
 
 - Prototype at 100/500/2000 generated records; measure time, requests, bytes, memory.
 - Verify responsive UI on a modest laptop and throttled connection.
-- Audit accessibility: keyboard-only contact creation, Kanban stage movement, and errors.
+- Audit accessibility: keyboard-only contact creation, Kanban stage movement, and errors. `e2e/accessibility.spec.ts` does this, and checks each page against WCAG 2.2 AA (docs/08, "Accessibility checks").
 - Scan production static artifact for real data, developer tokens, and unsafe embed configuration. `npm run build` runs the build audit, and `e2e/security.spec.ts` checks the policy and the frame refusal (docs/07).
 
 ## Release gate

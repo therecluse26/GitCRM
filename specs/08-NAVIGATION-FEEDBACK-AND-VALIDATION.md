@@ -45,7 +45,7 @@ Scenario: An address that matches no page
   And the main navigation is still there
 
 Scenario: Phone width
-  Given a window 390 pixels wide
+  Given a window 320 pixels wide (the reflow width in WCAG 1.4.10)
   When I open each main page, a record page, and a form
   Then no page scrolls sideways
   And the main navigation shows every link, without a menu

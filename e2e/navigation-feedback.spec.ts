@@ -81,8 +81,9 @@ test('an address that matches no page says so, inside the app', async ({ page })
   await expect(homeHeading(page)).toBeVisible();
 });
 
-test('at 390 pixels wide, no page scrolls sideways, and the navigation shows every link', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
+// 320 pixels: the reflow width in WCAG 1.4.10, and the narrowest common phone.
+test('at 320 pixels wide, no page scrolls sideways, and the navigation shows every link', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 640 });
   const { ava, records } = avasRecords();
   await open(page, records);
   for (const path of ['/', '/contacts', `/contacts/${ava.id}`, '/companies', '/pipeline', '/tasks', '/search', '/settings', '/contacts/new', '/tasks/new', '/activities/new']) {
