@@ -75,6 +75,13 @@ describe('describeConnectError', () => {
     expect(describeConnectError(new SnapshotError('The default branch has no commits yet.'), 'ava/crm')).toBe('The default branch has no commits yet.');
     expect(describeConnectError(new GitHubError('network', null, 'GET /user'), 'ava/crm')).toMatch(/Could not reach GitHub/);
   });
+
+  // The connect screen has no Refresh button, so a 403 there gives GitHub's words alone.
+  it("gives a 403 in GitHub's words, without the Refresh advice of a save", () => {
+    expect(describeConnectError(new GitHubError('forbidden', 403, 'GET /user', 'Forbidden'), 'ava/crm')).toBe(
+      'GitHub refused the request: Forbidden.',
+    );
+  });
 });
 
 describe('tokenLink', () => {

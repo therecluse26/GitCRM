@@ -29,6 +29,22 @@ describe('stateForError', () => {
     expect(state.status === 'failed' && state.message).toMatch(message);
   });
 
+  it("passes on GitHub's words as one sentence, so the form's next sentence reads apart", () => {
+    const refused = (kind: 'conflict' | 'unprocessable', status: number, message: string | null) => stateForError(new GitHubError(kind, status, 'PUT /x', message));
+    expect(refused('conflict', 409, 'Changes must be made through a pull request')).toEqual({ status: 'failed', message: 'GitHub refused the request: Changes must be made through a pull request.' });
+    expect(refused('unprocessable', 422, 'Update is not a fast forward.')).toMatchObject({ message: 'GitHub refused the request: Update is not a fast forward.' });
+    expect(refused('unprocessable', 422, null)).toMatchObject({ message: 'GitHub refused the request: 422.' });
+  });
+
+  // Spec 07, "Repository permission revoked": a clear permission message.
+  it('after a 403, says to Refresh, which runs the connect checks again', () => {
+    for (const said of ['Resource not accessible by personal access token', 'Repository was archived so is read-only.']) {
+      expect(stateForError(new GitHubError('forbidden', 403, 'PUT /x', said))).toMatchObject({
+        message: `GitHub refused the request: ${said.replace(/\.$/, '')}. Refresh to check what the token can still do here.`,
+      });
+    }
+  });
+
   it('maps an unexpected error to failed', () => {
     expect(stateForError(new TypeError('boom'))).toEqual({ status: 'failed', message: 'Unexpected error: boom' });
   });

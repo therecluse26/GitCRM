@@ -21,6 +21,11 @@ const MESSAGES: Partial<Record<GitHubErrorKind, string>> = {
   server: 'GitHub had an error. Try again later.',
 };
 
+// GitHub's words as one sentence, so a following sentence reads apart.
+export function refusal(error: GitHubError): string {
+  return `GitHub refused the request: ${(error.githubMessage ?? String(error.status)).replace(/[.\s]+$/, '')}.`;
+}
+
 export function stateForError(error: unknown): OperationState {
   if (error instanceof ConflictError) return { status: 'conflict', remote: error.remote, message: error.message };
   if (error instanceof GitHubError) {
@@ -29,7 +34,9 @@ export function stateForError(error: unknown): OperationState {
       const wait = error.retryAfterSeconds === null ? 'later' : `in ${Math.ceil(error.retryAfterSeconds / 60)} min`;
       return { status: 'rate-limited', retryAfterSeconds: error.retryAfterSeconds, message: `GitHub asked GitCRM to slow down. Try again ${wait}.` };
     }
-    return { status: 'failed', message: MESSAGES[error.kind] ?? `GitHub refused the request: ${error.githubMessage ?? error.status}` };
+    // A 403 during a session: the token lost write access, or the repository was archived (S-08).
+    if (error.kind === 'forbidden') return { status: 'failed', message: `${refusal(error)} Refresh to check what the token can still do here.` };
+    return { status: 'failed', message: MESSAGES[error.kind] ?? refusal(error) };
   }
   if (error instanceof UnknownOutcomeError) {
     return { status: 'failed', message: 'GitHub did not answer, so the change may or may not have been saved. Reload before you try again.' };
