@@ -5,13 +5,24 @@ import type { RecordOf, RecordType } from '@/core/schemas.ts';
 import { sortStages, type Stage } from '@/core/stages.ts';
 import type { VersionedRecord, WorkspaceSnapshot } from '@/storage/workspace-repository.ts';
 
+// One list per record type and snapshot, shared by every caller, because each task and activity row
+// asks for these lists (docs/06, "Measured in the browser"). A snapshot never changes; each load or
+// save makes a new one.
+const lists = new WeakMap<WorkspaceSnapshot, Map<RecordType, VersionedRecord[]>>();
+const NONE: readonly VersionedRecord[] = Object.freeze([]);
+
 export function recordsOf<T extends RecordType>(snapshot: WorkspaceSnapshot | null, type: T): VersionedRecord<RecordOf<T>>[] {
-  return (snapshot?.records ?? []).filter((v): v is VersionedRecord<RecordOf<T>> => v.record.type === type);
+  if (!snapshot) return NONE as VersionedRecord<RecordOf<T>>[];
+  let byType = lists.get(snapshot);
+  if (!byType) lists.set(snapshot, (byType = new Map()));
+  let list = byType.get(type);
+  if (!list) byType.set(type, (list = snapshot.records.filter((v) => v.record.type === type)));
+  return list as VersionedRecord<RecordOf<T>>[];
 }
 
 export function useRecords<T extends RecordType>(type: T): VersionedRecord<RecordOf<T>>[] {
   const snapshot = useApp((s) => s.snapshot);
-  return useMemo(() => recordsOf(snapshot, type), [snapshot, type]);
+  return recordsOf(snapshot, type);
 }
 
 export function useRecord<T extends RecordType>(type: T, id: string): VersionedRecord<RecordOf<T>> | undefined {

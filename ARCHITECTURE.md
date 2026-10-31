@@ -87,6 +87,8 @@ Each mutation is a Git commit. Creates and updates use the Contents API. Deletes
 4. Build in-memory indexes/search for visible UI. Store no private data in built assets, service-worker precaches, or external analytics.
 5. When HEAD changes, incrementally refresh where feasible or safely reload the snapshot. `main` is checked on page load, on Refresh, and when a tab gains focus; with several tabs open, one tab runs the focus checks and shares what it finds (ADR-023).
 
+Each new snapshot, after a load, a save, or another tab's files, keeps the object of every file with the same blob SHA. The UI's list rows are memos, so only the rows of changed records draw again, and each list draws one page of 50 rows (spec 08).
+
 The **principal performance uncertainty is data transport from GitHub, not local full-text search**. See `docs/06-SEARCH-AND-PERFORMANCE.md`.
 
 ## Hosting

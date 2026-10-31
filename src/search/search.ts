@@ -9,8 +9,8 @@ import { stageName } from '@/features/opportunities/pipeline.ts';
 import type { Related } from '@/features/related.ts';
 import type { VersionedRecord } from '@/storage/workspace-repository.ts';
 
-export type SearchView = { query: string; type: RecordType | 'all'; showArchived: boolean };
-export const DEFAULT_SEARCH_VIEW: SearchView = { query: '', type: 'all', showArchived: false };
+export type SearchView = { query: string; type: RecordType | 'all'; showArchived: boolean; page: number };
+export const DEFAULT_SEARCH_VIEW: SearchView = { query: '', type: 'all', showArchived: false, page: 0 };
 
 // Each record with its folded search text, in the order the results show.
 export type SearchIndex = { saved: VersionedRecord; text: string }[];
@@ -50,7 +50,7 @@ export function indexRecords(records: VersionedRecord[], stages: Stage[]): Searc
 }
 
 // `hiddenArchived` counts the archived records that match but are not shown.
-export function search(index: SearchIndex, view: SearchView): SearchResults {
+export function search(index: SearchIndex, view: Pick<SearchView, 'query' | 'type' | 'showArchived'>): SearchResults {
   const results: SearchResults = { found: { contact: [], company: [], opportunity: [], task: [], activity: [] }, shown: 0, hiddenArchived: 0 };
   const words = searchWords(view.query);
   if (words.length === 0) return results;

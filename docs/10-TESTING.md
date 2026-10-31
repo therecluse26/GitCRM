@@ -65,8 +65,8 @@ No spike recorded GitHub's response for a branch that requires pull requests, or
 
 ## Nonfunctional probes
 
-- Prototype at 100/500/2000 generated records; measure time, requests, bytes, memory.
-- Verify responsive UI on a modest laptop and throttled connection.
+- Prototype at 100/500/2000 generated records; measure time, requests, bytes, memory. `e2e/bench.spec.ts` times the built app at each size against the fake GitHub, five runs each (docs/06, "Measured in the browser"). It runs only on request: `BENCH=1 npx playwright test --project bench`.
+- Verify responsive UI on a modest laptop and throttled connection. In the bench, `BENCH_CPU=4` makes the CPU 4 times slower, and `BENCH_NETWORK=1` adds a slow 4G network. `BENCH_URL=https://gitcrm.pages.dev/` times the official copy. Playwright turns off the HTTP cache while a route is on, so with `BENCH_NETWORK` the warm page load runs with no route and `api.github.com` blocked.
 - Audit accessibility: keyboard-only contact creation, Kanban stage movement, and errors. `e2e/accessibility.spec.ts` does this, and checks each page against WCAG 2.2 AA (docs/08, "Accessibility checks").
 - Scan production static artifact for real data, developer tokens, and unsafe embed configuration. `npm run build` runs the build audit, and `e2e/security.spec.ts` checks the policy and the frame refusal (docs/07). After each deploy, `scripts/check-deploy.ts` checks the live copy (docs/07, "Deployment").
 

@@ -15,10 +15,12 @@ export default defineConfig({
   forbidOnly: Boolean(process.env.CI),
   reporter: 'list',
   projects: [
-    { name: 'app', testIgnore: /dev-page\.spec\.ts/, use: { ...devices['Desktop Chrome'], baseURL: `http://localhost:${appPort}` } },
+    { name: 'app', testIgnore: /(dev-page|bench)\.spec\.ts/, use: { ...devices['Desktop Chrome'], baseURL: `http://localhost:${appPort}` } },
     { name: 'dev-page', testMatch: /dev-page\.spec\.ts/, use: { ...devices['Desktop Chrome'], baseURL: `http://localhost:${devPort}` } },
     // The same build from a folder, with no custom headers: the GitHub Pages shape (spec 09).
     { name: 'github-pages', testMatch: /(journey|security|hosting)\.spec\.ts/, use: { ...devices['Desktop Chrome'], baseURL: `http://localhost:${pagesPort}/GitCRM/` } },
+    // Timings for docs/06, only with BENCH=1 (e2e/bench.spec.ts).
+    ...(process.env.BENCH ? [{ name: 'bench', testMatch: /bench\.spec\.ts/, use: { ...devices['Desktop Chrome'], baseURL: process.env.BENCH_URL ?? `http://localhost:${appPort}/` } }] : []),
   ],
   webServer: [
     {

@@ -2,11 +2,13 @@
 // Archive or Restore, and Delete.
 import { Link, useParams } from '@tanstack/react-router';
 import { Plus } from 'lucide-react';
+import { useRef, useState } from 'react';
 import { selectCanWrite, selectReadOnly, useApp } from '@/app/store.ts';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { linkButton } from '@/ui/link-button.ts';
-import { ArchivedBadge, Detail, Problem, RecordNotFound, Tags } from '@/ui/record-page.tsx';
+import { ArchivedBadge, Detail, Pager, Problem, RecordNotFound, Tags } from '@/ui/record-page.tsx';
+import { onePage } from '../list-page.ts';
 import { RelatedOpportunities } from '../opportunities/RelatedOpportunities.tsx';
 import { ActivityTimeline } from '../activities/ActivityTimeline.tsx';
 import { RelatedTasks } from '../tasks/RelatedTasks.tsx';
@@ -21,6 +23,9 @@ export function CompanyPage() {
     .filter((c) => c.companyId === companyId)
     // Active contacts first, then by name.
     .sort((a, b) => Number(a.archivedAt !== null) - Number(b.archivedAt !== null) || a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+  const [index, setIndex] = useState(0);
+  const list = useRef<HTMLUListElement>(null);
+  const page = onePage(contacts, index);
   const readOnly = useApp(selectReadOnly);
   const canWrite = useApp(selectCanWrite);
   const archive = useArchive(saved);
@@ -76,8 +81,8 @@ export function CompanyPage() {
           {contacts.length === 0 ? (
             <p className="text-sm text-muted-foreground">No contacts at this company yet.</p>
           ) : (
-            <ul aria-label={`Contacts at ${company.name}`} className="flex flex-col gap-1 text-sm">
-              {contacts.map((c) => (
+            <ul ref={list} tabIndex={-1} aria-label={`Contacts at ${company.name}`} className="flex flex-col gap-1 text-sm outline-none">
+              {page.rows.map((c) => (
                 <li key={c.id} className="flex flex-wrap items-center gap-2">
                   <Link to="/contacts/$contactId" params={{ contactId: c.id }} className="underline">{c.name}</Link>
                   {c.archivedAt && <ArchivedBadge />}
@@ -85,6 +90,7 @@ export function CompanyPage() {
               ))}
             </ul>
           )}
+          <Pager page={page} label={`Contacts at ${company.name}`} list={list} onPage={setIndex} />
         </CardContent>
       </Card>
       <RelatedOpportunities name={company.name} linked={(o) => o.companyId === companyId} search={{ companyId }} />

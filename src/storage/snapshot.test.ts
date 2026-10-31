@@ -2,11 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { recordPath, WORKSPACE_PATH } from '../core/paths.ts';
 import { serializeRecord, serializeWorkspace } from '../core/record-file.ts';
 import { newRecord } from '../core/records.ts';
-import type { WorkspaceConfig } from '../core/schemas.ts';
+import type { CRMRecord, WorkspaceConfig } from '../core/schemas.ts';
 import { serveFakeGitHub } from '../test/msw.ts';
 import { SnapshotError } from './errors.ts';
 import { createGitHubClient } from './github-client.ts';
-import { loadSnapshot, type SnapshotFiles } from './snapshot.ts';
+import { keepUnchanged, loadSnapshot, snapshotFromFiles, type SnapshotFiles } from './snapshot.ts';
 
 const github = serveFakeGitHub();
 const now = new Date('2026-10-28T12:00:00Z');
@@ -184,3 +184,43 @@ describe('loadSnapshot with a cached snapshot (ADR-017)', () => {
   });
 });
 
+describe('keepUnchanged', () => {
+  const filesOf = (commitSha: string | null, entries: [CRMRecord, string][]): SnapshotFiles => ({
+    commitSha,
+    files: new Map(entries.map(([record, blobSha]) => [recordPath(record.type, record.id), { blobSha, text: serializeRecord(record), isTruncated: false }])),
+  });
+  const [ava, ben, cy] = [contact(1, 'Ava'), contact(2, 'Ben'), contact(3, 'Cy')];
+  const before = snapshotFromFiles(filesOf('c1', [[ava, 'a1'], [ben, 'b1'], [cy, 'c1']]));
+
+  it('keeps the object of each record whose file did not change, so its list row need not draw again', () => {
+    const after = keepUnchanged(snapshotFromFiles(filesOf(null, [[ava, 'a1'], [{ ...ben, name: 'Ben Carter' }, 'b2'], [cy, 'c1']])), before);
+    expect(after.records[0]).toBe(before.records[0]);
+    expect(after.records[1]).not.toBe(before.records[1]);
+    expect(after.records[1]).toMatchObject({ blobSha: 'b2', commitSha: null, record: { name: 'Ben Carter' } });
+    expect(after.records[2]).toBe(before.records[2]);
+    expect(after.commitSha).toBeNull();
+  });
+
+  it('drops a deleted record and adds a new one', () => {
+    const dee = contact(4, 'Dee');
+    const after = keepUnchanged(snapshotFromFiles(filesOf('c2', [[ava, 'a1'], [cy, 'c1'], [dee, 'd1']])), before);
+    expect(after.records.map((v) => v.record.id)).toEqual([ava.id, cy.id, dee.id]);
+    expect(after.records[1]).toBe(before.records[2]);
+  });
+
+  it('keeps the workspace settings object while workspace.json has the same blob SHA', () => {
+    const withConfig = (blobSha: string, name: string) => {
+      const files = filesOf('c1', [[ava, 'a1']]);
+      files.files.set(WORKSPACE_PATH, { blobSha, text: serializeWorkspace({ ...config, name }), isTruncated: false });
+      return snapshotFromFiles(files);
+    };
+    const first = withConfig('w1', 'Example Studio');
+    expect(keepUnchanged(withConfig('w1', 'Example Studio'), first).workspace).toBe(first.workspace);
+    expect(keepUnchanged(withConfig('w2', 'Renamed Studio'), first).workspace?.config.name).toBe('Renamed Studio');
+  });
+
+  it('returns the next snapshot as it is when there is no previous one', () => {
+    const next = snapshotFromFiles(filesOf('c1', [[ava, 'a1']]));
+    expect(keepUnchanged(next, null)).toBe(next);
+  });
+});

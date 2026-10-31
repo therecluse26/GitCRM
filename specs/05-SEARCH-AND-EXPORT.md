@@ -23,7 +23,7 @@ The Search page searches the current records in browser memory (docs/06). It fin
 - Case and accents do not matter: "zoe" finds "Zoë".
 - Results update as the user types.
 - Results come in groups, in this order: Contacts, Companies, Opportunities, Tasks, Activities. A group sorts by name or title, A to Z. Activities come latest first.
-- With "All types", each group shows its first 10 results. "Show all" chooses that record type, which shows every result of the type.
+- With "All types", each group shows its first 10 results. "Show all" chooses that record type, which shows every result of the type in pages of 50 (spec 08).
 - A task shows as it does in other task lists, with its checkbox. Activities have no page of their own, so an activity shows in full, with Edit and Archive, as on a record page.
 
 ## Search acceptance criteria

@@ -2,8 +2,8 @@
 import type { Opportunity } from '@/core/schemas.ts';
 import { isTerminal, sortStages, type Stage } from '@/core/stages.ts';
 
-export type PipelineView = { layout: 'board' | 'list'; openOnly: boolean; showArchived: boolean };
-export const DEFAULT_PIPELINE_VIEW: PipelineView = { layout: 'board', openOnly: false, showArchived: false };
+export type PipelineView = { layout: 'board' | 'list'; openOnly: boolean; showArchived: boolean; page: number };
+export const DEFAULT_PIPELINE_VIEW: PipelineView = { layout: 'board', openOnly: false, showArchived: false, page: 0 };
 
 // `stage` is null for opportunities whose stage is not in the workspace settings.
 export type PipelineColumn = { stage: Stage | null; opportunities: Opportunity[] };

@@ -1,8 +1,10 @@
 // The pipeline (spec 03): a board with a column per stage, and a list view for keyboard users and
 // narrow screens. Each opportunity has a Move to stage menu; on the board, drag and drop works too.
+// The list and each column come in pages of 50 (spec 08). Cards and rows are memos, so a move draws
+// again only the opportunity that moved (docs/06).
 import { Link } from '@tanstack/react-router';
 import { Plus } from 'lucide-react';
-import { useId, type DragEvent } from 'react';
+import { memo, useId, useMemo, useRef, useState, type DragEvent, type RefObject } from 'react';
 import { selectCanWrite, selectReadOnly, useApp } from '@/app/store.ts';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
@@ -12,7 +14,8 @@ import { isTerminal, type Stage } from '@/core/stages.ts';
 import type { VersionedRecord } from '@/storage/workspace-repository.ts';
 import { selectClassName } from '@/ui/form-fields.tsx';
 import { linkButton } from '@/ui/link-button.ts';
-import { ArchivedBadge, ListSummary, Problem } from '@/ui/record-page.tsx';
+import { ArchivedBadge, ListSummary, Pager, Problem } from '@/ui/record-page.tsx';
+import { onePage } from '../list-page.ts';
 import { formatCalendarDate, useRecords, useStages } from '../records.ts';
 import { pipelineColumns, stageName, type PipelineColumn } from './pipeline.ts';
 import { useStageMove } from './use-stage-move.ts';
@@ -20,7 +23,9 @@ import { useStageMove } from './use-stage-move.ts';
 // Only GitCRM's own columns accept the drag, and the drag carries an ID, never record data.
 const DRAG_TYPE = 'application/x-gitcrm-opportunity';
 
-type Move = ReturnType<typeof useStageMove>;
+type Names = { company: (id: string | null) => string; contacts: (ids: string[]) => string };
+// What every card and row shares. Each part stays the same object until its records change.
+type Shared = { stages: Stage[]; names: Names; versions: Map<string, VersionedRecord<Opportunity>>; pendingId: string | null; onMove: ReturnType<typeof useStageMove>['move'] };
 
 export function PipelinePage() {
   const stages = useStages();
@@ -30,16 +35,33 @@ export function PipelinePage() {
   const companies = useRecords('company');
   const contacts = useRecords('contact');
   const moves = useStageMove();
+  const table = useRef<HTMLTableElement>(null);
+  const pendingId = moves.pending?.id ?? null;
+  const pendingStage = moves.pending?.stageId ?? null;
+  const { openOnly, showArchived } = view;
   // A pending move shows the card in its new stage until the commit lands.
-  const shownRecords = saved.map(({ record }) => (record.id === moves.pending?.id ? { ...record, stageId: moves.pending.stageId } : record));
-  const { columns, shown, hiddenArchived } = pipelineColumns(shownRecords, stages, view);
-  const companyName = (id: string | null) => (id && companies.find((c) => c.record.id === id)?.record.name) || '';
-  // The first contact by name, and how many more; a missing contact is left out.
-  const contactNames = (ids: string[]) => {
-    const names = ids.flatMap((id) => contacts.find((c) => c.record.id === id)?.record.name ?? []);
-    return names.length > 1 ? `${names[0]} and ${names.length - 1} more` : (names[0] ?? '');
-  };
-  const card: CardProps = { stages, companyName, contactNames, moves, versionOf: (id) => saved.find((v) => v.record.id === id) };
+  const { columns, shown, hiddenArchived } = useMemo(() => {
+    const shownRecords = saved.map(({ record }) => (record.id === pendingId ? { ...record, stageId: pendingStage! } : record));
+    return pipelineColumns(shownRecords, stages, { openOnly, showArchived });
+  }, [saved, pendingId, pendingStage, stages, openOnly, showArchived]);
+  const names = useMemo((): Names => {
+    const companyNames = new Map(companies.map(({ record }) => [record.id, record.name]));
+    const contactNames = new Map(contacts.map(({ record }) => [record.id, record.name]));
+    return {
+      company: (id) => (id && companyNames.get(id)) || '',
+      // The first contact by name, and how many more; a missing contact is left out.
+      contacts: (ids) => {
+        const found = ids.flatMap((id) => contactNames.get(id) ?? []);
+        return found.length > 1 ? `${found[0]} and ${found.length - 1} more` : (found[0] ?? '');
+      },
+    };
+  }, [companies, contacts]);
+  const versions = useMemo(() => new Map(saved.map((v) => [v.record.id, v])), [saved]);
+  const shared: Shared = { stages, names, versions, pendingId, onMove: moves.move };
+  const page = onePage(
+    columns.flatMap((column) => column.opportunities),
+    view.page,
+  );
   const set = useApp.getState().setPipelineView;
 
   return (
@@ -73,35 +95,37 @@ export function PipelinePage() {
           <Label id="pipeline-archived-label" htmlFor="pipeline-archived">Show archived</Label>
         </div>
       </div>
-      <ListSummary shown={shown} hiddenArchived={hiddenArchived} singular="opportunity" plural="opportunities" />
+      <ListSummary shown={shown} hiddenArchived={hiddenArchived} singular="opportunity" plural="opportunities" page={view.layout === 'list' ? page : undefined} />
       {moves.message && <Problem>{moves.message}</Problem>}
-      {view.layout === 'board' ? <Board columns={columns} card={card} /> : <OpportunityTable columns={columns} card={card} />}
+      {view.layout === 'board' ? (
+        <Board columns={columns} shared={shared} />
+      ) : (
+        <>
+          <OpportunityTable rows={page.rows} table={table} shared={shared} />
+          <Pager page={page} label="Opportunities" list={table} onPage={(page) => set({ page })} />
+        </>
+      )}
     </>
   );
 }
 
-type CardProps = {
-  stages: Stage[];
-  companyName: (id: string | null) => string;
-  contactNames: (ids: string[]) => string;
-  moves: Move;
-  versionOf: (id: string) => VersionedRecord<Opportunity> | undefined;
-};
-
-function Board({ columns, card }: { columns: PipelineColumn[]; card: CardProps }) {
+function Board({ columns, shared }: { columns: PipelineColumn[]; shared: Shared }) {
   return (
     <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-2 md:mx-0 md:px-0">
       {columns.map((column) => (
-        <Column key={column.stage?.id ?? '?'} column={column} card={card} />
+        <Column key={column.stage?.id ?? '?'} column={column} shared={shared} />
       ))}
     </div>
   );
 }
 
-function Column({ column, card }: { column: PipelineColumn; card: CardProps }) {
+function Column({ column, shared }: { column: PipelineColumn; shared: Shared }) {
   const headingId = useId();
   const canWrite = useApp(selectCanWrite);
+  const [index, setIndex] = useState(0);
+  const list = useRef<HTMLUListElement>(null);
   const { stage, opportunities } = column;
+  const page = onePage(opportunities, index);
   // Won and Lost differ by border and by the word "Closed", not by color alone (docs/08).
   const closed = stage !== null && isTerminal(stage.id);
   const accepts = (event: DragEvent) => canWrite && stage !== null && event.dataTransfer.types.includes(DRAG_TYPE);
@@ -119,8 +143,8 @@ function Column({ column, card }: { column: PipelineColumn; card: CardProps }) {
         if (!accepts(event)) return;
         event.preventDefault();
         // A drag from another GitCRM tab can carry an ID this workspace does not have.
-        const dragged = card.versionOf(event.dataTransfer.getData(DRAG_TYPE));
-        if (dragged) void card.moves.move(dragged, stage!.id);
+        const dragged = shared.versions.get(event.dataTransfer.getData(DRAG_TYPE));
+        if (dragged) void shared.onMove(dragged, stage!.id);
       }}
     >
       <div className="flex items-baseline justify-between gap-2 px-1">
@@ -131,19 +155,30 @@ function Column({ column, card }: { column: PipelineColumn; card: CardProps }) {
         </span>
       </div>
       {stage === null && <p className="px-1 text-sm text-muted-foreground">These stages are not in the workspace settings. Move each opportunity to a stage.</p>}
-      <ul className="flex flex-col gap-2">
-        {opportunities.map((opportunity) => (
-          <OpportunityCard key={opportunity.id} opportunity={opportunity} card={card} />
+      <ul ref={list} tabIndex={-1} aria-labelledby={headingId} className="flex flex-col gap-2 outline-none">
+        {page.rows.map((opportunity) => (
+          <OpportunityCard
+            key={opportunity.id}
+            opportunity={opportunity}
+            saved={shared.versions.get(opportunity.id)!}
+            names={shared.names}
+            stages={shared.stages}
+            pending={shared.pendingId === opportunity.id}
+            onMove={shared.onMove}
+          />
         ))}
       </ul>
+      <Pager page={page} label={stage?.label ?? 'Unknown stage'} list={list} onPage={setIndex} />
     </section>
   );
 }
 
-function OpportunityCard({ opportunity, card }: { opportunity: Opportunity; card: CardProps }) {
+// `opportunity` shows the pending stage during a move; `saved` is the version that the move changes.
+type ItemProps = { opportunity: Opportunity; saved: VersionedRecord<Opportunity>; names: Names; stages: Stage[]; pending: boolean; onMove: Shared['onMove'] };
+
+const OpportunityCard = memo(function OpportunityCard({ opportunity, saved, names, stages, pending, onMove }: ItemProps) {
   const canWrite = useApp(selectCanWrite);
-  const pending = card.moves.pending?.id === opportunity.id;
-  const details = [card.companyName(opportunity.companyId), card.contactNames(opportunity.contactIds), opportunity.valueMinor !== null && formatMoney(opportunity.valueMinor, opportunity.currency)].filter(Boolean);
+  const details = [names.company(opportunity.companyId), names.contacts(opportunity.contactIds), opportunity.valueMinor !== null && formatMoney(opportunity.valueMinor, opportunity.currency)].filter(Boolean);
   return (
     <li
       draggable={canWrite}
@@ -161,45 +196,35 @@ function OpportunityCard({ opportunity, card }: { opportunity: Opportunity; card
       </span>
       {details.length > 0 && <span className="break-words text-muted-foreground">{details.join(' · ')}</span>}
       {opportunity.expectedCloseDate && <span className="text-muted-foreground">Closes {formatCalendarDate(opportunity.expectedCloseDate)}</span>}
-      <StageMenu opportunity={opportunity} card={card} />
+      <StageMenu opportunity={opportunity} saved={saved} stages={stages} onMove={onMove} />
       {pending && <span role="status">Moving…</span>}
     </li>
   );
-}
+});
 
 // The keyboard path for a move (spec 03): a native select works without a mouse.
-function StageMenu({ opportunity, card }: { opportunity: Opportunity; card: CardProps }) {
+function StageMenu({ opportunity, saved, stages, onMove }: Pick<ItemProps, 'opportunity' | 'saved' | 'stages' | 'onMove'>) {
   const canWrite = useApp(selectCanWrite);
-  const known = card.stages.some((s) => s.id === opportunity.stageId);
+  const known = stages.some((s) => s.id === opportunity.stageId);
   return (
-    <select
-      aria-label={`Move ${opportunity.title} to stage`}
-      className={selectClassName}
-      value={opportunity.stageId}
-      disabled={!canWrite}
-      onChange={(e) => {
-        const saved = card.versionOf(opportunity.id);
-        if (saved) void card.moves.move(saved, e.target.value);
-      }}
-    >
+    <select aria-label={`Move ${opportunity.title} to stage`} className={selectClassName} value={opportunity.stageId} disabled={!canWrite} onChange={(e) => void onMove(saved, e.target.value)}>
       {!known && (
         <option value={opportunity.stageId} disabled>
-          {stageName(card.stages, opportunity.stageId)}
+          {stageName(stages, opportunity.stageId)}
         </option>
       )}
-      {card.stages.map((stage) => (
+      {stages.map((stage) => (
         <option key={stage.id} value={stage.id}>{stage.label}</option>
       ))}
     </select>
   );
 }
 
-function OpportunityTable({ columns, card }: { columns: PipelineColumn[]; card: CardProps }) {
-  const rows = columns.flatMap((column) => column.opportunities);
+function OpportunityTable({ rows, table, shared }: { rows: Opportunity[]; table: RefObject<HTMLTableElement | null>; shared: Shared }) {
   if (rows.length === 0) return null;
   return (
     <div className="overflow-x-auto">
-      <table aria-label="Opportunities" className="w-full text-left text-sm">
+      <table ref={table} tabIndex={-1} aria-label="Opportunities" className="w-full text-left text-sm outline-none">
         <thead className="text-muted-foreground">
           <tr className="border-b">
             <th className="p-2 font-medium">Opportunity</th>
@@ -212,27 +237,41 @@ function OpportunityTable({ columns, card }: { columns: PipelineColumn[]; card: 
         </thead>
         <tbody>
           {rows.map((opportunity) => (
-            <tr key={opportunity.id} className="border-b align-top">
-              <td className="p-2">
-                <span className="flex flex-wrap items-center gap-2">
-                  <Link to="/opportunities/$opportunityId" params={{ opportunityId: opportunity.id }} className="font-medium hover:underline">
-                    {opportunity.title}
-                  </Link>
-                  {opportunity.archivedAt && <ArchivedBadge />}
-                  {card.moves.pending?.id === opportunity.id && <span role="status">Moving…</span>}
-                </span>
-              </td>
-              <td className="min-w-40 p-2">
-                <StageMenu opportunity={opportunity} card={card} />
-              </td>
-              <td className="p-2 whitespace-nowrap">{opportunity.valueMinor !== null ? formatMoney(opportunity.valueMinor, opportunity.currency) : ''}</td>
-              <td className="p-2">{card.companyName(opportunity.companyId)}</td>
-              <td className="p-2">{card.contactNames(opportunity.contactIds)}</td>
-              <td className="p-2 whitespace-nowrap">{opportunity.expectedCloseDate ? formatCalendarDate(opportunity.expectedCloseDate) : ''}</td>
-            </tr>
+            <OpportunityRow
+              key={opportunity.id}
+              opportunity={opportunity}
+              saved={shared.versions.get(opportunity.id)!}
+              names={shared.names}
+              stages={shared.stages}
+              pending={shared.pendingId === opportunity.id}
+              onMove={shared.onMove}
+            />
           ))}
         </tbody>
       </table>
     </div>
   );
 }
+
+const OpportunityRow = memo(function OpportunityRow({ opportunity, saved, names, stages, pending, onMove }: ItemProps) {
+  return (
+    <tr className="border-b align-top">
+      <td className="p-2">
+        <span className="flex flex-wrap items-center gap-2">
+          <Link to="/opportunities/$opportunityId" params={{ opportunityId: opportunity.id }} className="font-medium hover:underline">
+            {opportunity.title}
+          </Link>
+          {opportunity.archivedAt && <ArchivedBadge />}
+          {pending && <span role="status">Moving…</span>}
+        </span>
+      </td>
+      <td className="min-w-40 p-2">
+        <StageMenu opportunity={opportunity} saved={saved} stages={stages} onMove={onMove} />
+      </td>
+      <td className="p-2 whitespace-nowrap">{opportunity.valueMinor !== null ? formatMoney(opportunity.valueMinor, opportunity.currency) : ''}</td>
+      <td className="p-2">{names.company(opportunity.companyId)}</td>
+      <td className="p-2">{names.contacts(opportunity.contactIds)}</td>
+      <td className="p-2 whitespace-nowrap">{opportunity.expectedCloseDate ? formatCalendarDate(opportunity.expectedCloseDate) : ''}</td>
+    </tr>
+  );
+});

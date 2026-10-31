@@ -9,7 +9,7 @@ const rows: Row[] = [
   { id: '3', name: 'Ben Carter', tags: [], updatedAt: '2026-10-02T00:00:00Z', archivedAt: '2026-10-04T00:00:00Z' },
 ];
 const text = (row: Row) => [row.name, ...row.tags];
-const view = (changes: Partial<ListView> = {}): ListView => ({ query: '', showArchived: false, sort: 'name', ...changes });
+const view = (changes: Partial<ListView> = {}): ListView => ({ query: '', showArchived: false, sort: 'name', page: 0, ...changes });
 const names = (result: { shown: Row[] }) => result.shown.map((row) => row.name);
 
 describe('listRecords', () => {

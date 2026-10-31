@@ -2,9 +2,10 @@
 // "Overdue" compares the due date with today's local date when the list shows; no background
 // service marks anything.
 import type { Task } from '@/core/schemas.ts';
+import { onePage, type Page } from '../list-page.ts';
 
-export type TaskView = { show: 'open' | 'completed'; showArchived: boolean };
-export const DEFAULT_TASK_VIEW: TaskView = { show: 'open', showArchived: false };
+export type TaskView = { show: 'open' | 'completed'; showArchived: boolean; page: number };
+export const DEFAULT_TASK_VIEW: TaskView = { show: 'open', showArchived: false, page: 0 };
 
 export type TaskGroup = { name: 'Overdue' | 'Upcoming' | 'Completed'; tasks: Task[] };
 
@@ -23,7 +24,7 @@ export function compareOpen(a: Task, b: Task): number {
 
 const byCompleted = (a: Task, b: Task) => Date.parse(b.completedAt!) - Date.parse(a.completedAt!) || byTitle(a, b);
 
-export function listTasks(tasks: Task[], today: string, view: TaskView): { groups: TaskGroup[]; shown: number; hiddenArchived: number } {
+export function listTasks(tasks: Task[], today: string, view: Pick<TaskView, 'show' | 'showArchived'>): { groups: TaskGroup[]; shown: number; hiddenArchived: number } {
   const matching = tasks.filter((task) => (task.completedAt !== null) === (view.show === 'completed'));
   const shown = view.showArchived ? matching : matching.filter((task) => task.archivedAt === null);
   const groups: TaskGroup[] =
@@ -34,4 +35,11 @@ export function listTasks(tasks: Task[], today: string, view: TaskView): { group
           { name: 'Upcoming', tasks: shown.filter((task) => !isOverdue(task, today)).sort(compareOpen) },
         ];
   return { groups: groups.filter((group) => group.tasks.length > 0), shown: shown.length, hiddenArchived: matching.length - shown.length };
+}
+
+// The groups in pages of 50 as one list (spec 08): a page can end in Overdue and go on in Upcoming.
+export function pageGroups(groups: TaskGroup[], index: number): { groups: TaskGroup[]; page: Page<Task> } {
+  const page = onePage(groups.flatMap((group) => group.tasks), index);
+  const onPage = new Set(page.rows);
+  return { groups: groups.map((group) => ({ ...group, tasks: group.tasks.filter((task) => onPage.has(task)) })).filter((group) => group.tasks.length > 0), page };
 }

@@ -10,6 +10,8 @@ Primary: Home, Contacts, Companies, Pipeline, Tasks, Search, Settings. A unified
 
 Built (spec 08): on a phone, the main navigation wraps into rows, with no menu button. An address that matches no page shows "Page not found" inside the app.
 
+Built (spec 08): no page draws a long list at once. Each list that can grow comes in pages of 50, with "Previous page" and "Next page": Contacts, Companies, Tasks, the Pipeline list and each board column, Search for one record type, and the lists on a record page. Home's "Tasks due" shows the first 10. List rows are memos, so a save draws again only the row that changed (docs/06).
+
 ## Screen behaviors
 
 ### Home
@@ -42,7 +44,7 @@ Built (spec 08): on a phone, the main navigation wraps into rows, with no menu b
 
 - Search across all loaded current records with entity-type filter.
 - Keyboard-accessible results; never show archived records unless requested.
-- Built (spec 05): a Search page in the main navigation. Results come in groups by record type; with "All types", each group shows its first 10. The search text stays in memory, never in the page address.
+- Built (spec 05): a Search page in the main navigation. Results come in groups by record type; with "All types", each group shows its first 10, and one record type shows in pages of 50. The search text stays in memory, never in the page address.
 
 ### Settings
 
