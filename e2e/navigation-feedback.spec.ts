@@ -1,5 +1,5 @@
-// Spec 08: the skip link, focus after a page change, phone width, one save at a time, and field
-// errors on every form, against the fake GitHub.
+// Spec 08: the skip link, focus after a page change, phone width, one save at a time, field errors
+// on every form, and long lists in pages, against the fake GitHub.
 import { expect, test, type Page } from './fixtures.ts';
 import { connect } from './connect-page.ts';
 import { routeFakeGitHub } from './fake-route.ts';
@@ -178,4 +178,152 @@ test('workspace setup: an empty name is marked, read with its error, and focused
   await expect(name).toBeFocused();
   await expect(name).toHaveAttribute('aria-invalid', 'true');
   await expect(name).toHaveAccessibleDescription('Enter a name for the workspace.');
+});
+
+// Long lists in pages of 50. Zero-padded numbers keep the A to Z order the same as the number order.
+const numbered = <R,>(count: number, make: (n: string) => R) => Array.from({ length: count }, (_, i) => make(String(i + 1).padStart(3, '0')));
+const listStatus = (page: Page) => page.getByRole('main').getByRole('status');
+const pages = (page: Page, label: string) => page.getByRole('navigation', { name: `${label} pages` });
+const rows = (page: Page, name: string) => page.getByRole('list', { name, exact: true }).getByRole('listitem');
+
+test('a long list comes in pages of 50, and Next and Previous move focus to the list', async ({ page }) => {
+  await open(page, numbered(120, (n) => contact(`Contact ${n}`)));
+  await go(page, 'Contacts');
+  const list = page.getByRole('list', { name: 'Contacts' });
+  const next = pages(page, 'Contacts').getByRole('button', { name: 'Next page' });
+  const previous = pages(page, 'Contacts').getByRole('button', { name: 'Previous page' });
+  await expect(rows(page, 'Contacts')).toHaveCount(50);
+  await expect(rows(page, 'Contacts').first()).toContainText('Contact 001');
+  await expect(listStatus(page)).toHaveText('Showing 1–50 of 120 contacts');
+  await expect(previous).toBeDisabled();
+
+  await next.click();
+  await expect(rows(page, 'Contacts').first()).toContainText('Contact 051');
+  await expect(list).toBeFocused();
+  await expect(rows(page, 'Contacts').first()).toBeInViewport();
+  await expect(pages(page, 'Contacts')).toContainText('Page 2 of 3');
+
+  await next.click();
+  await expect(listStatus(page)).toHaveText('Showing 101–120 of 120 contacts');
+  await expect(rows(page, 'Contacts')).toHaveCount(20);
+  await expect(next).toBeDisabled();
+  await previous.click();
+  await expect(listStatus(page)).toHaveText('Showing 51–100 of 120 contacts');
+});
+
+test('a changed search, sort, or filter starts at the first page, and Back to the list keeps the page', async ({ page }) => {
+  await open(page, numbered(120, (n) => contact(`Contact ${n}`)));
+  await go(page, 'Contacts');
+  const next = pages(page, 'Contacts').getByRole('button', { name: 'Next page' });
+  await next.click();
+  await next.click();
+  await page.getByRole('link', { name: 'Contact 101' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Contact 101' })).toBeVisible();
+  await page.goBack();
+  await expect(listStatus(page)).toHaveText('Showing 101–120 of 120 contacts');
+
+  await field(page, 'Search contacts').fill('contact');
+  await expect(listStatus(page)).toHaveText('Showing 1–50 of 120 contacts');
+  await next.click();
+  await field(page, 'Sort by').selectOption('Recently updated');
+  await expect(listStatus(page)).toHaveText('Showing 1–50 of 120 contacts');
+  await next.click();
+  await page.getByRole('checkbox', { name: 'Show archived' }).click();
+  await expect(listStatus(page)).toHaveText('Showing 1–50 of 120 contacts');
+});
+
+test('when the last page loses its only row, the list shows the new last page', async ({ page }) => {
+  await open(page, numbered(51, (n) => task(`Task ${n}`)));
+  await go(page, 'Tasks');
+  await expect(listStatus(page)).toHaveText('Showing 1–50 of 51 open tasks');
+  await pages(page, 'Tasks').getByRole('button', { name: 'Next page' }).click();
+  await page.getByRole('checkbox', { name: 'Complete Task 051' }).click();
+  await expect(status(page)).toContainText('Saved');
+  await expect(listStatus(page)).toHaveText('50 open tasks');
+  await expect(page.getByRole('checkbox', { name: 'Complete Task 001' })).toBeVisible();
+  await expect(pages(page, 'Tasks')).toHaveCount(0);
+});
+
+test('a short list shows every row and has no page buttons', async ({ page }) => {
+  await open(page, numbered(12, (n) => contact(`Contact ${n}`)));
+  await go(page, 'Contacts');
+  await expect(rows(page, 'Contacts')).toHaveCount(12);
+  await expect(listStatus(page)).toHaveText('12 contacts');
+  await expect(pages(page, 'Contacts')).toHaveCount(0);
+});
+
+test('Home shows the first 10 tasks due, and says how many there are', async ({ page }) => {
+  await open(page, numbered(14, (n) => task(`Task ${n}`, { dueDate: '2026-01-01' })));
+  await expect(rows(page, 'Tasks due')).toHaveCount(10);
+  await expect(page.getByRole('region', { name: 'Tasks due' })).toContainText('Showing 10 of 14 tasks due.');
+  await expect(page.getByRole('link', { name: 'All tasks' })).toBeVisible();
+});
+
+test('Companies, the Pipeline list and columns, Search after "Show all", and record pages come in pages too', async ({ page }) => {
+  const acme = company('Acme Corp');
+  const ava = contact('Ava Bennett', { companyId: acme.id });
+  const related = { type: 'contact', id: ava.id } as const;
+  await open(page, [
+    acme,
+    ava,
+    ...numbered(50, (n) => company(`Company ${n}`)),
+    ...numbered(50, (n) => contact(`Person ${n}`, { companyId: acme.id })),
+    ...numbered(51, (n) => opportunity(`Deal ${n}`, 'lead', { contactIds: [ava.id] })),
+    ...numbered(51, (n) => task(`Call ${n}`, { related })),
+    ...numbered(51, (n) => activity(`Note ${n}`, { related })),
+  ]);
+  // Each list shows 50 rows, and its Next page shows the 51st.
+  async function check(list: string, label = list) {
+    await expect(rows(page, list)).toHaveCount(50);
+    await pages(page, label).getByRole('button', { name: 'Next page' }).click();
+    await expect(rows(page, list)).toHaveCount(1);
+  }
+
+  await go(page, 'Companies');
+  await check('Companies');
+
+  await go(page, 'Pipeline');
+  await check('Lead');
+  await go(page, 'Home');
+  await go(page, 'Pipeline');
+  await expect(pages(page, 'Lead')).toContainText('Page 1 of 2');
+  await field(page, 'View').selectOption('List');
+  const table = page.getByRole('table', { name: 'Opportunities' });
+  await expect(table.getByRole('row')).toHaveCount(51);
+  await pages(page, 'Opportunities').getByRole('button', { name: 'Next page' }).click();
+  await expect(table.getByRole('row')).toHaveCount(2);
+  await expect(table).toBeFocused();
+
+  await go(page, 'Search');
+  await field(page, 'Search records').fill('deal');
+  await page.getByRole('button', { name: 'Show all 51 opportunities' }).click();
+  await expect(page.getByRole('main')).toContainText('Showing 1–50 of 51 opportunities.');
+  await check('Opportunities');
+
+  await openContact(page, 'Ava Bennett');
+  await check('Opportunities with Ava Bennett');
+  await check('Tasks for Ava Bennett');
+  await check('Activity with Ava Bennett');
+
+  // Companies still shows its page 2, so Acme opens from Ava's page.
+  await page.getByRole('main').getByRole('link', { name: 'Acme Corp' }).first().click();
+  await check('Contacts at Acme Corp');
+});
+
+test('a record page starts its lists at page 1 for each record', async ({ page }) => {
+  const [ava, ben] = [contact('Ava Bennett'), contact('Ben Carter')];
+  const tasksFor = (who: typeof ava) => numbered(51, (n) => task(`Call ${who.name} ${n}`, { related: { type: 'contact', id: who.id } }));
+  await open(page, [ava, ben, ...tasksFor(ava), ...tasksFor(ben)]);
+  await openContact(page, 'Ava Bennett');
+  await pages(page, 'Tasks for Ava Bennett').getByRole('button', { name: 'Next page' }).click();
+  await expect(rows(page, 'Tasks for Ava Bennett')).toHaveCount(1);
+  // The same page component, with another contact in the address.
+  await page.evaluate((id) => (location.hash = `#/contacts/${id}`), ben.id);
+  await expect(page.getByRole('heading', { level: 1, name: 'Ben Carter' })).toBeVisible();
+  await expect(rows(page, 'Tasks for Ben Carter')).toHaveCount(50);
+  await pages(page, 'Tasks for Ben Carter').getByRole('button', { name: 'Next page' }).click();
+  await expect(rows(page, 'Tasks for Ben Carter')).toHaveCount(1);
+  await page.goBack();
+  await expect(page.getByRole('heading', { level: 1, name: 'Ava Bennett' })).toBeVisible();
+  await expect(rows(page, 'Tasks for Ava Bennett')).toHaveCount(50);
 });
