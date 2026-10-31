@@ -76,7 +76,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               'Saving…'
             ) : lastSave ? (
               <>
-                Saved
+                {lastSave.action}
                 {lastSave.commitSha && (
                   <>
                     {' · '}

@@ -1,5 +1,5 @@
-// One contact (spec 02): details, its company, opportunities, tasks, and activity, Edit, and
-// Archive or Restore.
+// One contact (spec 02): details, its company, opportunities, tasks, and activity, Edit,
+// Archive or Restore, and Delete.
 import { Link, useParams } from '@tanstack/react-router';
 import { selectCanWrite, selectReadOnly, useApp } from '@/app/store.ts';
 import { Button } from '@/components/ui/button';
@@ -46,6 +46,7 @@ export function ContactPage() {
             <Button variant="outline" disabled={!canWrite} onClick={() => void archive.toggle()}>
               {archive.saving ? 'Saving…' : archive.archived ? 'Restore' : 'Archive'}
             </Button>
+            <Link to="/contacts/$contactId/delete" params={{ contactId }} className={linkButton({ variant: 'outline' })}>Delete</Link>
           </div>
         )}
       </div>

@@ -44,7 +44,7 @@ Build in **small vertical slices**. The first meaningful release must prove the 
 
 - [x] Search over current fully loaded snapshot (spec 05). Includes the Search page in the main navigation, every record type, the record type filter, archived records on request, and the first 10 results per group. Measured at 100, 500, and 2,000 records (docs/06); no search package.
 - [x] Full JSON snapshot ZIP, per-entity CSV, data dictionary. Includes the Export card in Settings, CSV cells safe from formulas, generated JSON Schemas, and no export while a file cannot be read or the records may be out of date. Measured at 100, 500, and 2,000 records (docs/06).
-- [ ] Delete with a cascade preview in one commit (ADR-021). Archive is built in Phase 2.
+- [x] Delete with a cascade preview in one commit (ADR-021). Includes a delete page for each record type and for activities, the "Also deleted" and "Unlinked" lists, the history warning, a conflict when any file under `data/` changed after the preview, and no delete while a file cannot be read. Measured at 100, 500, and 2,000 records (docs/06). Archive is built in Phase 2.
 - [ ] Browser and GitHub adapter failure-path E2E tests.
 - [ ] CSP and static bundle audits; accessibility pass.
 - [ ] Deploy the same build to Cloudflare Pages (the official copy) and GitHub Pages (ADR-010).

@@ -11,6 +11,7 @@ import { EditOpportunityPage, NewOpportunityPage } from '@/features/opportunitie
 import { OpportunityPage } from '@/features/opportunities/OpportunityPage.tsx';
 import { PipelinePage } from '@/features/opportunities/PipelinePage.tsx';
 import { EditActivityPage, NewActivityPage } from '@/features/activities/ActivityEditor.tsx';
+import { DeleteActivityPage, DeleteCompanyPage, DeleteContactPage, DeleteOpportunityPage, DeleteTaskPage } from '@/features/DeletePage.tsx';
 import { readNewRecordSearch } from '@/features/records.ts';
 import { EditTaskPage, NewTaskPage } from '@/features/tasks/TaskEditor.tsx';
 import { TaskPage } from '@/features/tasks/TaskPage.tsx';
@@ -33,20 +34,25 @@ const routeTree = rootRoute.addChildren([
   newRecordPage('/contacts/new', NewContactPage),
   page('/contacts/$contactId', ContactPage),
   page('/contacts/$contactId/edit', EditContactPage),
+  page('/contacts/$contactId/delete', DeleteContactPage),
   page('/companies', CompaniesPage),
   page('/companies/new', NewCompanyPage),
   page('/companies/$companyId', CompanyPage),
   page('/companies/$companyId/edit', EditCompanyPage),
+  page('/companies/$companyId/delete', DeleteCompanyPage),
   page('/pipeline', PipelinePage),
   newRecordPage('/opportunities/new', NewOpportunityPage),
   page('/opportunities/$opportunityId', OpportunityPage),
   page('/opportunities/$opportunityId/edit', EditOpportunityPage),
+  page('/opportunities/$opportunityId/delete', DeleteOpportunityPage),
   page('/tasks', TasksPage),
   newRecordPage('/tasks/new', NewTaskPage),
   page('/tasks/$taskId', TaskPage),
   page('/tasks/$taskId/edit', EditTaskPage),
+  page('/tasks/$taskId/delete', DeleteTaskPage),
   newRecordPage('/activities/new', NewActivityPage),
   page('/activities/$activityId/edit', EditActivityPage),
+  page('/activities/$activityId/delete', DeleteActivityPage),
   page('/search', SearchPage),
   page('/settings', SettingsPage),
 ]);

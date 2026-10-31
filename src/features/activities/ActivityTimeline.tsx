@@ -54,7 +54,7 @@ export function ActivityTimeline({ name, related }: { name: string; related: Rel
   );
 }
 
-// One activity in a list, with Edit and Archive: an activity has no page of its own.
+// One activity in a list, with Edit, Archive, and Delete: an activity has no page of its own.
 export function ActivityItem({ saved, showRelated }: { saved: VersionedRecord<Activity>; showRelated: boolean }) {
   const readOnly = useApp(selectReadOnly);
   const canWrite = useApp(selectCanWrite);
@@ -80,6 +80,9 @@ export function ActivityItem({ saved, showRelated }: { saved: VersionedRecord<Ac
               {archive.saving ? 'Saving…' : archive.archived ? 'Restore' : 'Archive'}
               <span className="sr-only"> {kindLabel(activity.kind).toLowerCase()} from {formatDateTime(activity.occurredAt)}</span>
             </Button>
+            <Link to="/activities/$activityId/delete" params={{ activityId: activity.id }} className={linkButton({ variant: 'ghost', size: 'sm' })}>
+              Delete<span className="sr-only"> {kindLabel(activity.kind).toLowerCase()} from {formatDateTime(activity.occurredAt)}</span>
+            </Link>
           </span>
         )}
       </div>

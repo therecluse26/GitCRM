@@ -17,8 +17,8 @@ import { createGitHubWorkspace } from '../storage/github-workspace.ts';
 import { stateForError, type OperationState } from '../storage/operation-state.ts';
 import { ConflictError } from '../storage/errors.ts';
 import { createRecordCache } from '../storage/record-cache.ts';
-import { snapshotFromFiles, type SnapshotFiles } from '../storage/snapshot.ts';
-import type { VersionedRecord, WorkspaceRepository, WorkspaceSnapshot } from '../storage/workspace-repository.ts';
+import { snapshotFromFiles, type CachedFile, type SnapshotFiles } from '../storage/snapshot.ts';
+import type { DeletePlan, VersionedRecord, WorkspaceRepository, WorkspaceSnapshot } from '../storage/workspace-repository.ts';
 import { backgroundCheck } from './background-check.ts';
 import { joinTabs, type TabMessage, type Tabs } from './tabs.ts';
 
@@ -49,7 +49,7 @@ export type AppState = {
   files: SnapshotFiles | null; // what the record cache holds
   sync: OperationState;
   saving: boolean; // one write at a time (docs/04: keep mutating calls serialized)
-  lastSave: { commitSha: string | null } | null;
+  lastSave: { action: 'Saved' | 'Deleted'; commitSha: string | null } | null;
   checksPaused: boolean; // background checks skipped: fewer than 500 REST requests left (ADR-023)
   // List filters stay in memory, not in the URL: browsers keep URLs in history, and some sync it.
   lists: Record<'contact' | 'company', ListView>;
@@ -64,6 +64,8 @@ export type AppState = {
   saveRecord<R extends CRMRecord>(record: R, expectedBlobSha: string | null): Promise<VersionedRecord<R>>;
   // Updates .gitcrm/workspace.json from the version with that blob SHA, in one commit.
   saveWorkspace(config: WorkspaceConfig, expectedBlobSha: string): Promise<void>;
+  // Deletes the records and rewrites the linking ones in one commit (ADR-021).
+  deleteRecords(plan: DeletePlan): Promise<void>;
   setListView(type: keyof AppState['lists'], changes: Partial<ListView>): void;
   setPipelineView(changes: Partial<PipelineView>): void;
   setTaskView(changes: Partial<TaskView>): void;
@@ -171,11 +173,12 @@ export const useApp = create<AppState>()((set, get) => {
     if (message.files && get().session && !get().saving) show(snapshotFromFiles(message.files), message.files, false);
   }
 
-  // One write at a time (docs/04: keep mutating calls serialized). `file` is the file the write
-  // left on main, for the snapshot and the record cache.
-  async function write<T extends { blobSha: string; commitSha: string | null }>(
+  // One write at a time (docs/04: keep mutating calls serialized). `changes` are the files the
+  // write left on main, for the snapshot and the record cache: null for a deleted file.
+  async function write<T extends { commitSha: string | null }>(
+    action: 'Saved' | 'Deleted',
     run: (workspace: WorkspaceRepository) => Promise<T>,
-    file: (saved: T) => { path: string; text: string },
+    changes: (saved: T) => [path: string, file: CachedFile | null][],
   ): Promise<T> {
     const { session } = get();
     if (!session || !selectCanWrite(get())) throw new Error('GitCRM cannot save right now');
@@ -192,11 +195,14 @@ export const useApp = create<AppState>()((set, get) => {
     }
     set({ saving: false });
     if (get().session !== session) return saved; // disconnected while saving
-    const { path, text } = file(saved);
     // main may now hold other people's commits too, so the next load compares blob SHAs (docs/04).
-    const next: SnapshotFiles = { commitSha: null, files: new Map(get().files?.files).set(path, { blobSha: saved.blobSha, text, isTruncated: false }) };
+    const next: SnapshotFiles = { commitSha: null, files: new Map(get().files?.files) };
+    for (const [path, file] of changes(saved)) {
+      if (file) next.files.set(path, file);
+      else next.files.delete(path);
+    }
     show(snapshotFromFiles(next), next);
-    set({ lastSave: { commitSha: saved.commitSha } });
+    set({ lastSave: { action, commitSha: saved.commitSha } });
     return saved;
   }
 
@@ -298,15 +304,28 @@ export const useApp = create<AppState>()((set, get) => {
 
     saveRecord(record, expectedBlobSha) {
       return write(
+        'Saved',
         (workspace) => (expectedBlobSha === null ? workspace.createRecord(record) : workspace.updateRecord(record, expectedBlobSha)),
-        (saved) => ({ path: saved.path, text: serializeRecord(record) }),
+        (saved) => [[saved.path, { blobSha: saved.blobSha, text: serializeRecord(record), isTruncated: false }]],
       );
     },
 
     async saveWorkspace(config, expectedBlobSha) {
       await write(
+        'Saved',
         (workspace) => workspace.writeWorkspace(config, expectedBlobSha),
-        () => ({ path: WORKSPACE_PATH, text: serializeWorkspace(config) }),
+        (saved) => [[WORKSPACE_PATH, { blobSha: saved.blobSha, text: serializeWorkspace(config), isTruncated: false }]],
+      );
+    },
+
+    async deleteRecords(plan) {
+      await write(
+        'Deleted',
+        (workspace) => workspace.deleteWithCascade(plan),
+        ({ rewritten }) => [
+          ...plan.deletes.map(({ path }): [string, null] => [path, null]),
+          ...rewritten.map(({ path, blobSha, record }): [string, CachedFile] => [path, { blobSha, text: serializeRecord(record), isTruncated: false }]),
+        ],
       );
     },
 

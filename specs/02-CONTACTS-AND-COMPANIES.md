@@ -50,7 +50,7 @@ Scenario: Archived contact
 
 ## Notes
 
-Phase 2 builds everything here except Delete, which comes with the cascade preview in Phase 3 (`docs/11`). Detail views list related opportunities; tasks and activities follow when those screens exist. Exports, and their test, come in Phase 3. A save that meets a conflict shows the compare panel from spec 07.
+Phase 2 builds everything here except Delete. Phase 3 builds Delete with the cascade preview (spec 06, "Delete rules"). Detail views list related opportunities; tasks and activities follow when those screens exist. Exports, and their test, come in Phase 3. A save that meets a conflict shows the compare panel from spec 07.
 
 Duplicate contacts are allowed for MVP. Warn on exact duplicate email if trivial, but do not silently merge. Deleting a company unlinks its contacts and opportunities and deletes its related tasks and activities, in one commit after a preview (ADR-021). Note entry creates a separate Activity document, not a growing notes array on the contact file.
 

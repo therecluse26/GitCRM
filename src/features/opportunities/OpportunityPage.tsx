@@ -1,5 +1,5 @@
-// One opportunity (spec 03): details, its company and contacts, its tasks and activity, Edit, and
-// Archive or Restore.
+// One opportunity (spec 03): details, its company and contacts, its tasks and activity, Edit,
+// Archive or Restore, and Delete.
 import { Link, useParams } from '@tanstack/react-router';
 import { selectCanWrite, selectReadOnly, useApp } from '@/app/store.ts';
 import { Button } from '@/components/ui/button';
@@ -38,6 +38,7 @@ export function OpportunityPage() {
             <Button variant="outline" disabled={!canWrite} onClick={() => void archive.toggle()}>
               {archive.saving ? 'Saving…' : archive.archived ? 'Restore' : 'Archive'}
             </Button>
+            <Link to="/opportunities/$opportunityId/delete" params={{ opportunityId }} className={linkButton({ variant: 'outline' })}>Delete</Link>
           </div>
         )}
       </div>

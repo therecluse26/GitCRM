@@ -67,6 +67,13 @@ After "Show all", one record type draws every result. At 2,000 records, "e" took
 | JSON snapshot | 50–60 ms, 50 KiB | 63–97 ms, 220 KiB | 155–175 ms, 860 KiB |
 | CSV | 26–46 ms, 13 KiB | 37–50 ms, 34 KiB | 49–62 ms, 113 KiB |
 
+**Delete time, measured 2026-10-30** (spec 06): the fake GitHub in the browser, three runs at each size. The deleted company has 2 tasks and 3 activities, and 3 contacts and 2 opportunities link to it. "Preview" is from the click on Delete until the page lists the changes. "Delete" is from the click on "Delete company" until the Companies list shows. Real GitHub adds about 2 s for the commit (spike S-02).
+
+| Delete | 100 records | 500 records | 2,000 records |
+| --- | --- | --- | --- |
+| Preview | 50–56 ms | 41–42 ms | 37–43 ms |
+| Delete, with the fake GitHub | 114–118 ms | 119–122 ms | 167–212 ms |
+
 **Measured in spike S-04** (Node, OAuth token, one run each; see `docs/12-RISKS-AND-OPEN-QUESTIONS.md`):
 
 | Measurement | Target | Result |
