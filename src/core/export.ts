@@ -5,7 +5,7 @@ import { csvList, csvText } from './csv.ts';
 import { csvColumns, dataDictionary, jsonSchemas, OPPORTUNITY_CSV_ONLY } from './data-dictionary.ts';
 import { minorToInput } from './money.ts';
 import { FOLDERS } from './paths.ts';
-import type { FileIssue } from './record-file.ts';
+import { unreadable, type FileIssue } from './record-file.ts';
 import { RECORD_TYPES, recordSchemas, type CRMRecord, type RecordType, type WorkspaceConfig } from './schemas.ts';
 import type { Stage } from './stages.ts';
 
@@ -22,7 +22,7 @@ export type ExportSource = {
 
 // A broken link does not block: every file is complete, and the link stays as it is on main.
 export function exportProblem(issues: FileIssue[]): string | null {
-  const unread = issues.filter((issue) => issue.code !== 'broken-link');
+  const unread = unreadable(issues);
   if (unread.length === 0) return null;
   if (unread.length === 1) return `1 file cannot be read, so the export would not be complete: ${unread[0].path}`;
   return `${unread.length} files cannot be read, so the export would not be complete. Settings lists them under "Files that need attention".`;

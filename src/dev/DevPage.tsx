@@ -4,6 +4,7 @@ import { useState, type FormEvent } from 'react';
 import { z } from 'zod';
 import { editRecord, newRecord } from '../core/records.ts';
 import type { Contact } from '../core/schemas.ts';
+import { deleteSummary, planDelete, previewDelete } from '../features/delete-plan.ts';
 import { createGitHubClient } from '../storage/github-client.ts';
 import { inspectRepository } from '../auth/connect.ts';
 import { createGitHubWorkspace } from '../storage/github-workspace.ts';
@@ -21,14 +22,6 @@ function splitEmails(text: string): string[] {
   return text.split(',').map((email) => email.trim()).filter(Boolean);
 }
 
-// Records that link to the contact. A delete with links needs the cascade planner (Phase 3, ADR-021).
-function countLinks(id: string, records: VersionedRecord[]): number {
-  return records.filter(({ record }) =>
-    (record.type === 'opportunity' && record.contactIds.includes(id)) ||
-    ((record.type === 'task' || record.type === 'activity') && record.related?.id === id),
-  ).length;
-}
-
 export function DevPage() {
   const [repoName, setRepoName] = useState('');
   const [token, setToken] = useState('');
@@ -38,7 +31,7 @@ export function DevPage() {
   const [selected, setSelected] = useState<ContactVersion | null>(null);
   const [form, setForm] = useState({ name: '', emails: '' });
   const [draft, setDraft] = useState({ name: '', emails: '' });
-  const [deleteArmed, setDeleteArmed] = useState(false);
+  const [deleteArmed, setDeleteArmed] = useState<string | null>(null); // what the delete changes
   const [log, setLog] = useState<string[]>([]);
 
   const note = (line: string) => setLog((lines) => [...lines, `${new Date().toLocaleTimeString()} ${line}`]);
@@ -60,7 +53,7 @@ export function DevPage() {
   function select(version: ContactVersion) {
     setSelected(version);
     setForm({ name: version.record.name, emails: version.record.emails.join(', ') });
-    setDeleteArmed(false);
+    setDeleteArmed(null);
   }
 
   // Keeps the loaded list in step with saves.
@@ -139,23 +132,20 @@ export function DevPage() {
   }
 
   function armDelete() {
-    if (!snapshot) return setState({ status: 'failed', message: 'Load the snapshot first, so the page can check for links.' });
-    const links = countLinks(selected!.record.id, snapshot.records);
-    if (links > 0) return setState({ status: 'failed', message: `Refused: ${links} records link to this contact, and a delete with links needs the cascade planner (Phase 3).` });
-    setDeleteArmed(true);
+    if (!snapshot) return setState({ status: 'failed', message: 'Load the snapshot first, so the page can list what the delete changes.' });
+    setDeleteArmed(deleteSummary(previewDelete(selected!, snapshot.records)));
   }
 
+  // The cascade (ADR-021): the contact's tasks and activities go too, and opportunities lose the link.
   function remove() {
     const target = selected!;
+    const plan = planDelete(previewDelete(target, snapshot!.records), new Date());
     void run(`delete contact ${target.record.id.slice(0, 8)}`, { status: 'saving' }, async () => {
-      const result = await session!.workspace.deleteWithCascade({
-        target: { type: 'contact', id: target.record.id },
-        deletes: [{ path: target.path, blobSha: target.blobSha }],
-        rewrites: [],
-      });
+      const result = await session!.workspace.deleteWithCascade(plan);
       setSelected(null);
-      setDeleteArmed(false);
-      replaceInSnapshot(target.record.id, null);
+      setDeleteArmed(null);
+      const changed = new Set([...plan.deletes, ...result.rewritten].map(({ path }) => path));
+      setSnapshot((current) => current && { ...current, records: [...current.records.filter((v) => !changed.has(v.path)), ...result.rewritten] });
       return { status: 'committed', commitSha: result.commitSha };
     });
   }
@@ -241,10 +231,11 @@ export function DevPage() {
             <input id="edit-emails" value={form.emails} onChange={(e) => edit('emails', e.target.value)} />
             <button type="submit" disabled={!writable}>Save</button>{' '}
             <button type="button" onClick={() => open(selected.record.id)}>Read again</button>{' '}
-            {deleteArmed ? (
+            {deleteArmed !== null ? (
               <>
+                {deleteArmed}{' '}
                 <button type="button" onClick={remove}>Confirm delete</button>{' '}
-                <button type="button" onClick={() => setDeleteArmed(false)}>Cancel</button>
+                <button type="button" onClick={() => setDeleteArmed(null)}>Cancel</button>
               </>
             ) : (
               <button type="button" disabled={!writable} onClick={armDelete}>Delete</button>

@@ -26,6 +26,9 @@ export type DeletePlan = {
   target: { type: RecordType; id: string };
   deletes: { path: string; blobSha: string }[];
   rewrites: { record: CRMRecord; blobSha: string }[];
+  // Every file under data/ that the preview read, path -> blob SHA. If main differs, a record
+  // may link to the target now, so the delete is a conflict.
+  loaded: ReadonlyMap<string, string>;
 };
 
 export interface WorkspaceRepository {
@@ -34,7 +37,7 @@ export interface WorkspaceRepository {
   readRecord(type: RecordType, id: string): Promise<VersionedRecord | null>;
   createRecord<R extends CRMRecord>(record: R): Promise<VersionedRecord<R>>;
   updateRecord<R extends CRMRecord>(record: R, expectedBlobSha: string): Promise<VersionedRecord<R>>;
-  deleteWithCascade(plan: DeletePlan): Promise<{ commitSha: string }>;
+  deleteWithCascade(plan: DeletePlan): Promise<{ commitSha: string; rewritten: VersionedRecord[] }>;
   // expectedBlobSha is null to initialize; an existing config is never overwritten.
   writeWorkspace(config: WorkspaceConfig, expectedBlobSha: string | null): Promise<{ config: WorkspaceConfig; blobSha: string; commitSha: string | null }>;
 }

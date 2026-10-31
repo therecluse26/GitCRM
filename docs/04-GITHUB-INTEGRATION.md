@@ -87,12 +87,12 @@ Build this only if spike (3) shows per-blob first loads are too expensive.
 
 One commit through the Git Trees/Commits APIs:
 
-1. Read `main`'s commit SHA. Confirm every affected file still has the blob SHA the app loaded (from the recursive tree, one request); if not, show a conflict.
+1. Read `main`'s commit SHA and its recursive tree (one request). Every file under `data/` must have the blob SHA that the preview read, and no file may be new or missing. If not, show a conflict: a record that changed may link to the deleted record now (spec 06, "Delete rules").
 2. `POST /repos/{owner}/{repo}/git/trees` with `base_tree` set to that commit's tree. Entries with `sha: null` delete the record and its related tasks and activities; entries with `content` rewrite linking records without the link.
 3. `POST /repos/{owner}/{repo}/git/commits` with that tree and the current commit as parent.
 4. `PATCH /repos/{owner}/{repo}/git/refs/heads/main` with the new commit SHA and `force: false`.
 
-If step 4 fails because `main` moved, repeat from step 1 on the new `main`, up to 3 attempts in total. After an ambiguous network failure in step 4, read `main` first: if it points to the new commit, the delete succeeded. This removes files from `main` only; it does **not** erase historical commits. Spike S-02 showed that a non-fast-forward update returns `422` ("Update is not a fast forward") and that the whole delete path takes about 2 seconds. GitHub's permissions page lists all four endpoints under `Contents` (S-05), and S-02's browser run confirmed the whole path works with a fine-grained PAT that has only `Contents: Read and write`.
+If step 4 fails because `main` moved, repeat from step 1 on the new `main`, up to 3 attempts in total. A change outside `data/` does not stop the delete; a change under `data/` is a conflict. After the commit, the app computes each rewritten file's blob SHA from its text, so the next save needs no reload. After an ambiguous network failure in step 4, read `main` first: if it points to the new commit, the delete succeeded. This removes files from `main` only; it does **not** erase historical commits. Spike S-02 showed that a non-fast-forward update returns `422` ("Update is not a fast forward") and that the whole delete path takes about 2 seconds. GitHub's permissions page lists all four endpoints under `Contents` (S-05), and S-02's browser run confirmed the whole path works with a fine-grained PAT that has only `Contents: Read and write`.
 
 ## Rate limits and reliability
 
