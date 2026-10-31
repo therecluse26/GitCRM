@@ -78,5 +78,5 @@ Built (spec 08): on a phone, the main navigation wraps into rows, with no menu b
 
 - "Save contact" not "Commit blob".
 - "Your data is stored in a private GitHub repository" in onboarding.
-- "Delete removes this record from current data; previous Git versions remain" in delete confirmation. The dialog also lists every related task and activity it deletes and every record it unlinks (ADR-021).
+- "Delete removes these records from the current data. Previous Git versions remain" on the delete page. The page also lists every related task and activity it deletes and every record it unlinks (ADR-021, spec 06).
 - Avoid exaggerated privacy, compliance, or guaranteed-free marketing claims.

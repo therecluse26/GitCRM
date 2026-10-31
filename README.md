@@ -1,7 +1,7 @@
 # GitCRM - Project Starter
 
-**Status:** Phase 2 is built and tested against a fake GitHub: connecting, setting up a workspace, contacts, companies, the opportunity pipeline, tasks, and activity notes work; other people's changes show when you return to the tab. Phase 3 has begun: Search finds every record type, and Settings exports the records as a JSON snapshot or CSV files. Delete comes next. A manual run against a real private repository is still to do  
-**Last reviewed:** 2026-10-28  
+**Status:** Phase 2 is built and tested against a fake GitHub: connecting, setting up a workspace, contacts, companies, the opportunity pipeline, tasks, and activity notes work; other people's changes show when you return to the tab. Phase 3 has begun: Search finds every record type, Settings exports the records as a JSON snapshot or CSV files, and Delete lists every change before one commit removes the record. A manual run against a real private repository is still to do  
+**Last reviewed:** 2026-10-30  
 **Audience:** solo developers and tiny teams who want a useful CRM without operating a database or backend.
 
 GitCRM is a static, browser-based CRM whose authoritative data lives as **one JSON document per record in a user's private Git repository**. On GitHub, the browser uses authenticated GitHub REST APIs to read and commit records. Searching happens over the current records in browser memory. There is no CRM application server, persistent database, or recurring automation requirement. Users connect with a fine-grained PAT (ADR-008).

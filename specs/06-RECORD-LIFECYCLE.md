@@ -14,6 +14,29 @@ As a user, I want records to stop cluttering the active workspace. If I decide t
 - **Undo current-state delete:** not an instantaneous transactional undo. Restore by retrieving a historical file version through Git history (explicit manual/advanced future feature). A newly created replacement must not accidentally reuse a deleted ID without deliberate restoration.
 - **Inbound relations:** handled by the cascade above; a delete never leaves a dangling link.
 
+## Delete rules (ADR-021)
+
+Contact, company, opportunity, and task pages have Delete next to Edit and Archive. Each activity has Delete next to its Edit and Archive. Delete opens a page that lists every change first, such as `#/contacts/<id>/delete`. The address holds only the ID (docs/07).
+
+| Delete | Also deletes | Unlinks |
+| --- | --- | --- |
+| Contact | its tasks and activities | each opportunity that lists it: the contact leaves `contactIds` |
+| Company | its tasks and activities | each contact and opportunity that has it as the company: `companyId` becomes `null` |
+| Opportunity | its tasks and activities | nothing |
+| Task | nothing | nothing |
+| Activity | nothing | nothing |
+
+- "Its tasks and activities" are those whose `related` link names the record. Archived records count. An unlinked record keeps its file, and its `updatedAt` changes.
+- The page heading is "Delete <name>?". For an activity, it is "Delete the note from <date and time>?".
+- One sentence gives the counts, such as "This deletes the contact, 1 task, and 2 activities, and unlinks 1 opportunity."
+- A list under "Also deleted" names each task and activity that goes with the record. A list under "Unlinked" names each record that loses its link. An empty list is not shown. An archived record has the Archived badge.
+- The page says: "Delete removes these records from the current data. Previous Git versions remain: anyone who can read the repository can still find them in its history." It suggests Archive to hide a record and keep it.
+- Cancel goes back to the record, or for an activity, to its related record.
+- "Delete contact" (or company, opportunity, task, activity) makes one commit. Then the app opens the list for that record type: Contacts, Companies, Pipeline, or Tasks. After an activity, it opens the activity's related record, or Home. The banner says "Deleted · View commit".
+- While a file cannot be read, GitCRM cannot tell whether that file links to the record. The button is then disabled. With one file, the page says "1 file cannot be read, so GitCRM cannot tell whether it links to this record: <path>". With more, it gives the count and points to "Files that need attention" in Settings.
+- A save, a load, or read-only access disables the button too. The page says why, in the same words as a form: "You can delete when the other save finishes.", "You can delete when GitCRM finishes checking GitHub.", or "GitCRM is read-only here, so nothing can be deleted."
+- Before the commit, GitCRM compares every file under `data/` on `main` with the records the page listed. If a file changed, appeared, or disappeared, nothing is deleted: a record may link to this record now. GitCRM loads the latest records, and the page says "Someone changed the records after this page listed them. The lists now show the latest records. Check them, then delete again."
+
 ## Acceptance criteria
 
 ```gherkin
@@ -27,29 +50,51 @@ Scenario: Archive and restore
 
 Scenario: Delete from current snapshot
   Given an unreferenced contact
-  When I confirm Delete
-  Then the contact's JSON file is removed from main by one commit
-  And the dialog previously warned that old Git commits are not erased
+  When I choose Delete
+  Then the page warns that previous Git versions remain
+  When I confirm
+  Then one commit removes the contact's JSON file from main
+  And the Contacts list no longer shows it, and the banner says "Deleted"
 
 Scenario: Delete with a cascade preview
-  Given a contact has 2 notes and 1 task
+  Given a contact has 2 activities and 1 task
   And an opportunity lists the contact
   When I choose Delete
-  Then the dialog says it deletes 2 notes and 1 task and unlinks 1 opportunity
+  Then the page says "This deletes the contact, 1 task, and 2 activities, and unlinks 1 opportunity."
+  And it names each of these records
   When I confirm
-  Then one commit removes the contact, the 2 notes, and the task
+  Then one commit removes the contact, the 2 activities, and the task
   And the same commit removes the contact's ID from the opportunity
 
+Scenario: Delete a company
+  Given a contact and an opportunity have the company
+  When I delete the company
+  Then the same commit sets companyId to null in the contact and in the opportunity
+
 Scenario: Archived records count
-  Given an archived note relates to a contact
+  Given an archived activity relates to a contact
   When I delete the contact
-  Then the archived note is deleted in the same commit
+  Then the archived activity is deleted in the same commit
+
+Scenario: Delete an activity
+  Given a contact page shows an activity
+  When I choose Delete on the activity and confirm
+  Then one commit removes the activity's file
+  And the contact page opens without the activity
 
 Scenario: Concurrent deletion
-  Given another user edited the contact or an affected record after I loaded it
+  Given the delete page lists the changes
+  And another user then adds a task related to the contact
   When I confirm Delete
-  Then the app shows a conflict
-  And nothing is deleted without fresh confirmation
+  Then nothing is deleted, and the page says why
+  And the lists now include the new task
+  When I confirm again
+  Then the same commit also deletes the new task
+
+Scenario: A file that cannot be read
+  Given a file under data/ is not valid JSON
+  When I choose Delete on any record
+  Then the Delete button is disabled, and the page names the file
 ```
 
 ## Future `purge-history` utility (NOT MVP)

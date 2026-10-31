@@ -5,6 +5,7 @@ import { editRecord, newRecord } from '../core/records.ts';
 import type { Contact, Opportunity } from '../core/schemas.ts';
 import { newWorkspaceConfig } from '../core/workspace.ts';
 import { serveFakeGitHub } from '../test/msw.ts';
+import { gitBlobSha } from './encoding.ts';
 import { ConflictError, InvalidFileError, UnknownOutcomeError } from './errors.ts';
 import { createGitHubClient, GitHubError } from './github-client.ts';
 import { createGitHubWorkspace } from './github-workspace.ts';
@@ -158,12 +159,16 @@ describe('updateRecord', () => {
 describe('deleteWithCascade', () => {
   const opportunityId = 'e8c756c7-f1b2-4c47-9d3d-26457c6b0979';
   const opportunityPath = recordPath('opportunity', opportunityId);
+  const taskPath = recordPath('task', '9b8b4d79-75d6-450c-a492-1e0638d49cd8');
   const deal = (): Opportunity =>
     newRecord('opportunity', {
       title: 'Website rebuild', stageId: 'lead', companyId: null, contactIds: [contactId], valueMinor: null, currency: 'USD', expectedCloseDate: null,
     }, { now, id: opportunityId });
+  // Deletes Ava; `loaded` is every file under data/ that the preview read.
+  const deleteAva = (sha: string, loaded: [string, string][] = [[path, sha]]) =>
+    workspace().deleteWithCascade({ target: { type: 'contact', id: contactId }, deletes: [{ path, blobSha: sha }], rewrites: [], loaded: new Map(loaded) });
 
-  it('deletes and rewrites in one non-forced commit', async () => {
+  it('deletes and rewrites in one non-forced commit, and returns the blob SHA of each rewritten file', async () => {
     const contactSha = await seedAva();
     const dealSha = await github().seed(opportunityPath, serializeRecord(deal()));
     const unlinked = editRecord(deal(), { contactIds: [] }, later);
@@ -173,9 +178,11 @@ describe('deleteWithCascade', () => {
       target: { type: 'contact', id: contactId },
       deletes: [{ path, blobSha: contactSha }],
       rewrites: [{ record: unlinked, blobSha: dealSha }],
+      loaded: new Map([[path, contactSha], [opportunityPath, dealSha]]),
     });
 
     expect(result.commitSha).toBe(github().head);
+    expect(result.rewritten).toEqual([{ record: unlinked, path: opportunityPath, blobSha: await gitBlobSha(serializeRecord(unlinked)), commitSha: result.commitSha }]);
     expect(github().commitCount()).toBe(commitsBefore + 1);
     expect(github().file(path)).toBeUndefined();
     expect(github().file(opportunityPath)).toBe(serializeRecord(unlinked));
@@ -185,26 +192,51 @@ describe('deleteWithCascade', () => {
   it('reports a conflict and deletes nothing when a file changed since it was loaded', async () => {
     const staleSha = await seedAva();
     await github().seed(path, serializeRecord(editRecord(ava(), { name: 'Edited by someone' }, later)));
-    const error = await rejection(workspace().deleteWithCascade({ target: { type: 'contact', id: contactId }, deletes: [{ path, blobSha: staleSha }], rewrites: [] }));
+    const error = await rejection(deleteAva(staleSha));
     expect(error).toBeInstanceOf(ConflictError);
     expect(github().file(path)).toContain('Edited by someone');
     expect(github().count('PATCH')).toBe(0);
   });
 
-  it('starts again when main moves, and keeps the other change', async () => {
+  // A record that appeared or changed may link to the target now (ADR-021: no dangling links).
+  it('reports a conflict when a file under data/ appeared, changed, or went after the preview', async () => {
     const sha = await seedAva();
-    const unrelated = recordPath('contact', 'a28a8fb0-52c6-493d-9a11-99a4f0b8a6cf');
-    github().failNext('PATCH', /git\/refs/, { run: async () => void (await github().seed(unrelated, 'saved by someone else')) });
-    await workspace().deleteWithCascade({ target: { type: 'contact', id: contactId }, deletes: [{ path, blobSha: sha }], rewrites: [] });
+    const dealSha = await github().seed(opportunityPath, serializeRecord(deal()));
+    await github().seed(taskPath, 'added by someone else');
+    expect(await rejection(deleteAva(sha, [[path, sha], [opportunityPath, dealSha]]))).toBeInstanceOf(ConflictError);
+
+    const taskSha = await github().seed(taskPath, 'added by someone else');
+    await github().seed(opportunityPath, serializeRecord(editRecord(deal(), { title: 'Renamed' }, later)));
+    expect(await rejection(deleteAva(sha, [[path, sha], [opportunityPath, dealSha], [taskPath, taskSha]]))).toBeInstanceOf(ConflictError);
+
+    github().remove(taskPath);
+    const renamedSha = await github().seed(opportunityPath, serializeRecord(editRecord(deal(), { title: 'Renamed' }, later)));
+    expect(await rejection(deleteAva(sha, [[path, sha], [opportunityPath, renamedSha], [taskPath, taskSha]]))).toBeInstanceOf(ConflictError);
+    expect(github().file(path)).toBeDefined();
+    expect(github().count('PATCH')).toBe(0);
+  });
+
+  it('starts again when main moves outside data/, and keeps the other change', async () => {
+    const sha = await seedAva();
+    github().failNext('PATCH', /git\/refs/, { run: async () => void (await github().seed('README.md', 'saved by someone else')) });
+    await deleteAva(sha);
     expect(github().file(path)).toBeUndefined();
-    expect(github().file(unrelated)).toBe('saved by someone else');
+    expect(github().file('README.md')).toBe('saved by someone else');
     expect(github().count('PATCH')).toBe(2);
+  });
+
+  it('reports a conflict when a record changes while the delete runs', async () => {
+    const sha = await seedAva();
+    github().failNext('PATCH', /git\/refs/, { run: async () => void (await github().seed(taskPath, 'added by someone else')) });
+    expect(await rejection(deleteAva(sha))).toBeInstanceOf(ConflictError);
+    expect(github().file(path)).toBeDefined();
+    expect(github().count('PATCH')).toBe(1);
   });
 
   it('stops after a bounded number of attempts', async () => {
     const sha = await seedAva();
     for (let i = 0; i < 5; i++) github().failNext('PATCH', /git\/refs/, { run: async () => void (await github().seed(`other-${i}.txt`, 'x')) });
-    const error = await rejection(workspace().deleteWithCascade({ target: { type: 'contact', id: contactId }, deletes: [{ path, blobSha: sha }], rewrites: [] }));
+    const error = await rejection(deleteAva(sha));
     expect(error).toMatchObject({ kind: 'unprocessable' });
     expect(github().count('PATCH')).toBe(3);
     expect(github().file(path)).toBeDefined();
@@ -213,7 +245,7 @@ describe('deleteWithCascade', () => {
   it('confirms a delete whose ref update response was lost', async () => {
     const sha = await seedAva();
     github().failNext('PATCH', /git\/refs/, { network: 'after' });
-    const result = await workspace().deleteWithCascade({ target: { type: 'contact', id: contactId }, deletes: [{ path, blobSha: sha }], rewrites: [] });
+    const result = await deleteAva(sha);
     expect(result.commitSha).toBe(github().head);
     expect(github().file(path)).toBeUndefined();
     expect(github().count('PATCH')).toBe(1);

@@ -1,5 +1,5 @@
-// One company (spec 02): details, its contacts, opportunities, tasks, and activity, Edit, and
-// Archive or Restore.
+// One company (spec 02): details, its contacts, opportunities, tasks, and activity, Edit,
+// Archive or Restore, and Delete.
 import { Link, useParams } from '@tanstack/react-router';
 import { Plus } from 'lucide-react';
 import { selectCanWrite, selectReadOnly, useApp } from '@/app/store.ts';
@@ -38,6 +38,7 @@ export function CompanyPage() {
             <Button variant="outline" disabled={!canWrite} onClick={() => void archive.toggle()}>
               {archive.saving ? 'Saving…' : archive.archived ? 'Restore' : 'Archive'}
             </Button>
+            <Link to="/companies/$companyId/delete" params={{ companyId }} className={linkButton({ variant: 'outline' })}>Delete</Link>
           </div>
         )}
       </div>

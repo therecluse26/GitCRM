@@ -11,6 +11,9 @@ export const MAX_FILE_BYTES = 100 * 1024;
 export type FileIssueCode = 'too-large' | 'invalid-json' | 'unsupported-version' | 'invalid-record' | 'path-mismatch' | 'unrecognized-path' | 'broken-link';
 export type FileIssue = { path: string; code: FileIssueCode; message: string };
 
+// The issues of files that did not load.
+export const unreadable = (issues: FileIssue[]) => issues.filter((issue) => issue.code !== 'broken-link');
+
 type Failure = { ok: false; issue: FileIssue };
 
 export function serializeRecord(record: CRMRecord): string {

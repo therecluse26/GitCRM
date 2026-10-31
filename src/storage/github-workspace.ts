@@ -114,24 +114,31 @@ export function createGitHubWorkspace({ client, ...location }: RepoLocation & { 
 
     async deleteWithCascade(plan: DeletePlan) {
       const message = `gitcrm: delete ${plan.target.type} ${plan.target.id.slice(0, 8)}`;
-      const rewrites = plan.rewrites.map(({ record, blobSha }) => ({ path: recordPath(record.type, record.id), blobSha, text: serializeRecord(record) }));
+      const rewrites = plan.rewrites.map(({ record, blobSha }) => ({ record, path: recordPath(record.type, record.id), blobSha, text: serializeRecord(record) }));
       const expected = [...plan.deletes, ...rewrites];
       const entries = [
         ...plan.deletes.map(({ path }) => ({ path, mode: '100644', type: 'blob', sha: null })),
         ...rewrites.map(({ path, text }) => ({ path, mode: '100644', type: 'blob', content: text })),
       ];
 
+      // The rewritten records, at the blob SHA of the text this delete committed.
+      const rewritten = (commitSha: string) => Promise.all(rewrites.map(async ({ record, path, text }) => ({ record, path, blobSha: await gitBlobSha(text), commitSha })));
+
       for (let attempt = 1; ; attempt++) {
         const head = await readHead(client, location);
         const files = await readTree(client, location, head.tree);
-        if (expected.some(({ path, blobSha }) => files.get(path) !== blobSha)) {
+        // Every file under data/ must be as the preview saw it: a record that changed, appeared,
+        // or went may link to the target now (ADR-021: no dangling links).
+        const onMain = [...files].filter(([path]) => path.startsWith('data/'));
+        const moved = onMain.length !== plan.loaded.size || onMain.some(([path, blobSha]) => plan.loaded.get(path) !== blobSha);
+        if (moved || expected.some(({ path, blobSha }) => files.get(path) !== blobSha)) {
           throw new ConflictError(null, 'A record in this delete changed after it was loaded. Reload, then confirm the delete again.');
         }
         const tree = await client.rest<{ sha: string }>('POST', `${base}/git/trees`, { base_tree: head.tree, tree: entries });
         const commit = await client.rest<{ sha: string }>('POST', `${base}/git/commits`, { message, tree: tree.sha, parents: [head.sha] });
         try {
           await client.rest('PATCH', `${base}/git/refs/heads/${branchRef}`, { sha: commit.sha, force: false });
-          return { commitSha: commit.sha };
+          return { commitSha: commit.sha, rewritten: await rewritten(commit.sha) };
         } catch (error) {
           if (!(error instanceof GitHubError) || (error.kind !== 'network' && error.kind !== 'unprocessable')) throw error;
           if (error.kind === 'network') {
@@ -141,7 +148,7 @@ export function createGitHubWorkspace({ client, ...location }: RepoLocation & { 
             } catch {
               throw new UnknownOutcomeError();
             }
-            if (mainSha === commit.sha) return { commitSha: commit.sha };
+            if (mainSha === commit.sha) return { commitSha: commit.sha, rewritten: await rewritten(commit.sha) };
           }
           // 422 "Update is not a fast forward": main moved. The next attempt checks every SHA again.
           if (attempt === DELETE_ATTEMPTS) throw error;

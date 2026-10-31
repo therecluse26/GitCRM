@@ -48,7 +48,7 @@ Scenario: Untrusted note markup
 
 ## Notes
 
-Phase 2 builds everything here except Delete, which comes in Phase 3 with the cascade preview (`docs/11`). "Add task" and "Log activity" on a contact, company, or opportunity page link the new record to it. An activity with no link shows only in Home's recent activity. A completion shows as pending until the commit lands; a failed one leaves the task open and says why. "Overdue" uses the browser's local date, with no background service.
+Phase 2 builds everything here except Delete. Phase 3 builds Delete with the cascade preview (spec 06, "Delete rules"). "Add task" and "Log activity" on a contact, company, or opportunity page link the new record to it. An activity with no link shows only in Home's recent activity. A completion shows as pending until the commit lands; a failed one leaves the task open and says why. "Overdue" uses the browser's local date, with no background service.
 
 ## Out of scope
 

@@ -62,7 +62,8 @@ interface WorkspaceRepository {
   createRecord<R extends CRMRecord>(record: R): Promise<VersionedRecord<R>>;
   updateRecord<R extends CRMRecord>(record: R, expectedBlobSha: string): Promise<VersionedRecord<R>>;
   // One commit: deletes plus unlinks, each with its expected blob SHA (ADR-021)
-  deleteWithCascade(plan: DeletePlan): Promise<{ commitSha: string }>;
+  // Conflict if any file under data/ differs from plan.loaded, the files the preview read
+  deleteWithCascade(plan: DeletePlan): Promise<{ commitSha: string; rewritten: VersionedRecord[] }>;
 }
 ```
 

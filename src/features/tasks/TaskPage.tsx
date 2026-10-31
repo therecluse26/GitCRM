@@ -1,4 +1,4 @@
-// One task (spec 04): details, its link, Complete or Reopen, Edit, and Archive or Restore.
+// One task (spec 04): details, its link, Complete or Reopen, Edit, Archive or Restore, and Delete.
 import { Link, useParams } from '@tanstack/react-router';
 import { selectCanWrite, selectReadOnly, useApp } from '@/app/store.ts';
 import { Button } from '@/components/ui/button';
@@ -40,6 +40,7 @@ export function TaskPage() {
             <Button variant="outline" disabled={!canWrite} onClick={() => void archive.toggle()}>
               {archive.saving ? 'Saving…' : archive.archived ? 'Restore' : 'Archive'}
             </Button>
+            <Link to="/tasks/$taskId/delete" params={{ taskId }} className={linkButton({ variant: 'outline' })}>Delete</Link>
           </div>
         )}
       </div>
