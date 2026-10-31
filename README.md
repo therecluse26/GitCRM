@@ -1,6 +1,6 @@
 # GitCRM - Project Starter
 
-**Status:** Phase 2 is built and tested against a fake GitHub: connecting, setting up a workspace, contacts, companies, the opportunity pipeline, tasks, and activity notes work; other people's changes show when you return to the tab. Phase 3 has begun: Search finds every record type, Settings exports the records as a JSON snapshot or CSV files, and Delete lists every change before one commit removes the record. Browser tests cover each failure path in `docs/10`. A manual run against a real private repository is still to do  
+**Status:** Phase 2 is built and tested against a fake GitHub: connecting, setting up a workspace, contacts, companies, the opportunity pipeline, tasks, and activity notes work; other people's changes show when you return to the tab. Phase 3 has begun: Search finds every record type, Settings exports the records as a JSON snapshot or CSV files, and Delete lists every change before one commit removes the record. Browser tests cover each failure path in `docs/10`. The built app runs under a strict Content Security Policy, and each build is audited (docs/07). A manual run against a real private repository is still to do  
 **Last reviewed:** 2026-10-30  
 **Audience:** solo developers and tiny teams who want a useful CRM without operating a database or backend.
 
@@ -61,8 +61,9 @@ Requires Node 24 or later. Keep this code repository separate from end users' pr
 npm install
 npx playwright install chromium   # once, for the browser tests
 npm test            # unit and contract tests (Vitest, against a fake GitHub)
-npm run test:e2e    # browser tests (Playwright, against the same fake)
+npm run test:e2e    # browser tests (Playwright, against the built app and the same fake)
 npm run dev         # the app at http://localhost:5173/, the developer page at /dev.html
+npm run build       # the static app in dist/, then the build audit (docs/07)
 ```
 
 `dev.html` is the developer page from Phase 1. It connects to a repo with a fine-grained PAT and creates, reads, edits, and deletes one contact. The token stays in that tab's memory. Writes go straight to the repo's default branch, so use a disposable private repo. The dev server serves the page; `npm run build` leaves it out.

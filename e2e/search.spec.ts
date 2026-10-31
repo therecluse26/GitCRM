@@ -1,5 +1,5 @@
 // Spec 05, search: every record type, found in memory, against the fake GitHub.
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page } from './fixtures.ts';
 import { activity, company, contact, field, go, open, opportunity, status, task } from './workspace.ts';
 
 test.use({ timezoneId: 'America/New_York', locale: 'en-US' });

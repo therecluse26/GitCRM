@@ -1,3 +1,5 @@
+// First: Zod's settings must be in place before any module parses (see zod-config.ts).
+import './app/zod-config.ts';
 import { RouterProvider } from '@tanstack/react-router';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';

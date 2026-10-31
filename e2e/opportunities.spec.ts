@@ -1,10 +1,10 @@
 // Spec 03 (opportunities and pipeline) and the stage editor (ADR-019), against the fake GitHub.
-import { expect, test, type Page } from '@playwright/test';
 import { recordPath, WORKSPACE_PATH } from '../src/core/paths.ts';
 import { serializeRecord, serializeWorkspace } from '../src/core/record-file.ts';
 import type { CRMRecord } from '../src/core/schemas.ts';
 import { newWorkspaceConfig } from '../src/core/workspace.ts';
 import type { FakeGitHub } from '../src/test/fake-github.ts';
+import { expect, test, type Page } from './fixtures.ts';
 import { company, contact, field, go, open, opportunity, status } from './workspace.ts';
 
 const writes = (fake: FakeGitHub) => fake.requests.filter((r) => r.method === 'PUT');

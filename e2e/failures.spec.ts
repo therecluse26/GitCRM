@@ -1,11 +1,11 @@
 // Failure paths (docs/10, "Failure paths"): GitHub and the browser fail during a load, a save, or a
 // delete. Each test checks what the user sees, what is on main, and that no request repeats.
-import { expect, test, type Page } from '@playwright/test';
 import { recordPath, WORKSPACE_PATH } from '../src/core/paths.ts';
 import { serializeRecord, serializeWorkspace } from '../src/core/record-file.ts';
 import type { CRMRecord } from '../src/core/schemas.ts';
 import { newWorkspaceConfig } from '../src/core/workspace.ts';
 import type { FakeGitHub } from '../src/test/fake-github.ts';
+import { expect, test, type Page } from './fixtures.ts';
 import { connect } from './connect-page.ts';
 import { routeFakeGitHub } from './fake-route.ts';
 import { contact, field, go, homeHeading, open, openContact, seedWorkspace, status, task } from './workspace.ts';

@@ -1,6 +1,6 @@
 // The Phase 2 exit journey (docs/11): company -> contact -> opportunity -> note -> follow-up task,
 // through the UI only, in an empty workspace on the fake GitHub. A reload then shows it all again.
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures.ts';
 import { field, go, homeHeading, open, status } from './workspace.ts';
 
 test.use({ timezoneId: 'America/New_York', locale: 'en-US' });

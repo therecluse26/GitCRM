@@ -1,10 +1,10 @@
 // Spec 02 (contacts and companies) and the save states of spec 07, against the fake GitHub.
-import { expect, test } from '@playwright/test';
 import { recordPath } from '../src/core/paths.ts';
 import { parseRecordFile, serializeRecord } from '../src/core/record-file.ts';
 import type { CRMRecord } from '../src/core/schemas.ts';
 import { gitBlobSha } from '../src/storage/encoding.ts';
 import type { FakeGitHub } from '../src/test/fake-github.ts';
+import { expect, test } from './fixtures.ts';
 import { company, contact, field, go, open, openContact, status } from './workspace.ts';
 
 const writes = (fake: FakeGitHub) => fake.requests.filter((r) => r.method === 'PUT');

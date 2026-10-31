@@ -1,7 +1,7 @@
 // Phase 1 exit (docs/11): the developer page creates, reads, edits, and deletes one contact
 // without data loss.
-import { expect, test, type Page } from '@playwright/test';
 import type { FakeGitHub } from '../src/test/fake-github.ts';
+import { expect, test, type Page } from './fixtures.ts';
 import { routeFakeGitHub } from './fake-route.ts';
 
 async function connect(page: Page, fake: FakeGitHub) {
