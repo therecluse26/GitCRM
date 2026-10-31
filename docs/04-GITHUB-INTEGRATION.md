@@ -107,7 +107,7 @@ If step 4 fails because `main` moved, repeat from step 1 on the new `main`, up t
   - An answer carries the changed files, so the other tabs download nothing.
   - Disconnect in one tab also disconnects the other tabs of that workspace.
   - Messages stay inside the browser, between tabs of one origin. They never carry the token.
-- Treat `401` (auth), `403/404` (permission, visibility, or missing), `409` (conflict), `422` (validation/conflict), and `429` (limit) as different user-facing states. S-08 recorded the exact responses: `401` "Bad credentials"; `404` for both a missing repo and no access; `403` "Repository was archived so is read-only." on writes to an archived repo.
+- Treat `401` (auth), `403/404` (permission, visibility, or missing), `409` (conflict), `422` (validation/conflict), and `429` (limit) as different user-facing states. S-08 recorded the exact responses: `401` "Bad credentials"; `404` for both a missing repo and no access; `403` "Repository was archived so is read-only." on writes to an archived repo. A `403` on a save passes on GitHub's words and says to Refresh, which runs the connect checks again. The browser tests of each failure are listed in `docs/10`, "Failure paths".
 - Never log `Authorization` headers, private response bodies, email addresses, or customer names to telemetry.
 
 ## Contract tests

@@ -29,6 +29,40 @@
 15. A GitHub API rate-limit response respects `retry-after` and does not trigger a tight retry loop.
 16. Each user action makes a bounded, expected number of GitHub requests (contract tests count them). With several tabs open, only one tab checks `main`; below 500 remaining requests, background checks pause (ADR-023).
 
+## Failure paths
+
+Each failure has a browser test against the fake GitHub. "New" marks the tests in `e2e/failures.spec.ts`. The fake's responses follow the spikes (S-02, S-08) unless the row says "unverified".
+
+| Failure | What GitCRM does | Test |
+| --- | --- | --- |
+| Public repository | Refuses it and writes nothing | `connect.spec.ts`, `dev-page.spec.ts` |
+| Repository the token cannot see (`404`) | Lists every cause | `connect.spec.ts` |
+| Read-only token, or an archived repository | Opens read-only and says why | `connect.spec.ts`, and each record spec |
+| Token revoked, found on page load | Forgets the token and asks to connect again | `connect.spec.ts` |
+| GitHub unreachable on page load | Keeps the cached records on screen, read-only | `connect.spec.ts` |
+| The tree is truncated on the first load | Stops, says why, and writes nothing | New |
+| A GraphQL query times out (`502`, `504`) on the first load | Retries it once, split in two; a second timeout stops the load and says why; Connect again loads the records | New |
+| Workspace settings from a newer GitCRM, or not valid | Shows the blocked screen and writes nothing | New |
+| A record file that cannot be read | Names the file; export and delete wait | `contacts-companies.spec.ts`, `export.spec.ts`, `delete.spec.ts` |
+| Offline save | Keeps the form, and does not claim the save succeeded | `contacts-companies.spec.ts` |
+| Token revoked during a session | The save fails with "The token expired or was revoked"; one request, no other credential | New |
+| Write access lost during a session (`403`) | The save passes on GitHub's words and says to Refresh; Refresh opens read-only | New; message in `operation-state.test.ts` |
+| Rate limit on a save | Says when to try again; a Save before then sends nothing | New; checks in `sync.spec.ts` |
+| GitHub error (`5xx`) on a save | Keeps the form and sends one request; the next Save works | New |
+| Create response lost, file on `main` | Reads the file, counts the save once, and makes no duplicate | New |
+| Response lost, and the read gets no answer | Says the change may or may not be saved, and to reload | New |
+| A write refused for another reason, such as a branch rule (response unverified) | Passes on GitHub's words; one request; the form stays | New |
+| Same record changed by someone else | Conflict panel; nothing overwritten | `contacts-companies.spec.ts`, `opportunities.spec.ts` |
+| Another record changed by someone else | The save works, and both changes stay on `main` | New |
+| Delete: ref update response lost | Reads `main`, and reports the delete once | New |
+| Delete: `main` moves on every attempt | Stops after 3 attempts and deletes nothing | New |
+| Delete: a record changed after the preview | Deletes nothing and reloads the lists | `delete.spec.ts` |
+| A failed focus check | Runs the connect checks before it reports a problem | `sync.spec.ts` |
+| Fewer than 500 requests left | Pauses focus checks; saves and Refresh still work | `sync.spec.ts` |
+| Browser storage blocked (private window, site data off) | Connects for this tab only; a reload asks again | New |
+
+No spike recorded GitHub's response for a branch that requires pull requests, or for a renamed repository (`docs/12`). The branch-rule test uses a stand-in response. A renamed repository has no test.
+
 ## Nonfunctional probes
 
 - Prototype at 100/500/2000 generated records; measure time, requests, bytes, memory.

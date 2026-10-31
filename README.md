@@ -1,6 +1,6 @@
 # GitCRM - Project Starter
 
-**Status:** Phase 2 is built and tested against a fake GitHub: connecting, setting up a workspace, contacts, companies, the opportunity pipeline, tasks, and activity notes work; other people's changes show when you return to the tab. Phase 3 has begun: Search finds every record type, Settings exports the records as a JSON snapshot or CSV files, and Delete lists every change before one commit removes the record. A manual run against a real private repository is still to do  
+**Status:** Phase 2 is built and tested against a fake GitHub: connecting, setting up a workspace, contacts, companies, the opportunity pipeline, tasks, and activity notes work; other people's changes show when you return to the tab. Phase 3 has begun: Search finds every record type, Settings exports the records as a JSON snapshot or CSV files, and Delete lists every change before one commit removes the record. Browser tests cover each failure path in `docs/10`. A manual run against a real private repository is still to do  
 **Last reviewed:** 2026-10-30  
 **Audience:** solo developers and tiny teams who want a useful CRM without operating a database or backend.
 

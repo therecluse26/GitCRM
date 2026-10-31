@@ -225,6 +225,7 @@ GitHub allows 60 s of GraphQL server time per minute, and says to estimate it fr
 - **Follow-up:**
   - The S-02 browser run showed that `permissions` reflects the user's role, not a fine-grained PAT's permissions. A read-only fine-grained PAT gets `403` from the write check, so the write check detects it.
   - Not tested: the error for a write to a branch that requires pull requests (needs a paid plan or a public test repo), and an empty repo with no commits.
+  - Not tested: a renamed repository. Whether API calls to the old name still work from the browser is unverified. Until a spike checks it, GitCRM treats a failed call like any other.
 
 ## Most important product decision
 
