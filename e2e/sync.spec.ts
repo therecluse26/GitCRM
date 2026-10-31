@@ -1,10 +1,10 @@
 // Background checks of main and the rate-limit guard (docs/04, spec 07, ADR-023), against the fake
 // GitHub. The page clock is fake, so a test can move it past the 30 s between checks.
-import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 import { recordPath } from '../src/core/paths.ts';
 import { serializeRecord } from '../src/core/record-file.ts';
 import type { Contact } from '../src/core/schemas.ts';
 import type { FakeGitHub } from '../src/test/fake-github.ts';
+import { expect, test, type BrowserContext, type Page } from './fixtures.ts';
 import { connect } from './connect-page.ts';
 import { routeFakeGitHub } from './fake-route.ts';
 import { contact, field, go, homeHeading, open, openContact, seedWorkspace, status } from './workspace.ts';

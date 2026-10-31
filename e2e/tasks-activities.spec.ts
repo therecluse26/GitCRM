@@ -1,9 +1,9 @@
 // Spec 04 (tasks and manual activities), against the fake GitHub. The page clock is fixed, so
 // "today" and "now" are known; each test names its time zone.
-import { expect, test, type Page } from '@playwright/test';
 import { recordPath } from '../src/core/paths.ts';
 import type { CRMRecord } from '../src/core/schemas.ts';
 import type { FakeGitHub } from '../src/test/fake-github.ts';
+import { expect, test, type Page } from './fixtures.ts';
 import { activity, company, contact, field, go, open, openContact, opportunity, status, task } from './workspace.ts';
 
 test.use({ timezoneId: 'America/New_York', locale: 'en-US' });

@@ -1,10 +1,10 @@
 // Spec 01 (connect a private repository), against the fake GitHub.
-import { expect, test, type Page } from '@playwright/test';
 import { recordPath, WORKSPACE_PATH } from '../src/core/paths.ts';
 import { serializeRecord, serializeWorkspace } from '../src/core/record-file.ts';
 import { newRecord } from '../src/core/records.ts';
 import { newWorkspaceConfig } from '../src/core/workspace.ts';
 import type { FakeGitHub } from '../src/test/fake-github.ts';
+import { expect, test, type Page } from './fixtures.ts';
 import { connect } from './connect-page.ts';
 import { routeFakeGitHub } from './fake-route.ts';
 

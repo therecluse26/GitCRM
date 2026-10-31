@@ -1,7 +1,7 @@
 // Spec 06, delete: the cascade preview, one commit, and the conflict check, against the fake GitHub.
-import { expect, test, type Page } from '@playwright/test';
 import { recordPath } from '../src/core/paths.ts';
 import { serializeRecord } from '../src/core/record-file.ts';
+import { expect, test, type Page } from './fixtures.ts';
 import { activity, company, contact, field, go, open, openContact, opportunity, status, task } from './workspace.ts';
 
 const northwind = company('Northwind Traders');

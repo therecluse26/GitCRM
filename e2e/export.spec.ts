@@ -1,10 +1,10 @@
 // Spec 05, export: the JSON snapshot and the CSV files, built in the browser, against the fake GitHub.
 import { readFile } from 'node:fs/promises';
-import { expect, test, type Page } from '@playwright/test';
 import { unzipSync } from 'fflate';
 import { recordPath, WORKSPACE_PATH } from '../src/core/paths.ts';
 import { serializeRecord } from '../src/core/record-file.ts';
 import { readCsv, readValue } from '../src/test/csv-reader.ts';
+import { expect, test, type Page } from './fixtures.ts';
 import { activity, company, contact, go, open, opportunity, task } from './workspace.ts';
 
 const northwind = company('Northwind Traders', { website: 'https://northwind.example' });

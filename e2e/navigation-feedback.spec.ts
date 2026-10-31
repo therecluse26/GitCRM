@@ -1,6 +1,6 @@
 // Spec 08: the skip link, focus after a page change, phone width, one save at a time, and field
 // errors on every form, against the fake GitHub.
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page } from './fixtures.ts';
 import { connect } from './connect-page.ts';
 import { routeFakeGitHub } from './fake-route.ts';
 import { activity, company, contact, field, go, homeHeading, open, openContact, opportunity, status, task } from './workspace.ts';
