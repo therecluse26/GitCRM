@@ -6,7 +6,7 @@
 
 **Contract:** mocked GitHub API request/response sequences; handling changed SHA, missing repo, public visibility, missing scopes, rate limit, invalid tree, truncated tree, and partial fetch. No real GitHub credentials in source control.
 
-**E2E:** browser user flows against the fake GitHub (`src/test/fake-github.ts`), so the real adapter runs in the browser. The tests run against the built app (`vite build`, then `vite preview`), so the Content Security Policy applies, and a policy violation fails the test (docs/07). Only the developer page's test uses the dev server. An optional separate suite against a **disposable private GitHub repo** tests real API semantics, never production CRM data.
+**E2E:** browser user flows against the fake GitHub (`src/test/fake-github.ts`), so the real adapter runs in the browser. The tests run against the built app (`vite build`, then `vite preview`), so the Content Security Policy applies, and a policy violation fails the test (docs/07). Only the developer page's test uses the dev server. The `github-pages` project serves the same build from `/GitCRM/` with no custom headers, the way GitHub Pages serves a project site, and runs the journey, security, and hosting specs (spec 09). In CI, `E2E_BUILD=dist` makes the tests serve the folder that then deploys. An optional separate suite against a **disposable private GitHub repo** tests real API semantics, never production CRM data.
 
 **Tools (ADR-012):** Vitest for unit and contract tests, MSW to mock the GitHub API, Playwright for E2E, and axe-core inside Playwright for the accessibility checks (docs/08). Run them with `npm test` and `npm run test:e2e`.
 
@@ -68,7 +68,7 @@ No spike recorded GitHub's response for a branch that requires pull requests, or
 - Prototype at 100/500/2000 generated records; measure time, requests, bytes, memory.
 - Verify responsive UI on a modest laptop and throttled connection.
 - Audit accessibility: keyboard-only contact creation, Kanban stage movement, and errors. `e2e/accessibility.spec.ts` does this, and checks each page against WCAG 2.2 AA (docs/08, "Accessibility checks").
-- Scan production static artifact for real data, developer tokens, and unsafe embed configuration. `npm run build` runs the build audit, and `e2e/security.spec.ts` checks the policy and the frame refusal (docs/07).
+- Scan production static artifact for real data, developer tokens, and unsafe embed configuration. `npm run build` runs the build audit, and `e2e/security.spec.ts` checks the policy and the frame refusal (docs/07). After each deploy, `scripts/check-deploy.ts` checks the live copy (docs/07, "Deployment").
 
 ## Release gate
 

@@ -4,7 +4,11 @@ import { defineConfig, devices } from '@playwright/test';
 // (docs/07). The developer page (Phase 1) is not built, so its test uses the dev server.
 const appPort = 5200;
 const devPort = 5199;
-const built = 'node_modules/.e2e-dist';
+const pagesPort = 5201;
+// CI tests the build that it deploys (spec 09): E2E_BUILD names that folder. Otherwise each run
+// builds fresh, because a reused build could be an old one.
+const built = process.env.E2E_BUILD ?? 'node_modules/.e2e-dist';
+const build = process.env.E2E_BUILD ? '' : `npx vite build --outDir ${built} --emptyOutDir --logLevel warn && `;
 
 export default defineConfig({
   testDir: 'e2e',
@@ -13,12 +17,19 @@ export default defineConfig({
   projects: [
     { name: 'app', testIgnore: /dev-page\.spec\.ts/, use: { ...devices['Desktop Chrome'], baseURL: `http://localhost:${appPort}` } },
     { name: 'dev-page', testMatch: /dev-page\.spec\.ts/, use: { ...devices['Desktop Chrome'], baseURL: `http://localhost:${devPort}` } },
+    // The same build from a folder, with no custom headers: the GitHub Pages shape (spec 09).
+    { name: 'github-pages', testMatch: /(journey|security|hosting)\.spec\.ts/, use: { ...devices['Desktop Chrome'], baseURL: `http://localhost:${pagesPort}/GitCRM/` } },
   ],
   webServer: [
     {
-      // Built fresh on every run: a reused server could serve an old build.
-      command: `npx vite build --outDir ${built} --emptyOutDir --logLevel warn && npx vite preview --outDir ${built} --port ${appPort} --strictPort`,
+      command: `${build}npx vite preview --outDir ${built} --port ${appPort} --strictPort`,
       url: `http://localhost:${appPort}/`,
+      reuseExistingServer: false,
+    },
+    {
+      // Starts after the server above, so the build is there.
+      command: `npx vite preview --outDir ${built} --base /GitCRM/ --port ${pagesPort} --strictPort`,
+      url: `http://localhost:${pagesPort}/GitCRM/`,
       reuseExistingServer: false,
     },
     {

@@ -5,7 +5,7 @@ import { expect, test } from './fixtures.ts';
 import { open } from './workspace.ts';
 
 test('the built page carries the policy in a meta tag, before any script or stylesheet', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('./');
   const head = await page.evaluate(() =>
     [...document.head.children].map((element) => (element.matches('meta[http-equiv="Content-Security-Policy"]') ? 'policy' : element.tagName.toLowerCase())),
   );
@@ -72,7 +72,7 @@ test('the policy blocks a script from another site, an inline script, HTML from 
 });
 
 test('GitCRM refuses to run inside a frame, so another site cannot frame it', async ({ page, baseURL }) => {
-  await page.setContent(`<iframe title="framed" src="${baseURL}/"></iframe>`);
+  await page.setContent(`<iframe title="framed" src="${new URL('./', baseURL)}"></iframe>`);
   const frame = page.frameLocator('iframe[title="framed"]');
   await expect(frame.getByText('GitCRM does not run inside a frame. Open it in its own tab.')).toBeVisible();
   await expect(frame.getByRole('button', { name: 'Connect' })).toHaveCount(0);
