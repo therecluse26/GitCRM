@@ -10,7 +10,7 @@ CRM records contain personal or commercially sensitive information. A private re
 | --- | --- |
 | Public repo exposure | Refuse public repos; recheck visibility at connection and refresh; never publish data as static assets |
 | Credential theft via JS/XSS | No inline unsafe HTML, strict CSP (see below), no third-party analytics/scripts, one-repo short-expiry PAT; host features that inject scripts stay off (S-06) |
-| Clickjacking (another site frames the app) | `frame-ancestors 'none'` header on the official copy (S-06); on hosts without custom headers, the app refuses to render inside a frame |
+| Clickjacking (another site frames the app) The app refuses to render inside a frame. On a host that reads `_headers`, also a `frame-ancestors 'none'` header (spec 09) |
 | Stored PAT and records on a shared or lost device | "Remember on this device" opt-out; Disconnect deletes both, and also disconnects the other open tabs of the workspace; one-repo short-expiry PAT. A fully compromised machine is out of scope (ADR-017) |
 | Records passed between open tabs (ADR-023) | `BroadcastChannel` reaches only tabs of the same origin in the same browser, which can already read the record cache; messages never carry the token |
 | Overbroad token scope | Fine-grained repo-restricted token; instructions to expire/revoke |
@@ -60,12 +60,13 @@ The built `index.html` carries this policy in a `<meta>` tag, right after the ch
 - The dev server sends no policy, because Vite's dev client needs inline scripts and a WebSocket.
 - The browser tests run against the built app, so they run under the policy. Any policy violation fails the test (`e2e/fixtures.ts`). Only the developer page's test uses the dev server.
 - Zod compiles validators with `new Function` unless `jitless` is on. `src/app/zod-config.ts` turns it on before any parse, so Zod never tries `eval`.
-- A `<meta>` policy cannot set `frame-ancestors`. The build's `_headers` file makes Cloudflare Pages send the same policy as a header, with `frame-ancestors 'none'` (S-06, spec 09). On hosts without custom headers, the app refuses to run inside a frame.
+- A `<meta>` policy cannot set `frame-ancestors`. On a host that reads the build's `_headers` file, such as Cloudflare Pages, it sends the same policy as a header, with `frame-ancestors 'none'` (spec 09). GitHub Pages sends no custom headers, so there the app's own frame check refuses to run inside a frame.
 - A browser without Trusted Types ignores those two directives; the others still apply. The browser tests run in Chromium only.
 - The browser tests pass with no Trusted Types policy because GitCRM never renders raw HTML or a `<script>` element. If a new library needs a policy, ask the owner first.
 
 `npm run build` runs the build audit (`scripts/check-build.ts`) on `dist/`. Any finding fails the build. The audit refuses:
 
+- an `index.html` without `<meta name="robots" content="noindex">`;
 - any file other than `index.html`, `_headers`, and the `.js`, `.css`, and `.woff2` files in `assets/`, so no source map and no developer page;
 - no `_headers` file; a `/*` rule that does not send the `<meta>` policy, then `; frame-ancestors 'none'`; another rule that changes or removes that header; or a line over 2,000 characters, the Cloudflare limit (spec 09);
 - a link to a source map;
@@ -79,24 +80,25 @@ The audit is a text scan, so it cannot find a name or a phone number. The fixtur
 
 ## Deployment
 
-The official copy is `https://gitcrm.pages.dev/` on Cloudflare Pages (ADR-010). `.github/workflows/deploy.yml` deploys each push to `main` (ADR-024, spec 09).
+GitCRM is a template repository with no central copy (ADR-025). Each owner's app repository deploys to its own GitHub Pages site with `.github/workflows/deploy.yml` (spec 09). So each owner runs code from their own repository, and nobody else's deploy can change the page where they type their PAT.
 
-- The build job has no secrets. It runs lint, the unit tests, `npm run build` with the audit, and every browser test against `dist/`. Then it hands `dist/` to the deploy job.
-- The deploy job gets only two secrets: `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`. The token has one permission: Account, Cloudflare Pages, Edit.
-- Anyone with that token can replace the official copy, and with it the page where users type their PAT (R-13). So the deploy job runs no project code and no test dependency before the upload. It installs wrangler from `deploy/package-lock.json`, which pins an integrity hash for each package. Each action is pinned to a commit SHA, because a tag can move. wrangler's telemetry is off.
-- Until the public release, `_headers` also sends `X-Robots-Tag: noindex`, because the privacy statement below comes first (ADR-024).
-- After the upload, `scripts/check-deploy.ts` reads the live site. `index.html` and every asset must match `dist/` byte for byte, and each must send every header from the `/*` rule. `/_headers` must not serve the file. A failed request, such as a TLS handshake while a new address gets its certificate, also counts as a problem. The check tries 6 times, 10 seconds apart.
-- Keep Cloudflare features that add scripts, such as Web Analytics, off (S-06). If the host changes any file, the live check fails.
-- If the live check fails, the new deployment is already live. Roll back to the previous deployment in the Cloudflare dashboard, then fix `main`.
-- Each deployment also stays reachable at its own address, `<hash>.gitcrm.pages.dev` (R-12).
+- The workflow has no secrets. The build job runs lint, the unit tests, `npm run build` with the audit, and every browser test against `dist/`. Then it hands `dist/` to the deploy job.
+- The deploy job has only `pages: write` and `id-token: write`. It runs no project code: it deploys the artifact from the build job. Each action is pinned to a commit SHA, because a tag can move.
+- Anyone who can push to `main` in the app repository can change the page where its owner types the PAT. The PAT reaches only the separate data repository, so a leaked PAT cannot change the app (ADR-025).
+- `index.html` has `<meta name="robots" content="noindex">`, and `_headers` also sends `X-Robots-Tag: noindex`. Each site is a front end to private data, so search engines leave it out.
+- After the deploy, `scripts/check-deploy.ts` reads the live site. Every file in `dist/` must match byte for byte. A failed request also counts as a problem. The check tries 6 times, 10 seconds apart.
+- If the live check fails, the new deployment is already live. Revert the commit on `main`, and the workflow deploys the reverted build.
+- GitHub Pages sends no custom headers, so no `frame-ancestors`. The app's own frame check refuses to run inside a frame. A host that reads `_headers`, such as Cloudflare Pages, also sends the header.
 
-One-time setup by the owner: a Pages project named `gitcrm` with production branch `main`; an API token with only Account, Cloudflare Pages, Edit; and the two repository secrets. The project was made on 2026-10-31 with `wrangler pages project create gitcrm --production-branch main --force`. When an AI coding agent runs wrangler 4.151.1, it sends a command for a project that does not exist yet to Cloudflare Workers instead; `--force` keeps it on Pages. Once the project exists, no command is sent elsewhere, and CI is not an agent.
+One-time setup by each owner: Settings → Pages → Source: "GitHub Actions". The workflow cannot turn on Pages with its own token (S-09).
+
+From 2026-10-28 to 2026-10-31 a central copy ran at `https://gitcrm.pages.dev/` on Cloudflare Pages (ADR-024, superseded). ADR-025 removes it: the owner deletes the Cloudflare project and its two repository secrets.
 
 ## Security tests required
 
 - Static bundle scan contains no token, secret, or example real customer data: the build audit, above.
 - The built page blocks a script from another site, an inline script, HTML from a string, `eval`, and a request to any site but `api.github.com`. Inside a frame, the app does not run (`e2e/security.spec.ts`). These tests also run with the build served from a folder with no custom headers (spec 09).
-- After each deploy, the official copy serves the tested build with the header policy (`scripts/check-deploy.ts`).
+- After each deploy, the owner's site serves the tested build byte for byte (`scripts/check-deploy.ts`).
 - XSS payload in contact name or activity note is rendered harmlessly.
 - Public repository is rejected; protected branch is not silently bypassed.
 - `401/403/404` state produces no sensitive leaks in the UI/console.
@@ -105,4 +107,4 @@ One-time setup by the owner: a Pages project named `gitcrm` with production bran
 
 ## Privacy statement scope
 
-A future public privacy policy must separately disclose what the static host sees (Cloudflare processes visitors' IP addresses and traffic data for asset requests, never the PAT or CRM data; S-06), what an auth broker would see if one ships (codes and tokens in transit, IP addresses), what GitHub stores and when GitHub staff may access private repo content (security, scanning for malware or terms violations, support, service integrity, and legal obligations; S-05), what the browser processes, and whether any third-party telemetry is enabled. Do not claim compliance with GDPR, HIPAA, or other specialized regimes without a separate assessment.
+A future public privacy policy must separately disclose what the static host sees (GitHub Pages serves the app's files, so GitHub sees visitors' IP addresses for asset requests; the PAT and CRM data go only to `api.github.com`), what an auth broker would see if one ships (codes and tokens in transit, IP addresses), what GitHub stores and when GitHub staff may access private repo content (security, scanning for malware or terms violations, support, service integrity, and legal obligations; S-05), what the browser processes, and whether any third-party telemetry is enabled. Do not claim compliance with GDPR, HIPAA, or other specialized regimes without a separate assessment.

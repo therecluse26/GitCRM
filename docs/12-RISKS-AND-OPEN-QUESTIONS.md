@@ -6,7 +6,7 @@ These are **real unresolved dependencies**, not minor TODOs. The docs deliberate
 | --- | --- | --- | --- | --- |
 | R-01 | High | PAT setup friction limits adoption by less technical users | Usability test of the PAT setup instructions with target users | Accepted for now (ADR-008); GitHub App sign-in through a broker if demand appears (ADR-009, deferred) |
 | R-02 | High | First load of thousands of JSON files may consume excessive GitHub requests | Benchmark the GraphQL tree walk and Git Trees + blob fetches (archive ruled out, S-01); incremental SHA caching | Measured (S-04): chunked GraphQL loads 2,000 records in ~5 s. Fallbacks: verified rollup (ADR-016), then a published size limit |
-| R-03 | Low | GitHub Pages says sites shouldn't be used for sending passwords, and users enter a PAT on GitCRM's page (S-05). Its commercial SaaS ban does not apply, because GitCRM is non-commercial (ADR-015) | Done: the official copy uses Cloudflare Pages, whose terms permit it (S-06) | Host-agnostic build (ADR-010): move the official copy to any compliant static host |
+| R-03 | Low | GitHub Pages says sites shouldn't be used for sending passwords, and users enter a PAT on GitCRM's page (S-05). Its commercial SaaS ban does not apply, because GitCRM is non-commercial (ADR-015) | Accepted by each owner for their own copy (ADR-025). The advice is about trust in a site, and each owner deploys their own code | Host-agnostic build (ADR-010): an owner can deploy the same build to another static host |
 | R-04 | High | Small concurrent edits can conflict | SHA behavior done (S-02): `409` for a stale blob SHA, `422` for a stale ref update. Still to do: two browsers saving to one real repo | Conflict UI, built (spec 07); serialize/retry nonoverlapping writes conservatively |
 | R-05 | High | User may accidentally expose repository or token | Built: connect refuses a public repo (S-08), the PAT link asks for Contents only, and onboarding says to select one repo (S-07). A strict CSP and the build audit guard the page (docs/07). Still to do: the auth and security review before release (docs/10) | Fail closed; disclose and direct to rotate/restrict |
 | R-06 | High | Delete != full erasure from Git | Validate history rewrite workflow against a disposable repo and support policy. Not in the MVP (ADR-011) | Keep history purge out of MVP; accurately label deletion. Built: the delete page warns that Git history keeps the record |
@@ -15,8 +15,8 @@ These are **real unresolved dependencies**, not minor TODOs. The docs deliberate
 | R-09 | Medium | Multiuser data becomes inconsistent during partial refresh | Built: the first load reads one commit (ADR-022), and a sync compares blob SHAs. A truncated tree stops the load (docs/10) | Abort partial load, manual refresh |
 | R-10 | Medium | CRM migration CSV can lose relationships/notes | Built (spec 05): the JSON snapshot holds each file with the same text, and the CSV export reads back to the same records (`src/core/export.test.ts`) | Raw JSON always available |
 | R-11 | High | Fine-grained PATs cannot be used by outside or repository collaborators (GitHub docs, S-05), so collaborators on a personal repo cannot use GitCRM | Answered by S-05. S-03 still checks the org approval flow live | Decided: team workspaces live in a GitHub organization, and every teammate is an org member (ADR-018); never ask users for classic or shared PATs |
-| R-12 | Medium | Each Cloudflare Pages deployment stays reachable at its own address, `<hash>.gitcrm.pages.dev`, and is public by default. An old copy keeps any bug fixed since, and a phishing link could send a user there to type a PAT. Each address is its own origin, with its own storage | Read Cloudflare's preview deployment docs again before the public release | After a security fix, delete the older deployments (`wrangler pages deployment delete`), or put them behind Cloudflare Access |
-| R-13 | High | Anyone with the Cloudflare deploy token, or control of a deploy dependency, can replace the official copy and read each PAT typed into it | Done (spec 09): the token has only Pages: Edit; only the deploy job sees it; wrangler comes from its own lockfile; actions are pinned to commit SHAs; the live check compares the site with the tested build | If the token leaks: revoke it in Cloudflare, make a new one, and deploy `main` again |
+| R-12 | Closed | Each Cloudflare Pages deployment of the central copy stayed reachable at its own address, `<hash>.gitcrm.pages.dev` | Closed 2026-10-31: the central copy is taken down (ADR-025). The owner deletes the Cloudflare project, with every deployment | None needed |
+| R-13 | Medium | Anyone who can push to `main` in an owner's app repository, or who controls an action the workflow uses, can change that owner's page and read the PAT typed into it | Done (spec 09): no secrets in the workflow; the deploy job runs no project code; actions are pinned to commit SHAs; the live check compares the site with the tested build. Template updates arrive as pull requests that the owner reviews (ADR-026) | If the PAT leaks: revoke it on GitHub, and make a new one. It reaches only the data repository |
 
 ## P0 results
 
@@ -28,7 +28,7 @@ The five P0 questions (`CLAUDE.md`, docs/11 Phase 0), as of 2026-10-31:
 | 2. The auth flow | The PAT route works end to end in a browser (ADR-008). A link fills in the PAT form, except the repository (S-07). Outside and repository collaborators cannot use fine-grained PATs, so teams use an organization (ADR-018) | S-02, S-05, S-07 | The org approval flow, live (S-03) |
 | 3. Loading 100, 500, and 2,000 records | Chunked GraphQL loads 2,000 records in 5–9 s; per-blob REST takes 48 s (ADR-022). With a warm cache, one ref check takes about 0.2 s. The verified rollup is not needed (ADR-016) | S-04; the app's own times are in docs/06 | Times from other networks: every S-04 run came from one home connection |
 | 4. Concurrent updates to one file | GitHub refuses a stale blob SHA with `409`, and a non-forced ref update after `main` moved with `422`. Two racing runs overwrote nothing | S-02 | Two browsers saving to one real repo (the manual run in docs/11) |
-| 5. A safe static host | Cloudflare Pages permits the official copy (ADR-010, ADR-024). GitHub Pages says its sites shouldn't take passwords (R-03) | S-05, S-06 | Read both hosts' terms again before the public release |
+| 5. A safe static host | Each owner deploys their own copy to GitHub Pages (ADR-025). GitHub Pages says its sites shouldn't take passwords (R-03); each owner accepts that for their own site | S-05, S-06, S-09 | Read the GitHub Pages terms again before the public release |
 
 The Phase 0 exit, "verified authenticated CRUD in a browser for a private repo", was met by the S-02 browser run on 2026-10-28.
 
@@ -40,11 +40,12 @@ No spike has checked these provider behaviors. For each one, GitCRM works with e
 | --- | --- | --- | --- |
 | The org approval flow for a fine-grained PAT | ADR-018, R-07, R-11 | Onboarding explains a pending token (docs/05) | S-03 in `spikes/README.md`. It needs a second person's GitHub account |
 | The error for a write to a branch that requires pull requests | ADR-003, R-07 | A refused write shows GitHub's message, and the form stays (docs/10) | Needs a paid plan, or a public test repo |
-| The status GitHub returns for a repo with no commits | docs/05 | Treats `404` and `409` the same | One empty private `gitcrm-spike*` repo |
 | API calls to the old name of a renamed repo | S-08 | Treats a failed call like any other | Rename a spike repo, then call the old name from a page |
 | Whether API commits count toward "6 pushes per minute" | S-05 | Each save is one user action. A bulk change is one commit | Many quick saves to a spike repo |
 | Whether the S-07 link fills in `Contents: Read and write` | S-07 | Onboarding tells users to check that Contents is set to Read and write | Open the link while signed in to GitHub |
 | Save prompts for the PAT in browsers and password managers | docs/05 | The PAT field is a real password field | By hand, in each major browser |
+| A Contents API PUT to an empty repo, with a fine-grained PAT | S-09, ADR-025 | Connect stops with "The default branch has no commits yet" | Initialize on a new empty data repo |
+| Whether GitHub runs the deploy workflow on the commit that the template creates | Spec 09 | The README tells the owner to run the workflow after turning on Pages | Make a repo from the template |
 | First-load times from other networks | S-04 | The GraphQL time budget slows a large load instead of failing (ADR-022) | Run `spikes/bench-load.js` from another network |
 
 ## P0 spike record template
@@ -199,6 +200,8 @@ GitHub allows 60 s of GraphQL server time per minute, and says to estimate it fr
 
 ### S-06: Cloudflare Pages terms
 
+**History.** This record served the central copy, which ADR-025 removed on 2026-10-31. It stays for an owner who deploys to Cloudflare Pages.
+
 - **Date:** 2026-10-28, 17:38 EDT. A reading of Cloudflare's current docs, not a test run.
 - **Question:** do Cloudflare's terms allow the official GitCRM copy on Cloudflare Pages? What must the deployment do or avoid?
 - **Sources:** Self-Serve Subscription Agreement (updated 2025-09-12), Developer Platform Service-Specific Terms (updated 2026-09-28), Pages limits, Pages headers, and the Privacy Policy (effective 2025-11-04). Links are in `docs/13-SOURCES.md`.
@@ -269,10 +272,33 @@ GitHub allows 60 s of GraphQL server time per minute, and says to estimate it fr
   - Not tested: the error for a write to a branch that requires pull requests (needs a paid plan or a public test repo), and an empty repo with no commits.
   - Not tested: a renamed repository. Whether API calls to the old name still work from the browser is unverified. Until a spike checks it, GitCRM treats a failed call like any other.
 
+### S-09: Template distribution, sign-in, and empty repos
+
+- **Date:** 2026-10-31, evening EDT. Read-only API calls, browser preflights, and a reading of GitHub's docs.
+- **Question:** can each owner's copy set itself up without a command line? Can it sign in without a PAT? What does an empty data repo return?
+- **Results:**
+
+| Check | Result |
+| --- | --- |
+| Empty repo (`therecluse26/gitcrm-spike-live`, before its README): Git data API | `409` "Git Repository is empty." The write check (`POST git/blobs`) also gets this |
+| Empty repo: Contents API | `404` "This repository is empty." |
+| Empty repo: `GET branches/main` | `404` |
+| OAuth web flow | The token exchange needs `client_secret`, also with PKCE (GitHub docs) |
+| Browser preflight to `github.com/login/oauth/access_token` and `github.com/login/device/code` | `404`, with no `access-control-allow-origin` header. `api.github.com` sends `access-control-allow-origin: *` |
+| `actions/configure-pages` with `enablement: true` | Needs "a token other than `GITHUB_TOKEN`" (the action's README) |
+| `https://github.com/new` | Takes `name`, `visibility`, `owner`, and `description` as URL parameters. No parameter adds a README, so the new repo is empty |
+| A repo made from a template | Starts with one commit, with history unrelated to the template's (GitHub docs) |
+
+- **Decision:**
+  - Sign-in without a PAT needs a server for the token exchange (ADR-009). A shared server would see every user's token. So the PAT stays (ADR-008).
+  - Each owner turns on Pages once by hand (ADR-025).
+  - Setup links to a pre-filled `github.com/new` form for the private data repo. Initialize must then work on an empty repo: Connect treats the write check's `409` as "empty", not as a refusal.
+- **Follow-up:** check a Contents API PUT to an empty repo with a fine-grained PAT, in the first run of the new setup ("Not verified yet").
+
 ## Most important product decision
 
 Decided 2026-10-27 (ADR-004, ADR-008, ADR-009, ADR-015): GitCRM is a product for other people, and users connect with a fine-grained PAT in both the alpha and the public release. A stateless auth broker is allowed in principle but deferred until real demand appears.
 
 ## Commercial deployment check
 
-Read on 2026-10-28 (S-05): GitHub Pages forbids commercial SaaS and advises against sending passwords through Pages sites. The Actions terms forbid using Actions as part of a serverless application. Treat these as provider contract boundaries, not technical limitations to evade. GitCRM is non-commercial (ADR-015, 2026-10-28), so the Pages SaaS ban does not apply; check this section again if that changes. The official copy uses Cloudflare Pages (S-06), whose terms ban phishing and card collection on free plans but say nothing against entering credentials.
+Read on 2026-10-28 (S-05): GitHub Pages forbids commercial SaaS and advises against sending passwords through Pages sites. The Actions terms forbid using Actions as part of a serverless application. Treat these as provider contract boundaries, not technical limitations to evade. GitCRM is non-commercial (ADR-015, 2026-10-28), so the Pages SaaS ban does not apply; check this section again if that changes. From 2026-10-28 to 2026-10-31 a central copy used Cloudflare Pages (S-06). Since ADR-025, each owner deploys their own copy to GitHub Pages and accepts the advice on passwords for their own site (R-03).
