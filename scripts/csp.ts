@@ -17,8 +17,8 @@ export const CSP_DIRECTIVES: [directive: string, value: string][] = [
 
 export const CSP = CSP_DIRECTIVES.map(([directive, value]) => `${directive} ${value}`).join('; ');
 
-// The build's _headers file (spec 09). Cloudflare Pages sends the same policy as a header, with
-// frame-ancestors, so no other site can frame the official copy. Other hosts ignore the file.
-// X-Robots-Tag keeps search engines away until the public release, because the privacy statement
-// comes first (ADR-024, docs/07).
+// The build's _headers file (spec 09). A host that reads it, such as Cloudflare Pages, sends the
+// same policy as a header, with frame-ancestors, so no other site can frame the app. GitHub Pages
+// serves it as a plain file. X-Robots-Tag repeats the robots meta tag in index.html: each owner's
+// site is a front end to private data, so search engines leave it out.
 export const HEADERS = `/*\n  Content-Security-Policy: ${CSP}; frame-ancestors 'none'\n  X-Robots-Tag: noindex\n`;

@@ -8,6 +8,7 @@ const page = (head = meta(), body = '') => `<!doctype html>
   <head>
     <meta charset="UTF-8" />
     ${head}
+    <meta name="robots" content="noindex" />
     <title>GitCRM</title>
     <script type="module" crossorigin src="./assets/index-a1b2c3d4.js"></script>
     <link rel="stylesheet" crossorigin href="./assets/index-a1b2c3d4.css">
@@ -36,6 +37,15 @@ function audit(changes: Record<string, string | null> = {}) {
 describe('auditBuild', () => {
   it('passes a clean build', () => {
     expect(audit()).toEqual([]);
+  });
+
+  // Each owner's site is a front end to private data; GitHub Pages cannot send X-Robots-Tag (spec 09).
+  it('needs a robots noindex meta tag in index.html', () => {
+    const without = page().replace('    <meta name="robots" content="noindex" />\n', '');
+    expect(audit({ 'index.html': without })).toEqual(['index.html has no <meta name="robots" content="noindex"> tag']);
+    expect(audit({ 'index.html': without.replace('<title>', '<meta name="robots" content="index" /><title>') })).toEqual([
+      'index.html has no <meta name="robots" content="noindex"> tag',
+    ]);
   });
 
   it('refuses a source map, the developer page, and any other file type', () => {
@@ -91,7 +101,7 @@ describe('auditBuild', () => {
     ]);
   });
 
-  // Cloudflare Pages reads _headers (spec 09). Only a header can set frame-ancestors.
+  // Hosts such as Cloudflare Pages read _headers (spec 09). Only a header can set frame-ancestors.
   it('needs a headers file that sends the policy from index.html, with frame-ancestors', () => {
     const wrong = `_headers: the /* rule must send the policy from index.html, then "; frame-ancestors 'none'"`;
     expect(audit({ _headers: null })).toEqual(['The build has no _headers file']);
@@ -106,7 +116,7 @@ describe('auditBuild', () => {
   it('refuses a headers rule that changes or removes the policy, and a line over 2,000 characters', () => {
     expect(audit({ _headers: `${HEADERS}/assets/*\n  ! Content-Security-Policy\n` })).toEqual(['_headers: the /assets/* rule changes the Content-Security-Policy header']);
     expect(audit({ _headers: `${HEADERS}/index.html\n  content-security-policy: default-src *\n` })).toEqual(['_headers: the /index.html rule changes the Content-Security-Policy header']);
-    expect(audit({ _headers: `# The official copy\n${HEADERS}/assets/*\n  Cache-Control: public, max-age=31536000, immutable\n` })).toEqual([]);
+    expect(audit({ _headers: `# My copy\n${HEADERS}/assets/*\n  Cache-Control: public, max-age=31536000, immutable\n` })).toEqual([]);
     const line = HEADERS.split('\n').length + 1;
     expect(audit({ _headers: `${HEADERS}/*\n  X-Note: ${'a'.repeat(2000)}\n` })).toEqual([`_headers: line ${line} is longer than 2,000 characters`]);
   });

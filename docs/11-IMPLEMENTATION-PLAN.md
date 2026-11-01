@@ -14,7 +14,7 @@ Build in **small vertical slices**. The first meaningful release must prove the 
 - [x] Benchmark initial and incremental load at 100/500/2000 docs (S-04: chunked GraphQL meets the targets; ADR-022; rollup not needed): GraphQL tree walk first, then per-blob (`docs/04-GITHUB-INTEGRATION.md`; the archive is ruled out by S-01). Check results against the targets in `docs/06-SEARCH-AND-PERFORMANCE.md`. Decide whether to build the verified rollup (ADR-016); if yes, test custom-ref create and force-update with a fine-grained PAT.
 - [x] Verify a multi-file commit through the Git Trees/Commits APIs with a fine-grained PAT, including a non-forced ref update after `main` has moved (ADR-021). Works with an OAuth token and with a fine-grained PAT that has only Contents: Read and write (S-02).
 - [x] Check whether GitHub's Git-over-HTTP endpoints accept browser CORS calls. They don't, so a browser shallow clone is ruled out (S-01).
-- [x] Confirm chosen static hosting provider permits intended use (S-06: Cloudflare Pages); never assume GitHub Pages can host commercial SaaS.
+- [x] Confirm chosen static hosting provider permits intended use (S-05, S-06). GitCRM is non-commercial, so the GitHub Pages SaaS ban does not apply (ADR-015, ADR-025).
 - [x] Record P0 spike findings in `docs/12-RISKS-AND-OPEN-QUESTIONS.md` and update ADRs. docs/12 "P0 results" answers the five P0 questions and lists each provider behavior not verified yet. The risk table, the spike follow-ups, and ADR-003, -008, -016, -018, -021, and -023 now cite the spikes. A new check (S-01 addendum) showed that a page can read `x-ratelimit-reset` and `retry-after`.
 
 **Exit:** verified authenticated CRUD in a browser for a private repo, with explicit boundary/limits. Met on 2026-10-28 (S-02 browser run).
@@ -48,14 +48,23 @@ Build in **small vertical slices**. The first meaningful release must prove the 
 - [x] Browser and GitHub adapter failure-path E2E tests. `docs/10` lists each failure, what GitCRM does, and its test. `e2e/failures.spec.ts` adds 14: a truncated tree, query timeouts, newer or invalid workspace settings, a revoked token or lost write access during a session, a rate-limited save, a GitHub error on a save, lost responses, a write refused for another reason, a save beside another user's commit, two delete failures, and blocked browser storage. A `403` on a save now says to Refresh. Not tested: a renamed repository and a branch that requires pull requests (`docs/12`).
 - [x] CSP and static bundle audits. The built `index.html` carries a strict policy with Trusted Types; `npm run build` audits `dist/` for weaker policies, inline code, source maps, token-shaped strings, real email addresses, and unreviewed hosts (docs/07). Every browser test now runs against the built app, and a policy violation fails it. `e2e/security.spec.ts` adds 3. The `frame-ancestors` header comes with the deployment.
 - [x] Accessibility pass. `e2e/accessibility.spec.ts` adds 24 tests: axe's WCAG 2.2 AA and best-practice rules on 20 pages and 8 states, focus indicators and field borders at 3:1, and the keyboard-only path. Three theme tokens are darker: `--destructive`, `--input`, and `--ring`. The "Delete" button and fields with errors now show the usual focus ring. Reflow is checked at 320 pixels. Still to do by a person: a screen reader run, text at 200%, and Windows contrast themes (docs/08).
-- [x] Deploy the same build to Cloudflare Pages (the official copy) and GitHub Pages (ADR-010). `.github/workflows/deploy.yml` tests each push to `main`, deploys that same `dist/` to `gitcrm.pages.dev`, and checks the live site (spec 09, ADR-024). The build's `_headers` file sends the policy with `frame-ancestors 'none'`, and the audit checks it. Until the public release, it also sends `X-Robots-Tag: noindex`. No live GitHub Pages copy (owner decision 2026-10-31): the `github-pages` browser project serves the same build from `/GitCRM/` with no custom headers.
-- [x] Performance optimization based on recorded measurements only. `e2e/bench.spec.ts` measured 100, 500, and 2,000 records, also with a 4 times slower CPU and on the official copy over slow 4G (docs/06, "Measured in the browser"). At 2,000 records, completing a task on Tasks missed the 2 s save target. Lists now come in pages of 50 (spec 08), rows are memos, and a new snapshot keeps each unchanged record. Every target now passes with room to spare.
+- [x] Deploy the same build to a static host (ADR-010). From 2026-10-28 to 2026-10-31 this was a central copy on Cloudflare Pages (ADR-024); "Template distribution" below replaced it.
+- [x] Performance optimization based on recorded measurements only. `e2e/bench.spec.ts` measured 100, 500, and 2,000 records, also with a 4 times slower CPU and on the central copy over slow 4G (docs/06, "Measured in the browser"). At 2,000 records, completing a task on Tasks missed the 2 s save target. Lists now come in pages of 50 (spec 08), rows are memos, and a new snapshot keeps each unchanged record. Every target now passes with room to spare.
 
 **Exit:** MVP acceptance criteria pass, exports validate, no critical security issues remain.
 
 ## Right after the MVP
 
 - [x] Typed custom fields (ADR-020, spec 10). Settings has a "Custom fields" card. The contact, company, and opportunity forms and pages show the fields, and search finds their values. A save keeps the values its form cannot show, and a conflict compares each field on its own. `.gitcrm/workspace.json` is `schemaVersion` 2 when it has fields. No list columns, sort, or filters yet. The stage card and the custom fields card each own one part of that file. A save keeps a loaded change to the other part.
+
+### Template distribution
+
+Owner decision 2026-10-31, after the first run against a real repository (ADR-025, ADR-026).
+
+- [x] 1. Distribution. Each copy of the template deploys to its own GitHub Pages site with no secrets (spec 09). The central copy, its Cloudflare deploy, and `deploy/` are removed. The README is the setup guide.
+- [ ] 2. The setup screen. Read the owner from the Pages address. Link to a pre-filled `github.com/new` form for the private data repository, then to the token form. Initialize on an empty repository: Connect treats the write check's `409` "Git Repository is empty." as an empty repository (S-09).
+- [ ] 3. Template updates. A scheduled workflow, also run by hand, opens a pull request when the template has a new release. The workflow's own token cannot change `.github/workflows/`, so the pull request lists those files for a manual step. The copy's history is unrelated to the template's, so the update compares files, not commits.
+- [ ] 4. A manual run on the owner's own copy, from "Use this template" to the first record.
 
 ## Future considerations (not promises)
 

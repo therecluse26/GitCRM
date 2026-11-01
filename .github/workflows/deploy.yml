@@ -1,9 +1,12 @@
-# Deploys main to the official copy on Cloudflare Pages (spec 09, ADR-024). This is a software
-# task, not CRM work (ADR-006): no CRM data passes through it.
+# Deploys main to this repository's GitHub Pages site (spec 09, ADR-025). Every copy of the
+# template runs it. This is a software task, not CRM work (ADR-006): no CRM data passes through it.
 #
-# The build job has no secrets. It runs every check and builds once. The deploy job gets only the
-# Cloudflare token: it uploads that same build with wrangler from deploy/package-lock.json, then
-# checks the live site. Actions are pinned to commit SHAs, because a tag can move.
+# No secrets. The build job runs every check and builds once. The deploy job, with only the
+# workflow's own token, deploys that same build and runs no project code. The check job reads the
+# live site. Actions are pinned to commit SHAs, because a tag can move.
+#
+# The workflow cannot turn on Pages. Set Settings > Pages > Source to "GitHub Actions" first;
+# until then the deploy job fails at "Configure Pages".
 name: Deploy
 
 on:
@@ -49,9 +52,35 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+  # The template itself never deploys, so it never becomes a central copy (ADR-025).
   deploy:
     needs: build
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && !github.event.repository.is_template
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    outputs:
+      page_url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Configure Pages
+        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: dist
+          path: dist
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: dist
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
+
+  check:
+    needs: deploy
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
@@ -68,12 +97,7 @@ jobs:
         with:
           name: dist
           path: dist
-      - run: npm ci --prefix deploy --no-audit --no-fund
-      - name: Upload dist/ to Cloudflare Pages
-        run: deploy/node_modules/.bin/wrangler pages deploy dist --project-name gitcrm --branch main --commit-hash "$GITHUB_SHA"
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          WRANGLER_SEND_METRICS: 'false'
       - name: Check the live site
-        run: node scripts/check-deploy.ts https://gitcrm.pages.dev/ dist
+        run: node scripts/check-deploy.ts "$PAGE_URL" dist
+        env:
+          PAGE_URL: ${{ needs.deploy.outputs.page_url }}

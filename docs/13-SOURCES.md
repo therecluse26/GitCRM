@@ -1,6 +1,6 @@
 # Primary Research References
 
-**Checked:** 2026-10-26; terms, limits, and PAT pages read again on 2026-10-28 (S-05); Cloudflare terms read on 2026-10-28 (S-06); Cloudflare Pages deployment pages and GitHub's plans read on 2026-10-31 (spec 09). Provider documentation evolves; validate again before implementing or publishing hard promises. Links are references, not substitutes for an end-to-end security test.
+**Checked:** 2026-10-26; terms, limits, and PAT pages read again on 2026-10-28 (S-05); Cloudflare terms read on 2026-10-28 (S-06); Cloudflare Pages deployment pages and GitHub's plans read on 2026-10-31 (spec 09); OAuth, Pages workflow, and template pages read on 2026-10-31 (S-09). Provider documentation evolves; validate again before implementing or publishing hard promises. Links are references, not substitutes for an end-to-end security test.
 
 ## GitHub API
 
@@ -35,6 +35,11 @@
 - [Archiving repositories - read-only for all users](https://docs.github.com/en/repositories/archiving-a-github-repository/archiving-repositories)
 - [Removing sensitive data from Git history - caveats and GitHub Support](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/removing-sensitive-data-from-a-repository)
 - [GitHub Pages public sites even from private repositories](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site)
+- [Authorizing OAuth apps - the token exchange needs `client_secret`; the device flow](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps)
+- [actions/configure-pages - `enablement` needs a token other than `GITHUB_TOKEN`](https://github.com/actions/configure-pages)
+- [Using custom workflows with GitHub Pages - `pages: write`, `id-token: write`](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages)
+- [Creating a repository from a template - one commit, unrelated history](https://docs.github.com/en/repositories/creating-and-managing-repositories/creating-a-repository-from-a-template)
+- Cloudflare pages below served the central copy, which ADR-025 removed. They stay for owners who deploy there.
 - [Cloudflare Self-Serve Subscription Agreement - restrictions and acceptable use](https://www.cloudflare.com/terms/)
 - [Cloudflare Developer Platform Service-Specific Terms - Pages](https://www.cloudflare.com/service-specific-terms-developer-platform/)
 - [Cloudflare Pages limits](https://developers.cloudflare.com/pages/platform/limits/)

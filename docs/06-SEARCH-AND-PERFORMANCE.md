@@ -90,7 +90,7 @@ Against the targets, at 2,000 records with the slow CPU:
 
 | Target | App's own time | GitHub's time | Total |
 | --- | --- | --- | --- |
-| Page load with a warm cache, under 1 s | 590 ms; 598 ms on the official copy over slow 4G | None: the cached records show first, then the ref check runs (~0.2 s, S-04) | About 0.6 s |
+| Page load with a warm cache, under 1 s | 590 ms; 598 ms on the central copy over slow 4G | None: the cached records show first, then the ref check runs (~0.2 s, S-04) | About 0.6 s |
 | Save one record, under 2 s | 313 ms from the contact form; 327 ms to complete a task on Tasks | 0.7–0.8 s (S-02) | About 1.1 s |
 | First load on a new device, 500 records, under 10 s | 1.86 s for the Connect screen over slow 4G, then 299 ms from Connect | 3.1–4.8 s (S-04) | About 5–7 s, plus typing the token |
 
@@ -119,7 +119,7 @@ Other results:
 
 - Bytes from the host on a new device: 197 KB, compressed with Brotli by Pages. A warm visit gets about 1 KB: Pages sends `Cache-Control: public, max-age=0, must-revalidate` for every file, so the browser asks again for each one. The warm load still meets its target, so `_headers` has no caching rule.
 - JavaScript heap after the first load: 5 MB at 100 records, 6 MB at 500, and 7 MB at 2,000.
-- The official copy over slow 4G (150 ms, 1.6 Mbit/s down) with the slow CPU: the Connect screen in 1.73–1.86 s, and the warm page load in 467 ms (100 records) to 598 ms (2,000). These runs used `main` at `9d05d51`, before this change.
+- The central copy on Cloudflare Pages (removed by ADR-025) over slow 4G (150 ms, 1.6 Mbit/s down) with the slow CPU: the Connect screen in 1.73–1.86 s, and the warm page load in 467 ms (100 records) to 598 ms (2,000). These runs used `main` at `9d05d51`, before this change.
 - The Pipeline board has pages of 50 in each column. At 2,000 records, a column has about 40 cards, so the board still draws about 200: 376 ms with the slow CPU.
 - The Base UI checkbox costs about 1 ms per draw with the slow CPU. With 50 rows on a page, that cost is small, so the checkbox stays.
 

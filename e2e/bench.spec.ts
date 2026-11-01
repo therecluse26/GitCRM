@@ -1,8 +1,8 @@
 // docs/06, "Measured in the browser": times the built app against the fake GitHub, so each number
 // is the app's own time. GitHub's time comes from spikes S-02 and S-04. Opt-in, one worker:
 //   BENCH=1 npx playwright test --project bench
-// BENCH_CPU=4 makes the CPU 4 times slower, like a modest laptop. BENCH_URL=https://gitcrm.pages.dev/
-// times the official copy, and BENCH_NETWORK=1 adds a slow 4G network (150 ms, 1.6 Mbit/s down).
+// BENCH_CPU=4 makes the CPU 4 times slower, like a modest laptop. BENCH_URL=https://<owner>.github.io/<repo>/
+// times a deployed copy, and BENCH_NETWORK=1 adds a slow 4G network (150 ms, 1.6 Mbit/s down).
 // Playwright turns off the HTTP cache while a route is on. So with BENCH_NETWORK, the warm page load
 // runs with no route and api.github.com blocked, and the run stops there: the later steps use only
 // the fake GitHub, which the slow network does not slow down.

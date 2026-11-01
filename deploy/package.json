@@ -1,8 +1,0 @@
-{
-  "name": "gitcrm-deploy",
-  "private": true,
-  "description": "The deploy tool for the official copy, pinned by its own lockfile (spec 09). Only the workflow's deploy job installs it.",
-  "dependencies": {
-    "wrangler": "4.151.1"
-  }
-}
