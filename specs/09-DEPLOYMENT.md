@@ -87,4 +87,5 @@ Scenario: The same build runs from a folder, with no custom headers (the GitHub 
 - If the live check fails, the new deployment is already live. Revert the commit on `main`. The workflow then deploys the reverted build.
 - A copy runs this workflow on its owner's Actions minutes. A public repository runs it at no cost.
 - The deploy status of the first run in a new copy is not verified yet: GitHub may or may not run the workflow on the commit that the template creates (docs/12, "Not verified yet").
+- The template guard is verified: on the merge of PR #21 (2026-11-01, 00:02 EDT), the build job passed, and the deploy and check jobs were skipped.
 - On GitHub Pages, `_headers` is a plain public file that holds only the policy and the `noindex` line.

@@ -22,7 +22,7 @@ This is the supported route for the alpha and the public release (ADR-008). Its 
 
 1. Open the static application over HTTPS.
 2. Select "Connect existing private GitHub repository".
-3. Enter `owner/repo`. The app then shows a link to GitHub's token form, filled in for that owner with `Contents: Read and write` (S-07). The link cannot select the repo, so the instructions say to choose "Only select repositories" and pick it.
+3. Enter `owner/repo`. On a GitHub Pages site, the field starts as `<site owner>/gitcrm-data`. A link opens GitHub's new-repository form, filled in with that name and owner, private (ADR-025, S-09). Unverified: whether the form accepts an organization as `owner`. The app then shows a link to GitHub's token form, filled in for that owner with `Contents: Read and write` (S-07). The link cannot select the repo, so the instructions say to choose "Only select repositories" and pick it.
 4. Paste the new PAT.
 5. Verify repo `private = true` and `archived = false`, read its `default_branch` (any name, ADR-003), and confirm that content read/write is possible. `permissions.push` stays `true` on an archived repo (S-08). `permissions` shows the user's role on the repo, not the PAT's permissions (S-02 browser run), so it cannot detect a read-only token. Instead, send one write check, `POST git/blobs`: it stores a small blob that no file or branch uses. `201` means the token can write; `403` means a read-only token (S-02 read-only run).
 6. Check for `.gitcrm/workspace.json`. If absent, show an explicit Initialize action.
@@ -36,7 +36,7 @@ Do not automatically initialize arbitrary repositories just because a user has p
 - Repo public: **refuse** to initialize or write; explain how to create a private repository. If visibility later becomes public, stop and prominently warn (old public commits may already have leaked data). Built: every page load and refresh runs the connect checks again, and a repo that turned public hides its records behind a warning. Background checks on tab focus read `main` only (ADR-023), so a repo that turns public while a tab is open is caught at the next page load or Refresh.
 - Expired or revoked token: prompt to reconnect; never retry indefinitely. Built: on a page load, the app deletes the stored token and shows the connect screen with the repo name filled in. The record cache stays until Disconnect.
 - GitHub unreachable or rate-limiting on a page load: the app keeps showing the cached records, read-only, with a notice. Refresh retries.
-- Repo with no commits: the app says to add a file on GitHub first. Unverified: the status GitHub returns (the app treats `404` and `409` the same).
+- Repo with no commits: Connect offers Initialize, and Initialize makes the first commit through the Contents API. GitHub answers the Git data API, and so the write check, with `409` "Git Repository is empty." (S-09). Connect treats that `409` as an empty repo, not as a refusal, and does not know yet whether the token can write: the Initialize write decides. A `404` for the default branch of a repo with commits still says the branch has no commits. Unverified: a Contents API PUT to an empty repo with a fine-grained PAT.
 - "Remember on this device" unchecked: the app stores neither the token nor records, and it clears any record cache this browser already had.
 - Missing write permission: read-only screen with explanation.
 - Archived repo (`archived = true`): read-only screen that says to unarchive the repo. Writes return `403` "Repository was archived so is read-only." (S-08).
