@@ -64,14 +64,26 @@ Scenario: Two people change different custom fields
 Scenario: A stored value that does not fit
   Given Ava Bennett's file stores "employees": "many" for the Number field "Employees"
   When the workspace loads
-  Then Settings lists her file under "Files that need attention"
-  And her page shows the stored value with "Not a valid number"
-  And her record still loads, and nothing rewrites the value
+  Then Settings lists the contact's file under "Files that need attention"
+  And the contact page shows the stored value with "Not a valid number"
+  And the record still loads, and nothing rewrites the value
 
 Scenario: An older GitCRM opens the workspace
   Given .gitcrm/workspace.json has custom fields, so it has schemaVersion 2
   When a GitCRM that knows only version 1 opens the workspace
   Then it says a newer version of GitCRM set up the workspace, and it writes nothing
+
+Scenario: Both Settings cards have unsaved changes
+  Given I renamed a stage and added a custom field, and saved neither
+  When I save the stages, then save the custom fields
+  Then both saves succeed, one commit each
+  And .gitcrm/workspace.json has the new stage name and the new field
+
+Scenario: Someone else changed the custom fields first
+  Given I have unsaved custom field changes
+  And someone else saved other custom field changes
+  When I save
+  Then nothing is saved, and the card asks me to load the latest custom fields
 ```
 
 ## Notes
@@ -99,7 +111,7 @@ Scenario: An older GitCRM opens the workspace
 
 ## Error handling
 
-A conflict on the settings file saves nothing: the card asks to load the latest custom fields, the same as the stage editor (spec 03). A failed save keeps the draft and says why. A form never sends a value that does not fit its field.
+Two Settings cards save `.gitcrm/workspace.json`. The stage card owns `pipelineStages`, and the custom fields card owns `customFields`. Say the file changed after a card's draft began, but not in the card's own part. Then the card saves against the newer file, so the other change stays. Say the card's own part changed. Then the save is a conflict and saves nothing: the card asks to load the latest custom fields, the same as the stage editor (spec 03). A change that this browser has not loaded yet is a conflict too, because GitHub refuses the old blob SHA. A failed save keeps the draft and says why. A form never sends a value that does not fit its field.
 
 ## Test gate
 

@@ -55,7 +55,7 @@ Build in **small vertical slices**. The first meaningful release must prove the 
 
 ## Right after the MVP
 
-- [x] Typed custom fields (ADR-020, spec 10). Settings has a "Custom fields" card. The contact, company, and opportunity forms and pages show the fields, and search finds their values. A save keeps the values its form cannot show, and a conflict compares each field on its own. `.gitcrm/workspace.json` is `schemaVersion` 2 when it has fields. No list columns, sort, or filters yet.
+- [x] Typed custom fields (ADR-020, spec 10). Settings has a "Custom fields" card. The contact, company, and opportunity forms and pages show the fields, and search finds their values. A save keeps the values its form cannot show, and a conflict compares each field on its own. `.gitcrm/workspace.json` is `schemaVersion` 2 when it has fields. No list columns, sort, or filters yet. The stage card and the custom fields card each own one part of that file. A save keeps a loaded change to the other part.
 
 ## Future considerations (not promises)
 
