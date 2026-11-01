@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { addStage, isTerminal, moveStage, removeStage, renameStage, sortStages, stageLabelErrors, type Stage } from '@/core/stages.ts';
+import { saveBase } from '@/core/workspace.ts';
 import { stateForError, type OperationState } from '@/storage/operation-state.ts';
 import type { WorkspaceSnapshot } from '@/storage/workspace-repository.ts';
 import { TextField } from '@/ui/form-fields.tsx';
@@ -72,7 +73,8 @@ export function StageEditor() {
     setState({ status: 'saving' });
     try {
       const pipelineStages = draft.stages.map((s) => ({ ...s, label: s.label.trim() }));
-      await useApp.getState().saveWorkspace({ ...draft.base.config, pipelineStages }, draft.base.blobSha);
+      const target = saveBase(draft.base, workspace, (config) => config.pipelineStages);
+      await useApp.getState().saveWorkspace({ ...target.config, pipelineStages }, target.blobSha);
       setDraft(null);
       setState({ status: 'idle' });
     } catch (error) {

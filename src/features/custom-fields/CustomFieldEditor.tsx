@@ -30,6 +30,7 @@ import {
   type CustomRecordType,
 } from '@/core/custom-fields.ts';
 import { CUSTOM_FIELD_TYPES, CUSTOM_RECORD_TYPES } from '@/core/schemas.ts';
+import { saveBase } from '@/core/workspace.ts';
 import { stateForError, type OperationState } from '@/storage/operation-state.ts';
 import type { WorkspaceSnapshot } from '@/storage/workspace-repository.ts';
 import { SelectField, TextField } from '@/ui/form-fields.tsx';
@@ -82,7 +83,8 @@ export function CustomFieldEditor() {
     if (Object.keys(found).length > 0) return;
     setState({ status: 'saving' });
     try {
-      await useApp.getState().saveWorkspace(withCustomFields(draft.base.config, draft.sets), draft.base.blobSha);
+      const target = saveBase(draft.base, workspace, (config) => config.customFields);
+      await useApp.getState().saveWorkspace(withCustomFields(target.config, draft.sets), target.blobSha);
       setDraft(null);
       setState({ status: 'idle' });
     } catch (error) {
