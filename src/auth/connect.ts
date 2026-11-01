@@ -50,8 +50,13 @@ export async function inspectRepository(client: GitHubClient, owner: string, rep
 // ADR-025: a copy runs at <owner>.github.io/<app repo>/, and its owner makes the data repo
 // beside it. On another host there is nothing to suggest.
 export function suggestedRepo(hostname: string): { owner: string; repo: string } | null {
-  const match = /^([A-Za-z0-9-]{1,39})\.github\.io$/i.exec(hostname);
-  return match ? { owner: match[1], repo: 'gitcrm-data' } : null;
+  const owner = pagesOwner(hostname);
+  return owner ? { owner, repo: 'gitcrm-data' } : null;
+}
+
+// The owner of a GitHub Pages site, <owner>.github.io (ADR-025).
+export function pagesOwner(hostname: string): string | null {
+  return /^([A-Za-z0-9-]{1,39})\.github\.io$/i.exec(hostname)?.[1] ?? null;
 }
 
 // GitHub's new-repository form, filled in as a private repo (S-09). `@me` is the signed-in user.

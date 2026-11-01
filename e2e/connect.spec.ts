@@ -6,7 +6,7 @@ import { newWorkspaceConfig } from '../src/core/workspace.ts';
 import type { FakeGitHub } from '../src/test/fake-github.ts';
 import { expect, test, type Page } from './fixtures.ts';
 import { connect } from './connect-page.ts';
-import { routeFakeGitHub } from './fake-route.ts';
+import { PAGES_SITE, routeFakeGitHub, servePagesSite } from './fake-route.ts';
 
 async function seedWorkspace(fake: FakeGitHub) {
   await fake.seed(WORKSPACE_PATH, serializeWorkspace(newWorkspaceConfig({ name: 'Example Studio', defaultCurrency: 'USD' })));
@@ -67,14 +67,10 @@ test('the link to a new data repository fills in a private repo, from what I typ
   expect(await newRepoParams(page)).toMatchObject({ name: 'crm-records', owner: 'octo-dev', visibility: 'private' });
 });
 
-// ADR-025: each copy runs at <owner>.github.io/<app repo>/. The route serves the same build there.
 test('on my GitHub Pages site, Repository starts as <owner>/gitcrm-data', async ({ page, baseURL }) => {
   await routeFakeGitHub(page);
-  await page.route('https://octo-dev.github.io/gitcrm/**', async (route) => {
-    const path = new URL(route.request().url()).pathname.replace('/gitcrm/', '');
-    await route.fulfill({ response: await route.fetch({ url: new URL(path, baseURL).href }) });
-  });
-  await page.goto('https://octo-dev.github.io/gitcrm/');
+  await servePagesSite(page, baseURL!);
+  await page.goto(PAGES_SITE);
   await expect(page.getByLabel('Repository', { exact: true })).toHaveValue('octo-dev/gitcrm-data');
   expect(await newRepoParams(page)).toMatchObject({ name: 'gitcrm-data', owner: 'octo-dev', visibility: 'private' });
 });
