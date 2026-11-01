@@ -195,7 +195,7 @@ export function DevPage() {
           <h2>Contacts</h2>
           <button type="button" onClick={load}>Load snapshot</button>
           {snapshot && <p>Commit {snapshot.commitSha?.slice(0, 7) ?? 'unknown'}: {contacts.length} contacts, {snapshot.issues.length} file issues.</p>}
-          {snapshot?.issues.map((issue) => <p key={issue.path}>{issue.path}: {issue.message}</p>)}
+          {snapshot?.issues.map((issue) => <p key={`${issue.path}:${issue.code}`}>{issue.path}: {issue.message}</p>)}
           <ul>
             {contacts.map(({ record, blobSha }) => (
               <li key={record.id}>

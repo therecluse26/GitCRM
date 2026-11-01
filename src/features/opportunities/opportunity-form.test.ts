@@ -23,7 +23,7 @@ const saved: OpportunityFields = {
 
 describe('opportunityValues', () => {
   it('starts a new opportunity in the given stage and currency', () => {
-    expect(opportunityValues(null, defaults)).toEqual({ title: '', stageId: 'lead', value: '', currency: 'USD', expectedCloseDate: '', companyId: '', contactIds: [] });
+    expect(opportunityValues(null, defaults)).toEqual({ title: '', stageId: 'lead', value: '', currency: 'USD', expectedCloseDate: '', companyId: '', contactIds: [], custom: {} });
   });
 
   it('shows a saved amount with all its decimal places', () => {

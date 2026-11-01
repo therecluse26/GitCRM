@@ -13,7 +13,7 @@ As a solo consultant, I want to maintain contacts and companies, with lightweigh
 - Companies: create, view, edit name/website/tags, archive, unarchive, and safe deletion.
 - Detail views show related records and recent manual activities.
 - List views support filters, search, and sensible sort (name, recently updated).
-- No custom-field UI in the MVP (planned first after it, ADR-020); saves keep any existing `customFields` values unchanged. No deduplication engine, enrichment, or email integration.
+- Custom fields are in spec 10. No deduplication engine, enrichment, or email integration.
 
 ## Acceptance criteria
 

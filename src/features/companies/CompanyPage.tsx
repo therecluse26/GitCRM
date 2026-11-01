@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { linkButton } from '@/ui/link-button.ts';
 import { ArchivedBadge, Detail, Pager, Problem, RecordNotFound, Tags } from '@/ui/record-page.tsx';
+import { CustomFieldDetails } from '../custom-fields/CustomFields.tsx';
 import { onePage } from '../list-page.ts';
 import { RelatedOpportunities } from '../opportunities/RelatedOpportunities.tsx';
 import { ActivityTimeline } from '../activities/ActivityTimeline.tsx';
@@ -61,6 +62,7 @@ export function CompanyPage() {
             <Detail label="Tags">
               <Tags tags={company.tags} />
             </Detail>
+            <CustomFieldDetails type="company" values={company.customFields} />
             <Detail label="Last updated">{formatDate(company.updatedAt)}</Detail>
           </dl>
         </CardContent>

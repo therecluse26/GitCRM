@@ -1,6 +1,7 @@
-// Typed access to the records and the pipeline stages in the current snapshot.
+// Typed access to the records, the pipeline stages, and the custom fields in the current snapshot.
 import { useMemo } from 'react';
 import { useApp } from '@/app/store.ts';
+import { fieldSets, type CustomFieldSets } from '@/core/custom-fields.ts';
 import type { RecordOf, RecordType } from '@/core/schemas.ts';
 import { sortStages, type Stage } from '@/core/stages.ts';
 import type { VersionedRecord, WorkspaceSnapshot } from '@/storage/workspace-repository.ts';
@@ -47,6 +48,12 @@ export function readNewRecordSearch({ companyId, contactId, related }: Record<st
 export function useStages(): Stage[] {
   const stages = useApp((s) => s.snapshot?.workspace?.config.pipelineStages);
   return useMemo(() => sortStages(stages ?? []), [stages]);
+}
+
+// The same for the custom field definitions (spec 10), sorted, with empty lists when there are none.
+export function useFieldSets(): CustomFieldSets {
+  const sets = useApp((s) => s.snapshot?.workspace?.config.customFields);
+  return useMemo(() => fieldSets(sets && { customFields: sets }), [sets]);
 }
 
 export function formatDate(timestamp: string): string {

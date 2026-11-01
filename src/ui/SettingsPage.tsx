@@ -1,9 +1,11 @@
-// Settings (docs/08): workspace, pipeline stages, connection health, files that need attention, export, and Disconnect.
+// Settings (docs/08): workspace, pipeline stages, custom fields, connection health, files that need
+// attention, export, and Disconnect.
 import { useNavigate } from '@tanstack/react-router';
 import { useState, type ReactNode } from 'react';
 import { useApp } from '@/app/store.ts';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { CustomFieldEditor } from '@/features/custom-fields/CustomFieldEditor.tsx';
 import { StageEditor } from '@/features/opportunities/StageEditor.tsx';
 import { ExportCard } from './ExportCard.tsx';
 
@@ -50,6 +52,8 @@ export function SettingsPage() {
 
       <StageEditor />
 
+      <CustomFieldEditor />
+
       <Card>
         <CardHeader>
           <CardTitle>
@@ -81,7 +85,7 @@ export function SettingsPage() {
           {snapshot?.issues.length ? (
             <ul aria-label="Files that need attention" className="flex flex-col gap-2 text-sm">
               {snapshot.issues.map((issue) => (
-                <li key={issue.path}>
+                <li key={`${issue.path}:${issue.code}`}>
                   <code className="break-all">{issue.path}</code>: {issue.message}
                 </li>
               ))}

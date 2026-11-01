@@ -55,7 +55,7 @@ Build in **small vertical slices**. The first meaningful release must prove the 
 
 ## Right after the MVP
 
-- Typed custom fields (ADR-020, design in `docs/02-DATA-MODEL.md`).
+- [x] Typed custom fields (ADR-020, spec 10). Settings has a "Custom fields" card. The contact, company, and opportunity forms and pages show the fields, and search finds their values. A save keeps the values its form cannot show, and a conflict compares each field on its own. `.gitcrm/workspace.json` is `schemaVersion` 2 when it has fields. No list columns, sort, or filters yet.
 
 ## Future considerations (not promises)
 

@@ -13,9 +13,10 @@ export function sortStages(stages: Stage[]): Stage[] {
   return renumber(stages.toSorted((a, b) => a.position - b.position));
 }
 
-// "Quote sent" -> "quote-sent", or "quote-sent-2" when that is taken (docs/02). The base stops at
-// 56 characters, so a number still fits in the 64-character limit.
-export function stageIdFor(label: string, taken: ReadonlySet<string>): string {
+// "Quote sent" -> "quote-sent", or "quote-sent-2" when that is taken (docs/02). Stage, custom
+// field, and option IDs all come from here. The base stops at 56 characters, so a number still
+// fits in the 64-character limit.
+export function idFor(label: string, taken: ReadonlySet<string>, fallback: string): string {
   const slug = label
     .normalize('NFD')
     .replace(/\p{Diacritic}/gu, '')
@@ -23,10 +24,12 @@ export function stageIdFor(label: string, taken: ReadonlySet<string>): string {
     .replace(/[^a-z0-9]+/g, '-')
     .slice(0, 56)
     .replace(/^-+|-+$/g, '');
-  const base = slug || 'stage';
+  const base = slug || fallback;
   if (!taken.has(base)) return base;
   for (let n = 2; ; n++) if (!taken.has(`${base}-${n}`)) return `${base}-${n}`;
 }
+
+export const stageIdFor = (label: string, taken: ReadonlySet<string>) => idFor(label, taken, 'stage');
 
 // A new stage goes before the first terminal stage.
 export function addStage(stages: Stage[], label: string): Stage[] {

@@ -3,7 +3,7 @@ import { expect, type Page } from '@playwright/test';
 import { recordPath, WORKSPACE_PATH } from '../src/core/paths.ts';
 import { serializeRecord, serializeWorkspace } from '../src/core/record-file.ts';
 import { newRecord } from '../src/core/records.ts';
-import type { Activity, Company, Contact, CRMRecord, Opportunity, Task } from '../src/core/schemas.ts';
+import type { Activity, Company, Contact, CRMRecord, Opportunity, Task, WorkspaceConfig } from '../src/core/schemas.ts';
 import { newWorkspaceConfig } from '../src/core/workspace.ts';
 import type { FakeGitHub, FakeGitHubOptions } from '../src/test/fake-github.ts';
 import { connect } from './connect-page.ts';
@@ -34,17 +34,19 @@ export function activity(body: string, changes: Partial<Activity> = {}): Activit
   return { ...newRecord('activity', { kind: 'note', body, occurredAt: '2026-10-26T16:15:00Z', related: null }, { now }), ...changes };
 }
 
-export async function seedWorkspace(fake: FakeGitHub, records: CRMRecord[]) {
-  await fake.seed(WORKSPACE_PATH, serializeWorkspace(newWorkspaceConfig({ name: 'Example Studio', defaultCurrency: 'USD' })));
+export const exampleConfig = () => newWorkspaceConfig({ name: 'Example Studio', defaultCurrency: 'USD' });
+
+export async function seedWorkspace(fake: FakeGitHub, records: CRMRecord[], config: WorkspaceConfig = exampleConfig()) {
+  await fake.seed(WORKSPACE_PATH, serializeWorkspace(config));
   for (const record of records) await fake.seed(recordPath(record.type, record.id), serializeRecord(record));
 }
 
 export const homeHeading = (page: Page) => page.getByRole('heading', { level: 1, name: 'Example Studio' });
 
 // A connected workspace holding `records`, with the home page on screen.
-export async function open(page: Page, records: CRMRecord[] = [], options: FakeGitHubOptions = {}) {
+export async function open(page: Page, records: CRMRecord[] = [], options: FakeGitHubOptions = {}, config?: WorkspaceConfig) {
   const fake = await routeFakeGitHub(page, options);
-  await seedWorkspace(fake, records);
+  await seedWorkspace(fake, records, config);
   await connect(page, fake);
   await expect(homeHeading(page)).toBeVisible();
   return fake;

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { CustomFieldSets } from '@/core/custom-fields.ts';
 import { formatMoney } from '@/core/money.ts';
 import { recordPath } from '@/core/paths.ts';
 import { newRecord } from '@/core/records.ts';
@@ -43,6 +44,24 @@ describe('search', () => {
 
   it('finds a contact by name, email, phone, tag, and company name', () => {
     for (const query of ['bennett', 'ava@north', '555 0100', 'vip', 'traders']) expect(found(find(query)).contact, query).toEqual(['Ava Bennett']);
+  });
+
+  it('finds the shown values of custom fields, but not removed ones (spec 10)', () => {
+    const fields: CustomFieldSets = {
+      contact: [
+        { id: 'source', label: 'Lead source', type: 'select', position: 0, archived: false, options: [{ id: 'referral', label: 'Word of mouth', archived: false }] },
+        { id: 'note', label: 'Note', type: 'text', position: 1, archived: false, options: [] },
+        { id: 'old', label: 'Old', type: 'text', position: 2, archived: true, options: [] },
+      ],
+      company: [],
+      opportunity: [],
+    };
+    const lee = contact('Lee Park', { customFields: { source: 'referral', note: 'met at the expo', old: 'hidden words' } });
+    const findIn = (query: string) => found(search(indexRecords([saved(lee)], stages, fields), { ...DEFAULT_SEARCH_VIEW, query })).contact;
+    expect(findIn('mouth')).toEqual(['Lee Park']);
+    expect(findIn('expo')).toEqual(['Lee Park']);
+    expect(findIn('referral')).toBeUndefined();
+    expect(findIn('hidden')).toBeUndefined();
   });
 
   it('finds a company by name, website, and tag', () => {

@@ -2,17 +2,17 @@
 // even if GitCRM wrote it; a bad file becomes a visible issue, never a silent drop.
 import type { z } from 'zod';
 import { parseRecordPath, WORKSPACE_PATH } from './paths.ts';
-import { recordSchemas, workspaceSchema, type CRMRecord, type WorkspaceConfig } from './schemas.ts';
+import { recordSchemas, WORKSPACE_VERSION, workspaceSchema, type CRMRecord, type WorkspaceConfig } from './schemas.ts';
 
 // Size cap for one file (docs/07); a larger file is reported, not parsed.
 export const MAX_FILE_BYTES = 100 * 1024;
 
-// 'broken-link' (core/links.ts) is the one code whose record still loads.
-export type FileIssueCode = 'too-large' | 'invalid-json' | 'unsupported-version' | 'invalid-record' | 'path-mismatch' | 'unrecognized-path' | 'broken-link';
+// With 'broken-link' (core/links.ts) and 'custom-field' (core/custom-fields.ts), the record still loads.
+export type FileIssueCode = 'too-large' | 'invalid-json' | 'unsupported-version' | 'invalid-record' | 'path-mismatch' | 'unrecognized-path' | 'broken-link' | 'custom-field';
 export type FileIssue = { path: string; code: FileIssueCode; message: string };
 
 // The issues of files that did not load.
-export const unreadable = (issues: FileIssue[]) => issues.filter((issue) => issue.code !== 'broken-link');
+export const unreadable = (issues: FileIssue[]) => issues.filter((issue) => issue.code !== 'broken-link' && issue.code !== 'custom-field');
 
 type Failure = { ok: false; issue: FileIssue };
 
@@ -31,7 +31,7 @@ export function serializeWorkspace(config: WorkspaceConfig): string {
 export function parseRecordFile(path: string, text: string): { ok: true; record: CRMRecord } | Failure {
   const location = parseRecordPath(path);
   if (!location) return { ok: false, issue: unrecognizedPath(path) };
-  const json = readJson(path, text);
+  const json = readJson(path, text, 1);
   if (!json.ok) return json;
   if (json.value.type !== location.type) return failure(path, 'path-mismatch', `The file is in the ${location.type} folder but has type ${String(json.value.type)}`);
   const result = recordSchemas[location.type].safeParse(json.value);
@@ -45,7 +45,7 @@ export function unrecognizedPath(path: string): FileIssue {
 }
 
 export function parseWorkspaceFile(text: string): { ok: true; config: WorkspaceConfig } | Failure {
-  const json = readJson(WORKSPACE_PATH, text);
+  const json = readJson(WORKSPACE_PATH, text, WORKSPACE_VERSION);
   if (!json.ok) return json;
   const result = workspaceSchema.safeParse(json.value);
   if (!result.success) return failure(WORKSPACE_PATH, 'invalid-record', describe(result.error));
@@ -56,7 +56,7 @@ function toText(value: unknown): string {
   return `${JSON.stringify(value, null, 2)}\n`;
 }
 
-function readJson(path: string, text: string): { ok: true; value: Record<string, unknown> } | Failure {
+function readJson(path: string, text: string, newest: number): { ok: true; value: Record<string, unknown> } | Failure {
   if (new TextEncoder().encode(text).length > MAX_FILE_BYTES) return failure(path, 'too-large', `The file is over ${MAX_FILE_BYTES} bytes`);
   let value: unknown;
   try {
@@ -67,7 +67,7 @@ function readJson(path: string, text: string): { ok: true; value: Record<string,
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return failure(path, 'invalid-record', 'The file is not a JSON object');
   const version = (value as Record<string, unknown>).schemaVersion;
   // A newer GitCRM wrote this file; older clients must not rewrite it.
-  if (typeof version === 'number' && version > 1) return failure(path, 'unsupported-version', `Schema version ${version} is newer than this app supports`);
+  if (typeof version === 'number' && version > newest) return failure(path, 'unsupported-version', `Schema version ${version} is newer than this app supports`);
   return { ok: true, value: value as Record<string, unknown> };
 }
 

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { linkButton } from '@/ui/link-button.ts';
 import { ArchivedBadge, Detail, Problem, RecordNotFound, Tags } from '@/ui/record-page.tsx';
+import { CustomFieldDetails } from '../custom-fields/CustomFields.tsx';
 import { RelatedOpportunities } from '../opportunities/RelatedOpportunities.tsx';
 import { ActivityTimeline } from '../activities/ActivityTimeline.tsx';
 import { RelatedTasks } from '../tasks/RelatedTasks.tsx';
@@ -77,6 +78,7 @@ export function ContactPage() {
             <Detail label="Tags">
               <Tags tags={contact.tags} />
             </Detail>
+            <CustomFieldDetails type="contact" values={contact.customFields} />
             <Detail label="Last updated">{formatDate(contact.updatedAt)}</Detail>
           </dl>
         </CardContent>

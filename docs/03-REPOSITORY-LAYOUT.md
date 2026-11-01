@@ -5,7 +5,7 @@
 ```text
 gitcrm-workspace/                 # user-owned, PRIVATE, separate from app source
 ├── .gitcrm/
-│   └── workspace.json           # schemaVersion, name, currency, stages
+│   └── workspace.json           # schemaVersion, name, currency, stages, custom fields
 └── data/
     ├── contacts/
     │   └── d1/
