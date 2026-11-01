@@ -63,7 +63,7 @@ Owner decision 2026-10-31, after the first run against a real repository (ADR-02
 
 - [x] 1. Distribution. Each copy of the template deploys to its own GitHub Pages site with no secrets (spec 09). The central copy, its Cloudflare deploy, and `deploy/` are removed. The README is the setup guide.
 - [x] 2. The setup screen (spec 01). On `<owner>.github.io`, Repository starts as `<owner>/gitcrm-data`. A link opens a pre-filled, private `github.com/new` form, then the token link follows. An empty data repository loads as an empty snapshot, and Initialize makes its first commit: Connect treats the `409` "Git Repository is empty." as an empty repository (S-09).
-- [ ] 3. Template updates. A scheduled workflow, also run by hand, opens a pull request when the template has a new release. The workflow's own token cannot change `.github/workflows/`, so the pull request lists those files for a manual step. The copy's history is unrelated to the template's, so the update compares files, not commits.
+- [x] 3. Template updates (spec 11). `.github/workflows/template-update.yml` runs each Monday and by hand. For a newer release it pushes `template-update/<tag>` with the template's files, except `.github/workflows/`, and opens a pull request, or an issue when Actions may not open one. The copy's history is unrelated to the template's, so the update compares files, not commits. The template must be public for copies to read its releases.
 - [ ] 4. A manual run on the owner's own copy, from "Use this template" to the first record.
 
 ## Future considerations (not promises)

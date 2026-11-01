@@ -25,7 +25,13 @@ You need a GitHub account and a browser. You need no command line, no server, an
 
 Your site is public, but your records are not: the app reads them only with your token. Search engines leave the site out (`noindex`). The workflow runs on your Actions minutes; a public repository runs it at no cost.
 
-Planned (ADR-026): a workflow in your copy opens a pull request when this template has a new release. Until then, copy changes by hand.
+Updates (ADR-026, spec 11): each Monday, the **Template update** workflow in your copy checks this template's latest release. When it is newer than your copy, the workflow pushes the branch `template-update/<tag>` and opens a pull request. Review it, then merge: the Deploy workflow deploys the new version.
+
+- GitHub does not let Actions open pull requests until you allow it: **Settings → Actions → General → Allow GitHub Actions to create and approve pull requests**. Without it, the workflow opens an issue with a link that creates the pull request.
+- The workflow cannot change files in `.github/workflows/`. The pull request lists each changed workflow file to copy by hand.
+- GitHub turns off a scheduled workflow after 60 days with no activity in a public repository. Run **Template update** by hand to turn it on again.
+
+To release a new version of the template: change `version` in `package.json` on `main`, then create a GitHub release with the tag `v<version>`.
 
 
 ## Read these first

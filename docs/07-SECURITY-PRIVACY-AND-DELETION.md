@@ -90,6 +90,8 @@ GitCRM is a template repository with no central copy (ADR-025). Each owner's app
 - If the live check fails, the new deployment is already live. Revert the commit on `main`, and the workflow deploys the reverted build.
 - GitHub Pages sends no custom headers, so no `frame-ancestors`. The app's own frame check refuses to run inside a frame. A host that reads `_headers`, such as Cloudflare Pages, also sends the header.
 
+Template updates (spec 11) never deploy on their own. The update workflow runs only the copy's own code, before any template file is in its working tree. It proposes the release as a branch, and the owner's merge deploys it. A release can still change the page where the owner types the PAT, so the owner reviews the diff.
+
 One-time setup by each owner: Settings → Pages → Source: "GitHub Actions". The workflow cannot turn on Pages with its own token (S-09).
 
 From 2026-10-28 to 2026-10-31 a central copy ran at `https://gitcrm.pages.dev/` on Cloudflare Pages (ADR-024, superseded). ADR-025 removes it: the owner deletes the Cloudflare project and its two repository secrets.
