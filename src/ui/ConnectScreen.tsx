@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { TextField } from './form-fields.tsx';
 import { linkButton } from './link-button.ts';
+import { UpdateBanner } from './UpdateBanner.tsx';
 import { useFocusFirstError } from './use-focus-first-error.ts';
 
 function Step({ number, title, children }: { number: number; title: string; children: ReactNode }) {
@@ -51,7 +52,8 @@ export function ConnectScreen({ problem, busy }: { problem: string | null; busy:
   // A problem from GitHub, such as a refused token, shows only when the fields are filled in.
   const shown = Object.keys(errors).length === 0 ? problem : null;
   return (
-    <main className="mx-auto flex min-h-svh max-w-xl flex-col justify-center p-4">
+    <main className="mx-auto flex min-h-svh max-w-xl flex-col justify-center gap-4 p-4">
+      <UpdateBanner />
       <Card>
         <CardHeader>
           <CardTitle>
