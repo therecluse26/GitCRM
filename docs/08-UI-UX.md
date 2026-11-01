@@ -53,6 +53,7 @@ Built (spec 08): no page draws a long list at once. Each list that can grow come
 - Built (spec 05): an Export card with "Export JSON snapshot" and "Export CSV". It waits for a complete, current snapshot, and says why when it waits.
 - Disconnect and token safety guidance.
 - Pipeline stage editor: rename, reorder, add, and remove-when-unused; Won and Lost always present (ADR-019).
+- Built (spec 10): a "Custom fields" card. It adds, renames, reorders, removes, and restores the fields of each record type, and the options of a choice list. It saves `.gitcrm/workspace.json` in one commit.
 
 ## Important system states
 

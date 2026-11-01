@@ -19,6 +19,8 @@ The Search page searches the current records in browser memory (docs/06). It fin
 | Task | title, description, the name of its related record |
 | Activity | what happened, the name of its related record |
 
+Contacts, companies, and opportunities are also found by their custom field values (spec 10): text, a web address, a number, and the name of a chosen option. A removed field or option is not searched, and neither is a date or a checkbox.
+
 - Every word of the search must appear in the record. The words can match different fields: "ava northwind" finds Ava Bennett at Northwind Traders.
 - Case and accents do not matter: "zoe" finds "Zoë".
 - Results update as the user types.
@@ -90,7 +92,7 @@ Settings has an Export card with two buttons. GitCRM builds each file in the bro
 | Export CSV | `gitcrm-<workspace>-<date>-csv.zip` | `contacts.csv`, `companies.csv`, `opportunities.csv`, `tasks.csv`, and `activities.csv` |
 
 - Both ZIPs also hold `DATA-DICTIONARY.md` and `schemas/`.
-  - `DATA-DICTIONARY.md` gives the repository, the branch, the commit, the export time, the schema version, the count of each record type, the pipeline stages, every field, and the CSV rules.
+  - `DATA-DICTIONARY.md` gives the repository, the branch, the commit, the export time, the schema versions, the count of each record type, the pipeline stages, the custom fields, every field, and the CSV rules.
   - `schemas/` holds one JSON Schema for each record type and one for the workspace file. GitCRM generates them from its own validation.
 - `<workspace>` is the workspace name in lowercase ASCII letters, digits, and hyphens, at most 40 characters. If no letter or digit is left, it is `workspace`. `<date>` is the UTC date (docs/09). No record data goes into a file name.
 - Both exports include archived records.

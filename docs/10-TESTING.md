@@ -28,6 +28,7 @@
 14. `Disconnect` removes private data from view and app caches.
 15. A GitHub API rate-limit response respects `retry-after` and does not trigger a tight retry loop.
 16. Each user action makes a bounded, expected number of GitHub requests (contract tests count them). With several tabs open, only one tab checks `main`; below 500 remaining requests, background checks pause (ADR-023).
+17. A save keeps the custom field values that its form cannot show. Two users who change different custom fields of one record both keep their change (spec 10).
 
 ## Failure paths
 

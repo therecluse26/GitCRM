@@ -46,7 +46,7 @@ Not intended for: enterprise sales organizations, call centers, regulated record
 
 - Email synchronization, sending, tracking, or AI enrichment.
 - Webhooks, scheduled CRM automation, GitHub Actions pipelines for business operations.
-- Custom objects, formula fields, approvals, workflow builders. (Simple typed custom fields are planned right after the MVP, ADR-020.)
+- Custom objects, formula fields, approvals, workflow builders. (Simple typed custom fields came first after the MVP, ADR-020.)
 - Detailed permissions beyond GitHub repository access.
 - Mobile native apps, offline write synchronization, attachments, dashboards/forecasting.
 - A guarantee of compliance with any particular privacy regulation.

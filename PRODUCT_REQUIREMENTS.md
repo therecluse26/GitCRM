@@ -27,7 +27,7 @@ This document defines a narrowly scoped first release. `specs/` provides testabl
 | FR-11 | Later | Destructive full-history purge workflow / CLI, with warnings and operator review | `specs/06-RECORD-LIFECYCLE.md` |
 | FR-12 | Later | CSV import, CRM-specific import/export mappings | `docs/09-EXPORT-AND-MIGRATION.md` |
 | FR-13 | Later | Sign in with a GitCRM GitHub App, without creating a PAT, through a stateless auth broker; only if real demand appears (ADR-009) | `docs/05-AUTH-AND-ONBOARDING.md` |
-| FR-14 | Later (first after MVP) | Typed custom fields on contacts, companies, and opportunities; MVP keeps reserved `customFields` values intact | `docs/02-DATA-MODEL.md` |
+| FR-14 | First after MVP (built) | Typed custom fields on contacts, companies, and opportunities | `specs/10-CUSTOM-FIELDS.md` |
 
 ## Core screens
 

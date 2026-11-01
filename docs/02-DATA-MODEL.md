@@ -24,9 +24,10 @@
 - `related` points only to a contact, a company, or an opportunity.
 - Stage IDs and custom field IDs use lowercase letters, digits, `-`, and `_`, up to 64 characters.
 - A file over 100 KiB is an issue and is not parsed (the size cap in `docs/07`).
-- Issue codes: `too-large`, `invalid-json`, `unsupported-version` (a newer `schemaVersion`), `invalid-record`, `path-mismatch` (the type or ID differs from the path), `unrecognized-path` (a file under `data/` outside the layout), and `broken-link`.
+- Issue codes: `too-large`, `invalid-json`, `unsupported-version` (a newer `schemaVersion`), `invalid-record`, `path-mismatch` (the type or ID differs from the path), `unrecognized-path` (a file under `data/` outside the layout), `broken-link`, and `custom-field`.
 - `broken-link` (`src/core/links.ts`): a `companyId`, `contactIds` entry, or `related` link names no record of that type in the snapshot. An archived record counts as present. The record still loads, and Settings lists the issue. The UI offers only existing records, so it cannot create a broken link.
 - `broken-link` also covers an opportunity whose `stageId` is not in `.gitcrm/workspace.json`. The pipeline shows it in an "Unknown stage" column until someone moves it. This can happen when one person removes a stage while another moves an opportunity into it.
+- `custom-field` (`src/core/custom-fields.ts`): a stored custom field value that does not fit its field, or that has no field of its record type. The record still loads, and Settings lists the issue (spec 10).
 
 ## Workspace configuration
 
@@ -47,6 +48,8 @@ Path: `.gitcrm/workspace.json`
   ]
 }
 ```
+
+`schemaVersion` is 2 when the file has `customFields` ("Custom fields" below), and 1 when it has none.
 
 Users edit stages in Settings (ADR-019): rename, reorder, add, and remove. Stage IDs never change; a new stage gets a lowercase ID derived from its first label, with a numeric suffix on collision. A stage can be removed only when no opportunity uses it. Exactly one `won` and one `lost` terminal stage always exist; they can be renamed but not removed. Workflow configuration itself is not an automation system.
 
@@ -157,33 +160,43 @@ Allowed `kind` values: `note`, `call`, `meeting`, `email_manual`. Activity is **
 
 Built rules (`src/features/activities/`): `occurredAt` is entered in local time and stored in UTC, to the second. A timeline shows the latest activity first; activities at the same moment are ordered by ID. The body is plain text. The UI never renders it as HTML, so markup in a note shows as typed.
 
-## Custom fields (reserved in v1, built after the MVP; ADR-020)
+## Custom fields (built; ADR-020, spec 10)
 
-Schema v1 allows an optional `customFields` object on contacts, companies, and opportunities, mapping field IDs to values. The MVP has no UI for it, but it keeps these values unchanged on save and includes them in exports.
-
-Planned design, using the same ID-plus-label pattern as pipeline stages:
+Contacts, companies, and opportunities have an optional `customFields` object, from field ID to value. Users define the fields in Settings, with the same ID-plus-label pattern as pipeline stages. Spec 10 has the user rules and how each type is stored.
 
 ```json
-// .gitcrm/workspace.json
+// .gitcrm/workspace.json, with "schemaVersion": 2
 "customFields": {
   "contact": [
-    { "id": "linkedin", "label": "LinkedIn", "type": "url", "position": 0 },
-    { "id": "source", "label": "Lead source", "type": "select", "position": 1,
-      "options": [{ "id": "conference", "label": "Conference" },
-                  { "id": "referral", "label": "Referral" }] }
-  ]
+    { "id": "linkedin", "label": "LinkedIn", "type": "url", "position": 0, "archived": false, "options": [] },
+    { "id": "lead-source", "label": "Lead source", "type": "select", "position": 1, "archived": false,
+      "options": [{ "id": "conference", "label": "Conference", "archived": false },
+                  { "id": "referral", "label": "Referral", "archived": false }] }
+  ],
+  "company": [],
+  "opportunity": []
 }
 
 // a contact file
-"customFields": { "linkedin": "https://linkedin.com/in/ava", "source": "referral" }
+"customFields": { "lead-source": "referral", "linkedin": "https://linkedin.com/in/ava" }
 ```
 
-- Types: text, number, date, checkbox, URL, select (single choice).
+- Types: `text`, `number`, `date`, `checkbox`, `url`, `select` (one choice).
 - A field's type never changes; to change type, create a new field.
-- Removing a field or a select option archives it. Record values stay in place, hidden, and return on restore.
-- A value that does not fit its definition is a visible validation issue, never silently dropped.
+- Removing a field or a select option sets `archived` to `true`. Record values stay in place, hidden, and return on restore.
+- A value that does not fit its definition is a `custom-field` issue, never silently dropped.
 - Out of scope: required fields, defaults, formulas, multi-select, record-link fields, per-field permissions.
+
+Built rules (`src/core/custom-fields.ts`):
+
+- `contact`, `company`, and `opportunity` are always present. `options` is always present, and it is `[]` unless the type is `select`.
+- In one list, field IDs and positions are unique. In one field, option IDs are unique. An option ID comes from its first name, the same as a field ID.
+- Active fields come first, by position, then removed fields. Positions are written as 0 to n-1 on every save.
+- A record save writes only the custom fields that its form changed. Other values stay as stored.
+- `null` means no value. A `null` value for an unknown field ID is not an issue.
 
 ## Schema evolution
 
 Any change to persisted shape MUST include versioned schema validation, migration tests, and an export compatibility statement. `schemaVersion` is required per record and in workspace config; unknown newer versions should open in read-only/error mode, not be rewritten by older clients.
+
+Built (spec 10): custom fields took `.gitcrm/workspace.json` to version 2. A settings file without custom fields stays at version 1, so a workspace that never uses them still opens in an older GitCRM. That older GitCRM refuses a version 2 file as newer and writes nothing. Record files stay at version 1, because v1 already reserved `customFields`. The export says both versions in `DATA-DICTIONARY.md`.
