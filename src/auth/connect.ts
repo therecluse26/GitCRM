@@ -104,13 +104,16 @@ export function describeConnectError(error: unknown, repoName: string): string {
 }
 
 // GitHub's token form, filled in for this repo's owner (S-07). No parameter can select the
-// repository, so the description and the connect screen tell the user to pick it.
+// repository, so the description and the connect screen tell the user to pick it. 90 days is the
+// owner's choice (2026-11-01): fewer new tokens than GitHub's 30-day default. An organization's
+// token lifetime policy can still make it shorter.
 export function tokenLink(owner: string, repo: string): string {
   const params = new URLSearchParams({
     name: `GitCRM ${repo}`.slice(0, 40),
     description: `GitCRM access to ${owner}/${repo}. Under Repository access, choose "Only select repositories" and pick this repository.`,
     target_name: owner,
     contents: 'write',
+    expires_in: '90',
   });
   return `https://github.com/settings/personal-access-tokens/new?${params}`;
 }
