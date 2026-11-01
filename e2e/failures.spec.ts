@@ -60,7 +60,7 @@ test.describe('load', () => {
   test('workspace settings from a newer GitCRM, or not valid, block the workspace and nothing is written', async ({ page }) => {
     const fake = await routeFakeGitHub(page);
     const settings = serializeWorkspace(newWorkspaceConfig({ name: 'Example Studio', defaultCurrency: 'USD' }));
-    await fake.seed(WORKSPACE_PATH, settings.replace('"schemaVersion": 1', '"schemaVersion": 2'));
+    await fake.seed(WORKSPACE_PATH, settings.replace('"schemaVersion": 1', '"schemaVersion": 3'));
     const commits = fake.commitCount();
     await connect(page, fake);
     await expect(page.getByText('A newer version of GitCRM set up this workspace. Open it with that version; this one will not change it.')).toBeVisible();

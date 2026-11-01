@@ -1,5 +1,6 @@
 // Reads main into a validated in-memory snapshot with the chunked GraphQL tree walk (ADR-022).
 // Every expression is pinned to one commit SHA, so all records come from the same commit.
+import { customFieldIssues, fieldSets } from '../core/custom-fields.ts';
 import { linkIssues } from '../core/links.ts';
 import { parseRecordPath, WORKSPACE_PATH } from '../core/paths.ts';
 import { parseRecordFile, parseWorkspaceFile, unrecognizedPath, type FileIssue } from '../core/record-file.ts';
@@ -134,7 +135,9 @@ function buildSnapshot(commitSha: string | null, files: Map<string, CachedFile>)
     }
   }
   issues.push(...linkIssues(records, workspace && new Set(workspace.config.pipelineStages.map((s) => s.id))));
-  const byPath = (a: { path: string }, b: { path: string }) => (a.path < b.path ? -1 : 1);
+  issues.push(...customFieldIssues(records, workspace && fieldSets(workspace.config)));
+  // A record can have a broken-link and a custom-field issue; the sort keeps them in that order.
+  const byPath = (a: { path: string }, b: { path: string }) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0);
   return { commitSha, workspace, records: records.sort(byPath), issues: issues.sort(byPath) };
 }
 

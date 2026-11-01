@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { withCustomFields } from './custom-fields.ts';
 import { dataDictionary, FIELD_NOTES, jsonSchemas } from './data-dictionary.ts';
 import type { ExportSource } from './export.ts';
 import { newRecord } from './records.ts';
@@ -24,13 +25,13 @@ describe('dataDictionary', () => {
     for (const notes of Object.values(FIELD_NOTES)) for (const note of Object.values(notes)) expect(note).toMatch(/\.$/);
   });
 
-  it('gives the repository, the commit, the export time in UTC, the schema version, the counts, and the stages', () => {
+  it('gives the repository, the commit, the export time in UTC, the schema versions, the counts, and the stages', () => {
     const text = dataDictionary(source, exportedAt);
     expect(text).toMatch(/^# GitCRM export: Example Studio\n/);
     expect(text).toContain('| Repository | octo-dev/crm, branch main |');
     expect(text).toContain(`| Commit | ${source.commitSha} |`);
     expect(text).toContain('| Exported | 2026-10-30T22:58:40Z (UTC) |');
-    expect(text).toContain('| Schema version | 1 |');
+    expect(text).toContain('| Schema versions | Record files 1, `.gitcrm/workspace.json` 1 |');
     expect(text).toContain('| Contacts | 2 | 1 | `data/contacts/` | `contacts.csv` |');
     expect(text).toContain('| Activities | 0 | 0 | `data/activities/` | `activities.csv` |');
     expect(text).toContain('| `proposal` | Proposal | 2 |');
@@ -47,6 +48,23 @@ describe('dataDictionary', () => {
     expect(text).toContain('| (none) | `stageLabel` |');
     expect(text).toContain('## CSV rules');
     expect(text).toContain('remove that one `\'`');
+  });
+
+  it('lists the custom fields of each record type, with removed fields and options', () => {
+    expect(dataDictionary(source, exportedAt)).toContain('## Custom fields\n\nThe workspace has no custom fields.\n');
+    const options = [
+      { id: 'referral', label: 'Referral', archived: false },
+      { id: 'fair', label: 'Trade | fair', archived: true },
+    ];
+    const withFields = withCustomFields(config, {
+      contact: [{ id: 'lead-source', label: 'Lead source', type: 'select', position: 0, archived: false, options }],
+      company: [{ id: 'size', label: 'Size', type: 'number', position: 0, archived: true, options: [] }],
+      opportunity: [],
+    });
+    const text = dataDictionary({ ...source, config: withFields }, exportedAt);
+    expect(text).toContain('| Schema versions | Record files 1, `.gitcrm/workspace.json` 2 |');
+    expect(text).toContain('| Contact | `lead-source` | Lead source | Choice list | `referral` Referral; `fair` Trade \\| fair (removed) |  |');
+    expect(text).toContain('| Company | `size` | Size | Number |  | Removed |');
   });
 
   it('escapes a "|" and a line break in a workspace name or a stage label, so the tables stay whole', () => {

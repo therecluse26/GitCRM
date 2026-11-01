@@ -1,17 +1,19 @@
 // DATA-DICTIONARY.md and schemas/ in every export (docs/09): what each file and field holds, and
 // the CSV columns of each field (spec 05, "CSV rules").
 import { z } from 'zod';
+import { fieldSets, TYPE_LABELS } from './custom-fields.ts';
 import type { ExportSource } from './export.ts';
 import { FOLDERS, WORKSPACE_PATH } from './paths.ts';
 import { isoTimestamp } from './records.ts';
-import { RECORD_TYPES, recordSchemas, workspaceSchema, type RecordType } from './schemas.ts';
+import { CUSTOM_RECORD_TYPES, RECORD_TYPES, recordSchemas, workspaceSchema, type RecordType } from './schemas.ts';
 
 const COMMON: Record<string, string> = {
   schemaVersion: 'The version of the record format. Always 1.',
   id: 'The record ID, a lowercase UUID v4. It never changes. The file name is the ID.',
   tags: 'Tags, a list of text.',
   related: 'The contact, company, or opportunity the record is for: an object with type and id, or null.',
-  customFields: 'Kept for custom fields (ADR-020): an object from field ID to text, a number, true, false, or null. The JSON leaves it out when the record has none.',
+  customFields:
+    'Custom field values: an object from field ID to value. "Custom fields" gives each field. Text, web address, date (YYYY-MM-DD), and choice (the option ID) values are text. A number is a number. A checked checkbox is true. null means no value. The JSON leaves it out when the record has none.',
   createdAt: 'When the record was created, as a UTC timestamp, such as 2026-10-26T16:00:00Z.',
   updatedAt: 'When the record last changed, as a UTC timestamp.',
   archivedAt: 'When the record was archived, as a UTC timestamp. null when the record is not archived.',
@@ -83,6 +85,27 @@ const TITLES: Record<RecordType, string> = { contact: 'Contacts', company: 'Comp
 const md = (text: string) => text.replaceAll('|', '\\|').replace(/\s*[\r\n]+\s*/g, ' ');
 const code = (text: string) => `\`${text}\``;
 
+// The custom field definitions (spec 10), so a reader can name the keys of `customFields`.
+function customFieldTable({ config }: ExportSource): string[] {
+  const sets = fieldSets(config);
+  const rows = CUSTOM_RECORD_TYPES.flatMap((type) =>
+    sets[type].map((f) => {
+      const options = f.options.map((o) => `${code(o.id)} ${md(o.label)}${o.archived ? ' (removed)' : ''}`).join('; ');
+      return `| ${type[0].toUpperCase()}${type.slice(1)} | ${code(f.id)} | ${md(f.label)} | ${TYPE_LABELS[f.type]} | ${options} | ${f.archived ? 'Removed' : ''} |`;
+    }),
+  );
+  if (rows.length === 0) return ['## Custom fields', '', 'The workspace has no custom fields.'];
+  return [
+    '## Custom fields',
+    '',
+    `From ${code(WORKSPACE_PATH)}. The keys of ${code('customFields')} in a record are these IDs. A removed field or option still has its values in the records.`,
+    '',
+    '| Record type | ID | Label | Type | Options | Status |',
+    '| --- | --- | --- | --- | --- | --- |',
+    ...rows,
+  ];
+}
+
 export function dataDictionary(source: ExportSource, now: Date): string {
   const { config, records } = source;
   const count = (type: RecordType) => records.filter((r) => r.type === type).length;
@@ -97,7 +120,7 @@ export function dataDictionary(source: ExportSource, now: Date): string {
     `| Repository | ${source.repository}, branch ${source.branch} |`,
     `| Commit | ${source.commitSha ?? 'Not known: this browser saved changes after it last read the branch'} |`,
     `| Exported | ${isoTimestamp(now)} (UTC) |`,
-    `| Schema version | ${config.schemaVersion} |`,
+    `| Schema versions | Record files 1, ${code(WORKSPACE_PATH)} ${config.schemaVersion} |`,
     '',
     `The JSON snapshot holds ${code(WORKSPACE_PATH)} and every record file under ${code('data/')}, with the same text as on the branch. It is a copy of the branch, not its history. To keep the history, clone the repository.`,
     '',
@@ -117,11 +140,13 @@ export function dataDictionary(source: ExportSource, now: Date): string {
     '| --- | --- | --- |',
     ...config.pipelineStages.toSorted((a, b) => a.position - b.position).map((stage) => `| ${code(stage.id)} | ${md(stage.label)} | ${stage.position} |`),
     '',
+    ...customFieldTable(source),
+    '',
     '## Fields',
     '',
     `Every JSON file has every field in its table. Only ${code('customFields')} can be left out.`,
     '',
-    `The exact formats are in ${code('schemas/')}: JSON Schema 2020-12, generated from the validation in GitCRM. Three rules are not in the schemas. A name, title, tag, phone number, or activity text must not be blank. A website must use http or https. The workspace file needs unique stage IDs and positions, and a ${code('won')} and a ${code('lost')} stage.`,
+    `The exact formats are in ${code('schemas/')}: JSON Schema 2020-12, generated from the validation in GitCRM. Three rules are not in the schemas. A name, title, tag, phone number, or activity text must not be blank. A website must use http or https. The workspace file needs unique stage IDs and positions, a ${code('won')} and a ${code('lost')} stage, unique custom field IDs, positions, and option IDs, and ${code('schemaVersion')} 2 when it has custom fields.`,
     ...RECORD_TYPES.flatMap((type) => [
       '',
       `### ${type[0].toUpperCase()}${type.slice(1)} (${code(`data/${FOLDERS[type]}/`)}, ${code(`${FOLDERS[type]}.csv`)})`,

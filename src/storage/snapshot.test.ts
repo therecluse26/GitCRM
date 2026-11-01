@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { CustomField } from '../core/custom-fields.ts';
 import { recordPath, WORKSPACE_PATH } from '../core/paths.ts';
 import { serializeRecord, serializeWorkspace } from '../core/record-file.ts';
 import { newRecord } from '../core/records.ts';
@@ -60,7 +61,7 @@ describe('loadSnapshot', () => {
   });
 
   it('reports an invalid workspace config as an issue', async () => {
-    await github().seed(WORKSPACE_PATH, '{"schemaVersion": 2}');
+    await github().seed(WORKSPACE_PATH, '{"schemaVersion": 3}');
     const { snapshot } = await load();
     expect(snapshot.workspace).toBeNull();
     expect(snapshot.issues).toMatchObject([{ path: WORKSPACE_PATH, code: 'unsupported-version' }]);
@@ -86,6 +87,16 @@ describe('loadSnapshot', () => {
     const { snapshot } = await load();
     expect(snapshot.records).toHaveLength(1);
     expect(snapshot.issues).toEqual([expect.objectContaining({ path: recordPath('contact', orphan.id), code: 'broken-link' })]);
+  });
+
+  it('loads a record whose custom field value does not fit, and reports it (spec 10)', async () => {
+    const employees: CustomField = { id: 'employees', label: 'Employees', type: 'number', position: 0, archived: false, options: [] };
+    await github().seed(WORKSPACE_PATH, serializeWorkspace({ ...config, schemaVersion: 2, customFields: { contact: [employees], company: [], opportunity: [] } }));
+    const many = { ...contact(1), customFields: { employees: 'many' } };
+    await github().seed(recordPath('contact', many.id), serializeRecord(many));
+    const { snapshot } = await load();
+    expect(snapshot.records).toHaveLength(1);
+    expect(snapshot.issues).toEqual([{ path: recordPath('contact', many.id), code: 'custom-field', message: 'customFields.employees: "many" is not a valid number' }]);
   });
 
   it('reads at most about 100 files per GraphQL query', async () => {

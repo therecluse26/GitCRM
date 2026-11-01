@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { recordPath } from './paths.ts';
 import { MAX_FILE_BYTES, parseRecordFile, parseWorkspaceFile, serializeRecord, serializeWorkspace } from './record-file.ts';
+import type { CustomField } from './custom-fields.ts';
 import type { Contact, WorkspaceConfig } from './schemas.ts';
 
 const contactId = 'd13d0f69-0a4c-4192-9009-9e36a51c42c0';
@@ -198,6 +199,44 @@ describe('workspace file', () => {
   });
 
   it('reports a newer workspace version', () => {
-    expect(parseWorkspaceFile(JSON.stringify({ ...workspace, schemaVersion: 2 }))).toMatchObject({ ok: false, issue: { code: 'unsupported-version' } });
+    expect(parseWorkspaceFile(JSON.stringify({ ...workspace, schemaVersion: 3 }))).toMatchObject({ ok: false, issue: { code: 'unsupported-version' } });
+  });
+
+  it('reads version 2, but a record file stays at version 1', () => {
+    expect(parseWorkspaceFile(serializeWorkspace({ ...workspace, schemaVersion: 2 }))).toMatchObject({ ok: true, config: { schemaVersion: 2 } });
+    expect(issueOf(contactPath, JSON.stringify({ ...contact, schemaVersion: 2 })).code).toBe('unsupported-version');
+  });
+});
+
+describe('workspace custom fields (spec 10)', () => {
+  const source: CustomField = {
+    id: 'source',
+    label: 'Lead source',
+    type: 'select',
+    position: 1,
+    archived: false,
+    options: [{ id: 'referral', label: 'Referral', archived: false }],
+  };
+  const linkedin: CustomField = { id: 'linkedin', label: 'LinkedIn', type: 'url', position: 0, archived: false, options: [] };
+  const withFields: WorkspaceConfig = { ...workspace, schemaVersion: 2, customFields: { contact: [linkedin, source], company: [], opportunity: [] } };
+
+  it('round-trips the definitions, after the stages', () => {
+    const text = serializeWorkspace(withFields);
+    expect(parseWorkspaceFile(text)).toEqual({ ok: true, config: withFields });
+    expect(Object.keys(JSON.parse(text))).toEqual(['schemaVersion', 'workspaceId', 'name', 'defaultCurrency', 'pipelineStages', 'customFields']);
+  });
+
+  it('needs schemaVersion 2, so a version 1 app refuses the file as newer', () => {
+    expect(parseWorkspaceFile(JSON.stringify({ ...withFields, schemaVersion: 1 }))).toMatchObject({ ok: false, issue: { code: 'invalid-record' } });
+  });
+
+  it('gives options only to a choice list, and rejects unknown types', () => {
+    const textWithOptions = { ...linkedin, type: 'text', options: source.options };
+    const bad = (contact: object[]) => parseWorkspaceFile(JSON.stringify({ ...withFields, customFields: { ...withFields.customFields, contact } })).ok;
+    expect(bad([textWithOptions])).toBe(false);
+    expect(bad([{ ...linkedin, type: 'email' }])).toBe(false);
+    expect(bad([source, { ...source, position: 0 }])).toBe(false); // the same ID twice
+    expect(bad([linkedin, { ...source, position: 0 }])).toBe(false); // the same position twice
+    expect(bad([{ ...source, options: [...source.options, ...source.options] }])).toBe(false);
   });
 });
