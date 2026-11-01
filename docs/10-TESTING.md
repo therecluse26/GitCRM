@@ -30,6 +30,7 @@
 16. Each user action makes a bounded, expected number of GitHub requests (contract tests count them). With several tabs open, only one tab checks `main`; below 500 remaining requests, background checks pause (ADR-023).
 17. A save keeps the custom field values that its form cannot show. Two users who change different custom fields of one record both keep their change (spec 10).
 18. A save from one Settings card keeps a loaded change from the other card. A loaded change to the card's own part is a conflict (spec 10, "Error handling").
+19. Connect to an empty data repo, with no commits, offers Initialize, and Initialize makes the repo's first commit (spec 01, S-09).
 
 ## Failure paths
 

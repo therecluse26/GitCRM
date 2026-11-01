@@ -41,6 +41,42 @@ function cachedWorkspaces(page: Page) {
   );
 }
 
+// S-09: a data repo made with GitHub's new-repository form has no commits.
+test('initializes an empty data repository: the workspace config is its first commit', async ({ page }) => {
+  const fake = await routeFakeGitHub(page, { empty: true });
+  await connect(page, fake);
+  await page.getByLabel('Workspace name').fill('Example Studio');
+  await page.getByRole('button', { name: 'Set up workspace' }).click();
+  await expect(home(page)).toBeVisible();
+  expect(fake.commitCount()).toBe(1);
+  expect(fake.paths()).toEqual([WORKSPACE_PATH]);
+  await page.reload();
+  await expect(home(page)).toBeVisible();
+});
+
+const newRepoParams = async (page: Page) => Object.fromEntries(new URL((await page.getByRole('link', { name: 'Create it on GitHub' }).getAttribute('href'))!).searchParams);
+
+test('the link to a new data repository fills in a private repo, from what I type', async ({ page }) => {
+  await routeFakeGitHub(page);
+  await page.goto('./');
+  await expect(page.getByLabel('Repository', { exact: true })).toHaveValue('');
+  expect(await newRepoParams(page)).toMatchObject({ name: 'gitcrm-data', owner: '@me', visibility: 'private' });
+  await page.getByLabel('Repository', { exact: true }).fill('octo-dev/crm-records');
+  expect(await newRepoParams(page)).toMatchObject({ name: 'crm-records', owner: 'octo-dev', visibility: 'private' });
+});
+
+// ADR-025: each copy runs at <owner>.github.io/<app repo>/. The route serves the same build there.
+test('on my GitHub Pages site, Repository starts as <owner>/gitcrm-data', async ({ page, baseURL }) => {
+  await routeFakeGitHub(page);
+  await page.route('https://octo-dev.github.io/gitcrm/**', async (route) => {
+    const path = new URL(route.request().url()).pathname.replace('/gitcrm/', '');
+    await route.fulfill({ response: await route.fetch({ url: new URL(path, baseURL).href }) });
+  });
+  await page.goto('https://octo-dev.github.io/gitcrm/');
+  await expect(page.getByLabel('Repository', { exact: true })).toHaveValue('octo-dev/gitcrm-data');
+  expect(await newRepoParams(page)).toMatchObject({ name: 'gitcrm-data', owner: 'octo-dev', visibility: 'private' });
+});
+
 test('initializes a new private repository with exactly one commit', async ({ page }) => {
   const fake = await routeFakeGitHub(page);
   const commits = fake.commitCount();

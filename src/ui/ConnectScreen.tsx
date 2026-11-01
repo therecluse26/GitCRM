@@ -2,7 +2,7 @@
 // A real login form, so password managers can save and fill the token.
 import { useState, type FormEvent } from 'react';
 import { useApp } from '@/app/store.ts';
-import { parseRepoName, tokenLink } from '@/auth/connect.ts';
+import { newRepoLink, parseRepoName, suggestedRepo, tokenLink } from '@/auth/connect.ts';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,7 +13,10 @@ import { TextField } from './form-fields.tsx';
 import { useFocusFirstError } from './use-focus-first-error.ts';
 
 export function ConnectScreen({ problem, busy }: { problem: string | null; busy: boolean }) {
-  const [repoName, setRepoName] = useState(useApp.getState().repoName);
+  const [repoName, setRepoName] = useState(() => {
+    const suggested = suggestedRepo(location.hostname);
+    return useApp.getState().repoName || (suggested ? `${suggested.owner}/${suggested.repo}` : '');
+  });
   const [token, setToken] = useState('');
   const [remember, setRemember] = useState(true);
   const [errors, setErrors] = useState<{ repo?: string; token?: string }>({});
@@ -60,8 +63,11 @@ export function ConnectScreen({ problem, busy }: { problem: string | null; busy:
               />
               {errors.repo && <p id="repo-error" className="text-sm text-destructive">{errors.repo}</p>}
               <p id="repo-hint" className="text-sm text-muted-foreground">
-                An existing private repository, ideally one used only for GitCRM.{' '}
-                <a className="underline" href="https://github.com/new" target="_blank" rel="noopener noreferrer">Create one on GitHub</a>.
+                A private repository used only for GitCRM records. It may be empty.{' '}
+                <a className="underline" href={newRepoLink(repo)} target="_blank" rel="noopener noreferrer">
+                  Create it on GitHub
+                </a>
+                , filled in as a private repository.
               </p>
             </div>
 

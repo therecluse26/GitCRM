@@ -264,6 +264,13 @@ describe('writeWorkspace', () => {
     expect(saved).toEqual({ config, blobSha: saved.blobSha, commitSha: github().head });
   });
 
+  it('initializes an empty repo: the config is its first commit (S-09)', async () => {
+    github().empty = true;
+    await workspace().writeWorkspace(config, null);
+    expect(github().commitCount()).toBe(1);
+    expect(github().paths()).toEqual([WORKSPACE_PATH]);
+  });
+
   it('never overwrites an existing config', async () => {
     await github().seed(WORKSPACE_PATH, 'existing');
     expect(await rejection(workspace().writeWorkspace(config, null))).toBeInstanceOf(ConflictError);

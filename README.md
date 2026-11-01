@@ -18,9 +18,9 @@ You need a GitHub account and a browser. You need no command line, no server, an
 1. On this repository's page, click **Use this template**, then **Create a new repository**. Choose any name, such as `gitcrm`. Public is fine.
 2. In the new repository, open **Settings → Pages**. Set **Source** to **GitHub Actions**. The workflow cannot turn this on itself.
 3. Open the **Actions** tab, then the **Deploy** workflow, then **Run workflow** on `main`. Wait until every job passes, about 4 minutes.
-4. Create the data repository: [github.com/new](https://github.com/new?name=gitcrm-data&visibility=private&owner=@me&description=GitCRM+records). Keep it **Private**. Turn on **Add a README file**, because GitCRM cannot connect to an empty repository yet.
-5. Open your site: `https://<your-user>.github.io/<app-repository>/`.
-6. In **Repository**, type `<your-user>/gitcrm-data`. Then follow the link to GitHub's token form. On GitHub's form, choose **Only select repositories**, and pick the data repository. Check that **Contents** is **Read and write**. Create the token.
+4. Create the data repository: [github.com/new](https://github.com/new?name=gitcrm-data&visibility=private&owner=@me&description=GitCRM+records). Keep it **Private**. It may stay empty: GitCRM's Initialize step makes its first commit.
+5. Open your site: `https://<your-user>.github.io/<app-repository>/`. The connect screen also links to the form from step 4.
+6. **Repository** starts as `<your-user>/gitcrm-data`; change it if you chose another name. Then follow the link to GitHub's token form. On GitHub's form, choose **Only select repositories**, and pick the data repository. Check that **Contents** is **Read and write**. Create the token.
 7. Paste the token, then **Connect**. GitCRM offers to initialize the workspace.
 
 Your site is public, but your records are not: the app reads them only with your token. Search engines leave the site out (`noindex`). The workflow runs on your Actions minutes; a public repository runs it at no cost.

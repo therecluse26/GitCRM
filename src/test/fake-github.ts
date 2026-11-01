@@ -1,5 +1,5 @@
 // An in-memory GitHub for tests: one repo with one branch, and only the endpoints GitCRM calls.
-// Responses follow what the spikes recorded (S-02, S-08). Blob SHAs are real Git SHAs;
+// Responses follow what the spikes recorded (S-02, S-08, S-09). Blob SHAs are real Git SHAs;
 // tree and commit SHAs are opaque counters. handle() takes a Fetch Request, so MSW (Vitest)
 // and page.route (Playwright) can both serve it.
 import { base64ToUtf8, gitBlobSha, utf8ToBase64 } from '../storage/encoding.ts';
@@ -19,6 +19,7 @@ export type FakeGitHubOptions = {
   private?: boolean;
   archived?: boolean;
   canWrite?: boolean; // false: a token with Contents read-only
+  empty?: boolean; // a repo with no commits, until a Contents API PUT makes the first one
 };
 
 const CORS = {
@@ -34,6 +35,7 @@ export class FakeGitHub {
   private: boolean;
   archived: boolean;
   canWrite: boolean;
+  empty: boolean;
   truncateTrees = false;
   // The REST budget each answer reports (ADR-023); tests lower it. Faults send their own headers.
   rateRemaining = 4999;
@@ -55,6 +57,7 @@ export class FakeGitHub {
     this.private = options.private ?? true;
     this.archived = options.archived ?? false;
     this.canWrite = options.canWrite ?? true;
+    this.empty = options.empty ?? false;
     const tree = this.newTree(new Map());
     this.head = this.newCommit({ tree, parent: null, message: 'Initial commit' });
   }
@@ -82,6 +85,7 @@ export class FakeGitHub {
   }
 
   commitCount(): number {
+    if (this.empty) return 0;
     let count = 0;
     for (let sha: string | null = this.head; sha; sha = this.commits.get(sha)!.parent) count += 1;
     return count;
@@ -138,6 +142,10 @@ export class FakeGitHub {
     const write = method !== 'GET';
     if (write && this.archived) return json(403, { message: 'Repository was archived so is read-only.' });
     if (write && !this.canWrite) return json(403, { message: 'Resource not accessible by personal access token' });
+
+    // S-09: an empty repo answers the Git data API with 409, and a Contents API read with 404.
+    if (this.empty && rest.startsWith('/git/')) return json(409, { message: 'Git Repository is empty.' });
+    if (this.empty && method === 'GET' && rest.startsWith('/contents/')) return json(404, { message: 'This repository is empty.' });
 
     let match: RegExpMatchArray | null;
     if (method === 'GET' && rest === '') {
@@ -210,6 +218,12 @@ export class FakeGitHub {
     // S-02 recorded 409 for a stale SHA. Unverified: GitHub's answer when the SHA names a deleted file.
     if (body.sha !== undefined && body.sha !== existing) return json(409, { message: `${filePath} does not match ${body.sha}` });
     const sha = await this.storeBlob(base64ToUtf8(body.content));
+    // Unverified: a fine-grained PAT's PUT to an empty repo (S-09). Here it makes the first commit.
+    if (this.empty) {
+      this.empty = false;
+      this.head = this.newCommit({ tree: this.newTree(new Map([[filePath, sha]])), parent: null, message: body.message });
+      return json(201, { content: { path: filePath, sha }, commit: { sha: this.head } });
+    }
     const commit = this.commitFiles((files) => files.set(filePath, sha), body.message);
     return json(existing === undefined ? 201 : 200, { content: { path: filePath, sha }, commit: { sha: commit } });
   }

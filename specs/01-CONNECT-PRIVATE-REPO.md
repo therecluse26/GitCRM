@@ -12,6 +12,8 @@ As a GitHub user, I want GitCRM to connect only to a private repository that I c
 - The connection flow accepts a **fine-grained, repository-restricted PAT** and keeps it in browser storage until Disconnect, unless the user unchecks "Remember on this device" (ADR-017).
 - The app checks the authenticated GitHub identity and selected repository metadata.
 - A repository must have `private = true`, be accessible with Contents read/write, and have a compatible writable `main` branch.
+- The data repository may be empty, with no commits. Connect then offers Initialize, and Initialize makes the first commit (ADR-025, S-09).
+- The connect screen helps create the data repository: a link opens GitHub's new-repository form, filled in as a private repository. On a GitHub Pages site, the owner and the name `gitcrm-data` are filled in from the site address.
 - If `.gitcrm/workspace.json` is missing, offer explicit initialization. If present, validate schema version and do not overwrite it.
 - Connected status shows owner/repo and a Disconnect control, but not the token value.
 
@@ -24,6 +26,30 @@ Scenario: Initialize a new private repository
   When I choose Initialize and give a workspace name
   Then exactly one workspace config is committed to main
   And the app opens an empty CRM
+
+Scenario: Initialize a new, empty data repository
+  Given my private data repo has no commits
+  And GitHub answers its Git data API with 409 "Git Repository is empty."
+  When I connect
+  Then the app offers Initialize, not an error
+  When I choose Initialize and give a workspace name
+  Then the workspace config is the repo's first commit, on its default branch
+  And the app opens an empty CRM
+
+Scenario: The connect screen on my GitHub Pages site
+  Given my copy of GitCRM runs at https://octo-dev.github.io/gitcrm/
+  And this browser has no remembered repository
+  When I open the connect screen
+  Then Repository holds "octo-dev/gitcrm-data"
+  And "Create it on GitHub" opens github.com/new with name gitcrm-data, owner octo-dev, and visibility private
+
+Scenario: The connect screen on another host
+  Given GitCRM runs on a host that is not github.io
+  When I open the connect screen
+  Then Repository is empty
+  And "Create it on GitHub" opens github.com/new with name gitcrm-data, owner @me, and visibility private
+  When I type octo-dev/crm-records
+  Then the link has name crm-records and owner octo-dev
 
 Scenario: Open an existing workspace
   Given the selected private repo has a valid workspace config

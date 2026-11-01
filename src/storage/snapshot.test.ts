@@ -140,8 +140,23 @@ describe('loadSnapshot', () => {
     await expect(load()).rejects.toBeInstanceOf(SnapshotError);
   });
 
-  it('reports a branch with no commits as a snapshot error', async () => {
-    github().failNext('GET', /git\/ref\//, { respond: { status: 409, body: { message: 'Git Repository is empty.' } } });
+  // S-09: an empty repo answers the Git data API with 409 "Git Repository is empty.".
+  it('loads an empty repo as an empty snapshot with no workspace, so Connect offers Initialize', async () => {
+    github().empty = true;
+    const { snapshot, files } = await load();
+    expect(snapshot).toEqual({ commitSha: null, workspace: null, records: [], issues: [] });
+    expect(files).toEqual({ commitSha: null, files: new Map() });
+    expect(github().requests.map((r) => `${r.method} ${r.path}`)).toEqual(['GET /repos/octo-dev/crm/git/ref/heads/main']);
+  });
+
+  it('keeps the cached files of an empty repo, so a check of it changes nothing', async () => {
+    github().empty = true;
+    const first = await load();
+    expect((await load(first.files)).files).toBe(first.files);
+  });
+
+  it('reports a default branch that GitHub does not find as a snapshot error', async () => {
+    github().failNext('GET', /git\/ref\//, { respond: { status: 404, body: { message: 'Not Found' } } });
     await expect(load()).rejects.toThrow(/no commits/);
   });
 });

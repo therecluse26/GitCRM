@@ -44,7 +44,9 @@ No spike has checked these provider behaviors. For each one, GitCRM works with e
 | Whether API commits count toward "6 pushes per minute" | S-05 | Each save is one user action. A bulk change is one commit | Many quick saves to a spike repo |
 | Whether the S-07 link fills in `Contents: Read and write` | S-07 | Onboarding tells users to check that Contents is set to Read and write | Open the link while signed in to GitHub |
 | Save prompts for the PAT in browsers and password managers | docs/05 | The PAT field is a real password field | By hand, in each major browser |
-| A Contents API PUT to an empty repo, with a fine-grained PAT | S-09, ADR-025 | Connect stops with "The default branch has no commits yet" | Initialize on a new empty data repo |
+| A Contents API PUT to an empty repo, with a fine-grained PAT | S-09, spec 01 | Initialize sends it as the first commit; a refusal shows GitHub's message, and the form stays | Initialize on a new empty data repo |
+| What a read-only fine-grained PAT gets from the write check on an empty repo | S-09, spec 01 | A `409` counts as writable, so a read-only token learns at Initialize | Connect a read-only token to an empty spike repo |
+| Whether `github.com/new` accepts an organization as `owner` | Spec 01 | The link fills in the typed owner | Open the link with an organization's name |
 | Whether GitHub runs the deploy workflow on the commit that the template creates | Spec 09 | The README tells the owner to run the workflow after turning on Pages | Make a repo from the template |
 | First-load times from other networks | S-04 | The GraphQL time budget slows a large load instead of failing (ADR-022) | Run `spikes/bench-load.js` from another network |
 
