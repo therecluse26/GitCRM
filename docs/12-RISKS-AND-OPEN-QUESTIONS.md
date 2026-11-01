@@ -46,7 +46,6 @@ No spike has checked these provider behaviors. For each one, GitCRM works with e
 | Save prompts for the PAT in browsers and password managers | docs/05 | The PAT field is a real password field | By hand, in each major browser |
 | What a read-only fine-grained PAT gets from the write check on an empty repo | S-09, spec 01 | A `409` counts as writable, so a read-only token learns at Initialize | Connect a read-only token to an empty spike repo |
 | Whether `github.com/new` accepts an organization as `owner` | Spec 01 | The link fills in the typed owner | Open the link with an organization's name |
-| The template update in a real copy: the push to `main` and the Deploy start, with the workflow's own token | Spec 11 | Unit tests run the script against local repositories | Release v0.3.1, then click **Update GitCRM** in the owner's copy, which runs 0.3.0 |
 | First-load times from other networks | S-04 | The GraphQL time budget slows a large load instead of failing (ADR-022) | Run `spikes/bench-load.js` from another network |
 
 ## P0 spike record template
@@ -304,6 +303,8 @@ GitHub allows 60 s of GraphQL server time per minute, and says to estimate it fr
 | The pre-filled `github.com/new` link | `therecluse26/gitcrm-data` was created private, with the description from the link (1:35 PM EST) |
 | Initialize on that empty repo, with a fine-grained PAT | The Contents API PUT made the first commit, "gitcrm: initialize workspace" (1:36 PM EST) |
 | The first update of the copy, to `v0.3.0` | Pushed by hand, because the copy's old workflow could not change its own file. The push needed a login with the `workflow` scope. Deploy ran on the push and passed in 2.5 minutes |
+| A release whose `package.json` has another version | A first `v0.3.1` was created by mistake on a commit with `0.3.0`. The copy showed the banner, and the owner ran the update (4:20 PM EST). The script refused the release, and pushed nothing. The release was deleted and made again on the right commit |
+| The update button, to `v0.3.1` | The owner clicked **Update GitCRM**, then **Run workflow** (5:06:46 PM EST). With the workflow's own token, the job pushed "Update GitCRM to v0.3.1" to `main` (5:06:56 PM) and started Deploy (5:06:58 PM). Deploy passed at 5:09:26 PM. The live bundle has `0.3.1`, and the banner is gone |
 
 
 ## Most important product decision
