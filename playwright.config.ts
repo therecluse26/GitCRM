@@ -37,7 +37,8 @@ export default defineConfig({
     {
       command: `npx vite --port ${devPort} --strictPort`,
       url: `http://localhost:${devPort}/dev.html`,
-      reuseExistingServer: !process.env.CI,
+      // Never reuse: another app on this port would answer, and the tests would check that app.
+      reuseExistingServer: false,
     },
   ],
 });

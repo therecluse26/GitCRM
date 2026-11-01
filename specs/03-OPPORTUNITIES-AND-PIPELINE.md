@@ -64,7 +64,7 @@ Scenario: Financial values
 
 ## Notes
 
-Phase 2 builds everything here except Delete. Phase 3 builds Delete with the cascade preview (spec 06, "Delete rules"). Export, and its test, also come in Phase 3. A move shows as "Moving…" in its new stage until the commit lands. A failed move puts the card back and says why. One move runs at a time. Stage edits stay in a draft until "Save stages"; if someone else changed the settings first, nothing is saved until the latest stages are loaded.
+Phase 2 builds everything here except Delete. Phase 3 builds Delete with the cascade preview (spec 06, "Delete rules"). Export, and its test, also come in Phase 3. A move shows as "Moving…" in its new stage until the commit lands. A failed move puts the card back and says why. One move runs at a time. Stage edits stay in a draft until "Save stages"; if someone else changed the stages first, nothing is saved until the latest stages are loaded. A loaded change to another part of the settings file, such as the custom fields, does not block the save (spec 10, "Error handling").
 
 Amounts use a period for decimals, so "2.500,00" is refused with a message rather than read another way.
 

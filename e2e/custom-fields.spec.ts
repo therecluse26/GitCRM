@@ -2,7 +2,7 @@
 // record pages, search, and the values that a save must keep.
 import { withCustomFields, type CustomField, type CustomFieldSets } from '../src/core/custom-fields.ts';
 import { recordPath, WORKSPACE_PATH } from '../src/core/paths.ts';
-import { serializeRecord } from '../src/core/record-file.ts';
+import { serializeRecord, serializeWorkspace } from '../src/core/record-file.ts';
 import type { CRMRecord } from '../src/core/schemas.ts';
 import type { FakeGitHub } from '../src/test/fake-github.ts';
 import { expect, test } from './fixtures.ts';
@@ -222,6 +222,56 @@ test('search finds the name of a chosen option', async ({ page }) => {
   await go(page, 'Search');
   await page.getByRole('searchbox').fill('referral');
   await expect(page.getByRole('list', { name: 'Contacts' }).getByRole('link')).toHaveText(['Ava Bennett']);
+});
+
+test('both Settings cards have unsaved changes: each save keeps the other card\'s change', async ({ page }) => {
+  const fake = await open(page);
+  await go(page, 'Settings');
+  const fields = page.getByRole('region', { name: 'Contact fields' });
+  const saved = async (button: string, commits: number) => {
+    await page.getByRole('button', { name: button }).click();
+    await expect.poll(() => fake.commitCount()).toBe(commits);
+    await expect(page.getByRole('button', { name: button })).toBeDisabled();
+  };
+  const commits = fake.commitCount();
+
+  // Stages first, then custom fields.
+  await page.getByLabel('Name of stage 1').fill('New lead');
+  await fields.getByLabel('New contact field name').fill('LinkedIn');
+  await fields.getByLabel('New contact field name').press('Enter');
+  await saved('Save stages', commits + 1);
+  await saved('Save custom fields', commits + 2);
+  // Then the other order.
+  await page.getByLabel('Name of stage 2').fill('Fit');
+  await fields.getByLabel('New contact field name').fill('Lead source');
+  await fields.getByLabel('New contact field name').press('Enter');
+  await saved('Save custom fields', commits + 3);
+  await saved('Save stages', commits + 4);
+
+  await expect(page.getByText('Someone else changed the workspace settings')).toHaveCount(0);
+  const file = settingsFile(fake);
+  expect(file.pipelineStages.slice(0, 2).map((s: { label: string }) => s.label)).toEqual(['New lead', 'Fit']);
+  expect(file.customFields.contact.map((f: CustomField) => f.id)).toEqual(['linkedin', 'lead-source']);
+  expect(file.schemaVersion).toBe(2);
+});
+
+test('after someone else changed the custom fields, a save is refused until the latest fields are loaded', async ({ page }) => {
+  const fake = await open(page, [], {}, contactFields);
+  await go(page, 'Settings');
+  await page.getByLabel('Name of contact field 1').fill('LinkedIn URL');
+  // Another user renames the field and a stage, and this browser loads both.
+  const theirs = withFields({ contact: [{ ...linkedin, label: 'Profile' }, source, employees] });
+  theirs.pipelineStages = theirs.pipelineStages.map((s) => (s.id === 'lead' ? { ...s, label: 'Inbound' } : s));
+  await fake.seed(WORKSPACE_PATH, serializeWorkspace(theirs));
+  await page.getByRole('button', { name: 'Refresh' }).click();
+  await expect(page.getByLabel('Name of stage 1')).toHaveValue('Inbound');
+
+  await page.getByRole('button', { name: 'Save custom fields' }).click();
+  const card = page.getByRole('region', { name: 'Custom fields' });
+  await expect(card).toContainText('Someone else changed the workspace settings, so your custom field changes were not saved.');
+  expect(settingsFile(fake).customFields.contact[0].label).toBe('Profile');
+  await card.getByRole('button', { name: 'Load the latest custom fields' }).click();
+  await expect(page.getByLabel('Name of contact field 1')).toHaveValue('Profile');
 });
 
 test('renaming a stage keeps the custom fields and version 2', async ({ page }) => {
