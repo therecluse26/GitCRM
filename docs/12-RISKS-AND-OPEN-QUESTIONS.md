@@ -238,7 +238,7 @@ GitHub allows 60 s of GraphQL server time per minute, and says to estimate it fr
   - `expires_in`: 1 to 366 days, or `none`. Without it, 30 days, or less if the owner has a token lifetime policy.
   - A permission and level, such as `contents=write`. Write includes read, and contents comes with metadata read.
   - No parameter selects repositories.
-- **Decision:** the connection screen builds the link from the `owner/repo` the user typed: `?name=GitCRM+<repo>&description=<text>&target_name=<owner>&contents=write`. The user must still choose "Only select repositories" and pick the repo; onboarding says so. Proposal: leave out `expires_in`, so GitHub's 30-day default or the org's policy applies.
+- **Decision:** the connection screen builds the link from the `owner/repo` the user typed: `?name=GitCRM+<repo>&description=<text>&target_name=<owner>&contents=write&expires_in=90`. The user must still choose "Only select repositories" and pick the repo; onboarding says so. The owner chose 90 days on 2026-11-01: fewer new tokens than the 30-day default, with a longer window for a leaked token. An org's policy can make it shorter.
 - **Follow-up:** the owner created the S-02 browser-run token from this link (2026-10-28). The token first ended up with no permissions; it is not known whether the link failed to fill in Contents. Onboarding therefore tells users to check that Contents is set to Read and write.
 
 ### S-08: Repo checks and permission failures
