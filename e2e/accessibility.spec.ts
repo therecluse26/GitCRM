@@ -2,12 +2,13 @@
 // state. The other checks measure what axe cannot: focus indicators, field borders, and the
 // keyboard-only path.
 import AxeBuilder from '@axe-core/playwright';
+import { withCustomFields, type CustomField } from '../src/core/custom-fields.ts';
 import { recordPath } from '../src/core/paths.ts';
 import { serializeRecord } from '../src/core/record-file.ts';
 import { expect, test, type Page } from './fixtures.ts';
 import { connect } from './connect-page.ts';
 import { routeFakeGitHub } from './fake-route.ts';
-import { activity, company, contact, field, open, opportunity, status, task } from './workspace.ts';
+import { activity, company, contact, exampleConfig, field, open, opportunity, status, task } from './workspace.ts';
 
 const acme = company('Acme Corp', { website: 'https://acme.example' });
 const ava = contact('Ava Bennett', { companyId: acme.id, emails: ['ava@acme.example'] });
@@ -178,6 +179,27 @@ test('a read-only workspace', async ({ page }) => {
     await visit(page, path);
     await checkPage(page, `read-only: ${name}`);
   }
+});
+
+test('custom fields: the Settings card, a form with each type and an error, and a record page', async ({ page }) => {
+  const def = (id: string, type: CustomField['type'], position: number, changes: Partial<CustomField> = {}): CustomField => ({ id, label: id, type, position, archived: false, options: [], ...changes });
+  const options = [
+    { id: 'referral', label: 'Referral', archived: false },
+    { id: 'fair', label: 'Trade fair', archived: true },
+  ];
+  const fields = [def('notes', 'text', 0), def('employees', 'number', 1), def('met', 'date', 2), def('vip', 'checkbox', 3), def('linkedin', 'url', 4), def('source', 'select', 5, { options }), def('old', 'text', 6, { archived: true })];
+  const config = withCustomFields(exampleConfig(), { contact: fields, company: [], opportunity: [] });
+  const stored = { ...ava, customFields: { employees: 'many', linkedin: 'https://linkedin.example/ava', source: 'referral' } };
+  await open(page, [acme, stored, deal], {}, config);
+  await visit(page, '/settings');
+  await checkPage(page, 'custom fields: Settings');
+  await visit(page, `/contacts/${ava.id}`);
+  await checkPage(page, 'custom fields: a contact');
+  await visit(page, `/contacts/${ava.id}/edit`);
+  await field(page, 'employees').fill('1,200');
+  await page.getByRole('button', { name: 'Save contact' }).click();
+  await expect(field(page, 'employees')).toBeFocused();
+  await checkPage(page, 'custom fields: field errors');
 });
 
 // docs/10, "Nonfunctional probes": keyboard-only contact creation, an error, and a stage move.
