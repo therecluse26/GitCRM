@@ -58,8 +58,13 @@ export async function loadSnapshot(client: GitHubClient, location: RepoLocation,
   try {
     commitSha = await readRef(client, location);
   } catch (error) {
-    // Unverified: the status GitHub returns for a repo with no commits; 409 is the documented guess.
-    if (error instanceof GitHubError && (error.kind === 'not-found' || error.kind === 'conflict')) {
+    // An empty repo answers with 409 "Git Repository is empty." (S-09): no workspace and no
+    // records yet, so Connect offers Initialize. The same empty files again keep the cached object.
+    if (error instanceof GitHubError && error.kind === 'conflict') {
+      const files = cached?.commitSha === null && cached.files.size === 0 ? cached : { commitSha: null, files: new Map<string, CachedFile>() };
+      return { snapshot: buildSnapshot(null, files.files), files };
+    }
+    if (error instanceof GitHubError && error.kind === 'not-found') {
       throw new SnapshotError('The default branch has no commits yet. Add a file on GitHub, such as a README, then connect again.');
     }
     throw error;

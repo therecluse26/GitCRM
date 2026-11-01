@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { SnapshotError } from '../storage/errors.ts';
 import { createGitHubClient, GitHubError } from '../storage/github-client.ts';
 import { serveFakeGitHub } from '../test/msw.ts';
-import { assessRepository, describeConnectError, inspectRepository, parseRepoName, tokenLink, type RepoCheck } from './connect.ts';
+import { assessRepository, describeConnectError, inspectRepository, newRepoLink, parseRepoName, suggestedRepo, tokenLink, type RepoCheck } from './connect.ts';
 
 const github = serveFakeGitHub();
 
@@ -14,6 +14,15 @@ describe('inspectRepository', () => {
   it('reports a private, writable repo and its default branch', async () => {
     expect(await inspect()).toEqual({ login: 'octo-dev', ownerLogin: 'octo-dev', ownerType: 'User', private: true, archived: false, defaultBranch: 'main', canWrite: true });
     expect(github().count('POST', /git\/blobs/)).toBe(1);
+  });
+
+  // GitHub answers the write check on an empty repo with 409 (S-09), so it cannot tell. The
+  // Initialize write, the repo's first commit, decides.
+  it('treats an empty repo as writable, and still detects a read-only token there', async () => {
+    github().empty = true;
+    expect(await inspect()).toMatchObject({ private: true, canWrite: true });
+    github().canWrite = false;
+    expect(await inspect()).toMatchObject({ canWrite: false });
   });
 
   it('detects a read-only token with the write check (S-02)', async () => {
@@ -81,6 +90,32 @@ describe('describeConnectError', () => {
     expect(describeConnectError(new GitHubError('forbidden', 403, 'GET /user', 'Forbidden'), 'ava/crm')).toBe(
       'GitHub refused the request: Forbidden.',
     );
+  });
+});
+
+describe('suggestedRepo', () => {
+  // ADR-025: a copy runs at <owner>.github.io/<app repo>/, and its owner makes the data repo.
+  it('suggests <owner>/gitcrm-data on a GitHub Pages site', () => {
+    expect(suggestedRepo('octo-dev.github.io')).toEqual({ owner: 'octo-dev', repo: 'gitcrm-data' });
+    expect(suggestedRepo('Octo-Dev.GitHub.io')).toEqual({ owner: 'Octo-Dev', repo: 'gitcrm-data' });
+  });
+
+  it('suggests nothing on another host', () => {
+    expect(suggestedRepo('localhost')).toBeNull();
+    expect(suggestedRepo('crm.example.com')).toBeNull();
+    expect(suggestedRepo('a.b.github.io')).toBeNull();
+  });
+});
+
+describe('newRepoLink', () => {
+  it("opens GitHub's new-repository form, filled in as a private repo for the typed owner and name (S-09)", () => {
+    const url = new URL(newRepoLink({ owner: 'octo-dev', repo: 'crm-records' }));
+    expect(url.origin + url.pathname).toBe('https://github.com/new');
+    expect(Object.fromEntries(url.searchParams)).toEqual({ name: 'crm-records', owner: 'octo-dev', visibility: 'private', description: expect.stringContaining('GitCRM') });
+  });
+
+  it('fills in gitcrm-data for the signed-in user when nothing is typed', () => {
+    expect(Object.fromEntries(new URL(newRepoLink(null)).searchParams)).toMatchObject({ name: 'gitcrm-data', owner: '@me', visibility: 'private' });
   });
 });
 

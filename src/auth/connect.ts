@@ -40,8 +40,29 @@ export async function inspectRepository(client: GitHubClient, owner: string, rep
     return { ...check, canWrite: true };
   } catch (error) {
     if (error instanceof GitHubError && error.kind === 'forbidden') return check;
+    // An empty repo refuses every Git data write with 409 (S-09), so the check cannot tell. The
+    // Initialize write, the repo's first commit, decides.
+    if (error instanceof GitHubError && error.kind === 'conflict') return { ...check, canWrite: true };
     throw error;
   }
+}
+
+// ADR-025: a copy runs at <owner>.github.io/<app repo>/, and its owner makes the data repo
+// beside it. On another host there is nothing to suggest.
+export function suggestedRepo(hostname: string): { owner: string; repo: string } | null {
+  const match = /^([A-Za-z0-9-]{1,39})\.github\.io$/i.exec(hostname);
+  return match ? { owner: match[1], repo: 'gitcrm-data' } : null;
+}
+
+// GitHub's new-repository form, filled in as a private repo (S-09). `@me` is the signed-in user.
+export function newRepoLink(repo: { owner: string; repo: string } | null): string {
+  const params = new URLSearchParams({
+    name: repo?.repo ?? 'gitcrm-data',
+    owner: repo?.owner ?? '@me',
+    visibility: 'private',
+    description: 'GitCRM records. Keep this repository private.',
+  });
+  return `https://github.com/new?${params}`;
 }
 
 // Accepts owner/repo, or the repo's GitHub URL as copied from the browser.
