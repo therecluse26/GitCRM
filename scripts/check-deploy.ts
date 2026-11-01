@@ -1,6 +1,7 @@
-// The live check (spec 09). After each deploy, the workflow checks that the official copy serves
-// this build byte for byte, with each header from the /* rule in _headers. It tries 6 times, 10
-// seconds apart, because the new deployment can take a moment to reach every request.
+// The live check (spec 09). After each deploy, the workflow checks that the site serves every
+// file of this build byte for byte. GitHub Pages sends no custom headers, so the check reads only
+// bytes. It tries 6 times, 10 seconds apart, because a new deployment can take a moment to reach
+// every request.
 // Usage: node scripts/check-deploy.ts <site url> [dir]
 import { readdir, readFile } from 'node:fs/promises';
 import { join, relative } from 'node:path';
@@ -12,43 +13,22 @@ const same = (a: Uint8Array, b: Uint8Array) => a.length === b.length && a.every(
 
 // `files`: each built file's path, relative to the build folder, and its bytes.
 export async function checkDeploy(site: URL, files: Map<string, Uint8Array>, get: (url: URL) => Promise<Response> = fetch): Promise<string[]> {
-  const headers = files.get('_headers');
-  if (!headers) return ['The build has no _headers file'];
-  // The /* rule's `Name: value` lines. The policy must match exactly; another header may also
-  // carry values that the host adds, such as Cloudflare's noindex on a preview.
-  const rule = new TextDecoder().decode(headers).split(/\n(?=\S)/).find((block) => block.startsWith('/*\n')) ?? '';
-  const sent = [...rule.matchAll(/^[ \t]+([\w-]+): (.*)$/gm)].map(([, name, value]) => [name, value]);
-  const policy = sent.find(([name]) => name === 'Content-Security-Policy')?.[1];
   const problems: string[] = [];
-  // A request that fails, such as a TLS handshake while a new site gets its certificate, is a
-  // problem like any other, so the caller tries again.
-  const request = async (url: URL) => {
+  for (const [path, bytes] of files) {
+    const url = new URL(path === 'index.html' ? './' : path, site);
+    let response: Response;
+    // A request that fails, such as a TLS handshake while a new site gets its certificate, is a
+    // problem like any other, so the caller tries again.
     try {
-      return await get(url);
+      response = await get(url);
     } catch (error) {
       const { message, cause } = error as Error;
       problems.push(`${url}: ${message}${cause instanceof Error ? ` (${cause.message.trim()})` : ''}`);
-      return undefined;
-    }
-  };
-  for (const [path, bytes] of files) {
-    if (path === '_headers') continue;
-    const url = new URL(path === 'index.html' ? './' : path, site);
-    const response = await request(url);
-    if (!response) continue;
-    if (!response.ok) {
-      problems.push(`${url}: HTTP ${response.status}`);
       continue;
     }
-    if (!same(new Uint8Array(await response.arrayBuffer()), bytes)) problems.push(`${url} differs from the build`);
-    if (response.headers.get('content-security-policy') !== policy) problems.push(`${url} does not send the header policy from _headers`);
-    for (const [name, value] of sent) {
-      if (name !== 'Content-Security-Policy' && !response.headers.get(name)?.split(/,\s*/).includes(value)) problems.push(`${url} does not send "${name}: ${value}" from _headers`);
-    }
+    if (!response.ok) problems.push(`${url}: HTTP ${response.status}`);
+    else if (!same(new Uint8Array(await response.arrayBuffer()), bytes)) problems.push(`${url} differs from the build`);
   }
-  const url = new URL('_headers', site);
-  const served = await request(url);
-  if (served?.ok && same(new Uint8Array(await served.arrayBuffer()), headers)) problems.push(`${url} serves the headers file, so the host did not read it`);
   return problems;
 }
 
@@ -69,7 +49,7 @@ if (import.meta.main) {
   for (let attempt = 1; ; attempt++) {
     const problems = await checkDeploy(new URL(site), files);
     if (problems.length === 0) {
-      console.log(`Live check: ${site} serves ${dir}/, with each header from _headers.`);
+      console.log(`Live check: ${site} serves ${dir}/.`);
       break;
     }
     if (attempt === TRIES) {
