@@ -47,11 +47,12 @@ function auditPage(html: string): string[] {
   if (/<script(?![^>]*\bsrc=)[^>]*>/.test(html)) problems.push('index.html has an inline script');
   if (/<style[\s>]|\sstyle=/.test(html)) problems.push('index.html has an inline style');
   if (/\son[a-z]+=/.test(html)) problems.push('index.html has an event handler attribute');
+  if (!/<meta name="robots" content="noindex"\s*\/?>/.test(html)) problems.push('index.html has no <meta name="robots" content="noindex"> tag');
   return problems;
 }
 
-// Cloudflare Pages reads _headers (spec 09): a URL pattern on its own line, then indented
-// `Name: value` lines, or `! Name` to remove a header. A line may hold at most 2,000 characters.
+// Hosts such as Cloudflare Pages read _headers (spec 09): a URL pattern on its own line, then
+// indented `Name: value` lines, or `! Name` to remove a header. A line may hold at most 2,000 characters.
 function auditHeaders(text: string, policy: string | undefined): string[] {
   const problems: string[] = [];
   const rules: { pattern: string; headers: string[] }[] = [];
