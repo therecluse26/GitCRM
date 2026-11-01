@@ -48,6 +48,7 @@ No spike has checked these provider behaviors. For each one, GitCRM works with e
 | What a read-only fine-grained PAT gets from the write check on an empty repo | S-09, spec 01 | A `409` counts as writable, so a read-only token learns at Initialize | Connect a read-only token to an empty spike repo |
 | Whether `github.com/new` accepts an organization as `owner` | Spec 01 | The link fills in the typed owner | Open the link with an organization's name |
 | Whether GitHub runs the deploy workflow on the commit that the template creates | Spec 09 | The README tells the owner to run the workflow after turning on Pages | Make a repo from the template |
+| The template update in a real copy: the push of `template-update/<tag>`, and the pull request or the issue, with the workflow's own token | Spec 11 | A local run with a stub `gh` passed both paths | Release v0.1.0 or later, then run Template update in a copy |
 | First-load times from other networks | S-04 | The GraphQL time budget slows a large load instead of failing (ADR-022) | Run `spikes/bench-load.js` from another network |
 
 ## P0 spike record template
