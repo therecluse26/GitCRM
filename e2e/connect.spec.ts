@@ -54,11 +54,13 @@ test('initializes an empty data repository: the workspace config is its first co
   await expect(home(page)).toBeVisible();
 });
 
-const newRepoParams = async (page: Page) => Object.fromEntries(new URL((await page.getByRole('link', { name: 'Create it on GitHub' }).getAttribute('href'))!).searchParams);
+const newRepoParams = async (page: Page) => Object.fromEntries(new URL((await page.getByRole('link', { name: 'Create your data repository' }).getAttribute('href'))!).searchParams);
 
 test('the link to a new data repository fills in a private repo, from what I type', async ({ page }) => {
   await routeFakeGitHub(page);
   await page.goto('./');
+  // Step 1 comes first, before the repository field and the token (spec 01).
+  await expect(page.getByRole('heading', { level: 2 })).toHaveText(['1. Create your data repository', '2. Enter its name', '3. Create a token']);
   await expect(page.getByLabel('Repository', { exact: true })).toHaveValue('');
   expect(await newRepoParams(page)).toMatchObject({ name: 'gitcrm-data', owner: '@me', visibility: 'private' });
   await page.getByLabel('Repository', { exact: true }).fill('octo-dev/crm-records');
