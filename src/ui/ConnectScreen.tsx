@@ -82,7 +82,7 @@ export function ConnectScreen({ problem, busy }: { problem: string | null; busy:
                 </li>
                 <li>Under Repository access, choose "Only select repositories" and pick {repo.owner}/{repo.repo}.</li>
                 <li>Check that Repository permissions, Contents, is set to "Read and write".</li>
-                <li>Generate the token, then paste it below. A short expiry is safest.</li>
+                <li>Generate the token, then paste it below. The form asks for 90 days; after that, make a new token.</li>
               </ol>
             )}
 
