@@ -8,11 +8,13 @@ import { EditorForm } from '@/ui/EditorForm.tsx';
 import { SelectField, TextField, ValueListField } from '@/ui/form-fields.tsx';
 import { linkButton } from '@/ui/link-button.ts';
 import { RecordNotFound } from '@/ui/record-page.tsx';
+import { CustomFieldInputs } from '../custom-fields/CustomFields.tsx';
+import { customConflictRow, customCopyLines, useCustomFields } from '../custom-fields/custom-values.ts';
 import { useRecord, useRecords } from '../records.ts';
 import { useRecordEditor } from '../use-record-editor.ts';
 import { contactFields, contactValues, duplicateEmails, readContactForm, type ContactFields, type ContactFormValues } from './contact-form.ts';
 
-const LABELS: Record<keyof ContactFields, string> = { name: 'Name', emails: 'Email', phones: 'Phone', companyId: 'Company', tags: 'Tags' };
+const LABELS: Record<Exclude<keyof ContactFields, 'customFields'>, string> = { name: 'Name', emails: 'Email', phones: 'Phone', companyId: 'Company', tags: 'Tags' };
 
 export function NewContactPage() {
   const { companyId } = useSearch({ from: '/contacts/new' });
@@ -33,13 +35,14 @@ function ContactEditor({ saved, companyId }: { saved: VersionedRecord<Contact> |
   const companies = useRecords('company');
   const contacts = useRecords('contact');
   const companyIds = useMemo(() => new Set(companies.map((c) => c.record.id)), [companies]);
+  const custom = useCustomFields('contact');
   const editor = useRecordEditor({
     type: 'contact',
     saved,
-    initial: saved ? undefined : { ...contactValues(null), companyId: companyId && companyIds.has(companyId) ? companyId : '' },
+    initial: saved ? undefined : { ...contactValues(null, custom.shown), companyId: companyId && companyIds.has(companyId) ? companyId : '' },
     fieldsOf: contactFields,
-    valuesOf: contactValues,
-    read: (values, base) => readContactForm(values, { companies: companyIds, currentCompanyId: base?.companyId ?? null }),
+    valuesOf: (fields) => contactValues(fields, custom.shown),
+    read: (values, base) => readContactForm(values, { companies: companyIds, currentCompanyId: base?.companyId ?? null, custom: custom.shown, stored: base?.customFields }),
     onSaved: (result) => void navigate({ to: '/contacts/$contactId', params: { contactId: result.record.id } }),
   });
   const { values, errors } = editor;
@@ -58,8 +61,14 @@ function ContactEditor({ saved, companyId }: { saved: VersionedRecord<Contact> |
     <ConflictPanel
       noun="contact"
       remoteDeleted={!editor.remote}
-      rows={editor.rows.map((row) => ({ label: LABELS[row.key], remote: shown(row.key, row.remote), mine: shown(row.key, row.mine), changedByMe: row.changedByMe }))}
-      copyText={editor.attempt ? (Object.keys(LABELS) as (keyof ContactFields)[]).map((key) => `${LABELS[key]}: ${asText(shown(key, editor.attempt![key]))}`).join('\n') : ''}
+      rows={editor.rows.map((row) =>
+        row.customId ? customConflictRow(custom.all, row) : { label: LABELS[row.key as keyof typeof LABELS], remote: shown(row.key, row.remote), mine: shown(row.key, row.mine), changedByMe: row.changedByMe },
+      )}
+      copyText={
+        editor.attempt
+          ? [...(Object.keys(LABELS) as (keyof typeof LABELS)[]).map((key) => `${LABELS[key]}: ${asText(shown(key, editor.attempt![key]))}`), ...customCopyLines(custom.shown, editor.attempt.customFields)].join('\n')
+          : ''
+      }
       onRetry={() => void editor.retryAfterReview()}
       onDiscard={() => {
         if (editor.remote) return editor.discardMine();
@@ -105,6 +114,7 @@ function ContactEditor({ saved, companyId }: { saved: VersionedRecord<Contact> |
         {currentCompany && !companyIds.has(currentCompany) && <option value={currentCompany}>{companyName(currentCompany)}</option>}
       </SelectField>
       <TextField id="tags" label="Tags" autoComplete="off" hint="Separate tags with commas." value={values.tags} onChange={(e) => set({ tags: e.target.value })} />
+      <CustomFieldInputs fields={custom.shown} values={values.custom} errors={errors} onChange={(changed) => set({ custom: changed })} />
     </EditorForm>
   );
 }

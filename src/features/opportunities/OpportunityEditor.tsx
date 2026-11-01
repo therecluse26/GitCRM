@@ -12,12 +12,14 @@ import { EditorForm } from '@/ui/EditorForm.tsx';
 import { SelectField, TextField } from '@/ui/form-fields.tsx';
 import { linkButton } from '@/ui/link-button.ts';
 import { RecordNotFound } from '@/ui/record-page.tsx';
+import { CustomFieldInputs } from '../custom-fields/CustomFields.tsx';
+import { customConflictRow, customCopyLines, useCustomFields } from '../custom-fields/custom-values.ts';
 import { formatCalendarDate, useRecord, useRecords, useStages, type NewRecordSearch } from '../records.ts';
 import { useRecordEditor } from '../use-record-editor.ts';
 import { opportunityFields, opportunityValues, readOpportunityForm, type OpportunityFields, type OpportunityFormValues } from './opportunity-form.ts';
 import { stageName } from './pipeline.ts';
 
-const LABELS: Record<keyof OpportunityFields, string> = {
+const LABELS: Record<Exclude<keyof OpportunityFields, 'customFields'>, string> = {
   title: 'Title',
   stageId: 'Stage',
   valueMinor: 'Value',
@@ -57,7 +59,8 @@ function OpportunityEditor({ saved, search }: { saved: VersionedRecord<Opportuni
   );
   const contactOf = (id: string) => contacts.find((c) => c.record.id === id)?.record;
   const defaults = { stageId: stages[0]?.id ?? 'lead', currency: defaultCurrency };
-  const valuesOf = (fields: OpportunityFields | null) => opportunityValues(fields, defaults);
+  const custom = useCustomFields('opportunity');
+  const valuesOf = (fields: OpportunityFields | null) => opportunityValues(fields, defaults, custom.shown);
 
   // "Add opportunity" on a company or contact page fills in that link.
   const linked = contactOf(search.contactId ?? '');
@@ -68,7 +71,7 @@ function OpportunityEditor({ saved, search }: { saved: VersionedRecord<Opportuni
     initial: saved ? undefined : { ...valuesOf(null), companyId: ids.companies.has(companyId) ? companyId : '', contactIds: linked ? [linked.id] : [] },
     fieldsOf: opportunityFields,
     valuesOf,
-    read: (values, base) => readOpportunityForm(values, { ...ids, current: base && opportunityFields(base) }),
+    read: (values, base) => readOpportunityForm(values, { ...ids, current: base && opportunityFields(base), custom: custom.shown }),
     groups: GROUPS,
     onSaved: (result) => void navigate({ to: '/opportunities/$opportunityId', params: { opportunityId: result.record.id } }),
   });
@@ -105,10 +108,18 @@ function OpportunityEditor({ saved, search }: { saved: VersionedRecord<Opportuni
       remoteDeleted={!editor.remote}
       rows={
         remoteFields && editor.attempt
-          ? editor.rows.map((row) => ({ label: LABELS[row.key], remote: shown(row.key, remoteFields), mine: shown(row.key, editor.attempt!), changedByMe: row.changedByMe }))
+          ? editor.rows.map((row) =>
+              row.customId
+                ? customConflictRow(custom.all, row)
+                : { label: LABELS[row.key as keyof typeof LABELS], remote: shown(row.key, remoteFields), mine: shown(row.key, editor.attempt!), changedByMe: row.changedByMe },
+            )
           : []
       }
-      copyText={editor.attempt ? (Object.keys(LABELS) as (keyof OpportunityFields)[]).map((key) => `${LABELS[key]}: ${asText(shown(key, editor.attempt!))}`).join('\n') : ''}
+      copyText={
+        editor.attempt
+          ? [...(Object.keys(LABELS) as (keyof typeof LABELS)[]).map((key) => `${LABELS[key]}: ${asText(shown(key, editor.attempt!))}`), ...customCopyLines(custom.shown, editor.attempt.customFields)].join('\n')
+          : ''
+      }
       onRetry={() => void editor.retryAfterReview()}
       onDiscard={() => {
         if (editor.remote) return editor.discardMine();
@@ -206,6 +217,7 @@ function OpportunityEditor({ saved, search }: { saved: VersionedRecord<Opportuni
           ))}
         </SelectField>
       </fieldset>
+      <CustomFieldInputs fields={custom.shown} values={values.custom} errors={errors} onChange={(changed) => set({ custom: changed })} />
     </EditorForm>
   );
 }

@@ -8,7 +8,7 @@ import { editRecord, newRecord, type RecordFields } from '@/core/records.ts';
 import type { RecordOf, RecordType } from '@/core/schemas.ts';
 import { stateForError, type OperationState } from '@/storage/operation-state.ts';
 import type { VersionedRecord } from '@/storage/workspace-repository.ts';
-import { changedFields, conflictRows, rebaseFields, type ConflictRow, type FieldErrors, type FieldGroups, type FormResult } from './record-form.ts';
+import { changedKeys, conflictRows, rebaseFields, type ConflictRow, type FieldErrors, type FieldGroups, type FormResult } from './record-form.ts';
 
 export type EditorOptions<T extends RecordType, F extends object, V> = {
   type: T;
@@ -68,7 +68,7 @@ export function useRecordEditor<T extends RecordType, F extends object, V>(optio
     setErrors(result.ok ? {} : result.errors);
     if (!result.ok) return;
     // Nothing changed: no commit, and no "Saved" notice.
-    if (base && Object.keys(changedFields(result.fields, fieldsOf(base.record))).length === 0) {
+    if (base && changedKeys(result.fields, fieldsOf(base.record)).length === 0) {
       leaving.current = true;
       return options.onSaved(base);
     }

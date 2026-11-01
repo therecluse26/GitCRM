@@ -7,6 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { formatMoney } from '@/core/money.ts';
 import { linkButton } from '@/ui/link-button.ts';
 import { ArchivedBadge, Detail, Problem, RecordNotFound } from '@/ui/record-page.tsx';
+import { CustomFieldDetails } from '../custom-fields/CustomFields.tsx';
 import { formatCalendarDate, formatDate, useRecord, useRecords, useStages } from '../records.ts';
 import { useArchive } from '../use-archive.ts';
 import { ActivityTimeline } from '../activities/ActivityTimeline.tsx';
@@ -86,6 +87,7 @@ export function OpportunityPage() {
                 </ul>
               )}
             </Detail>
+            <CustomFieldDetails type="opportunity" values={opportunity.customFields} />
             <Detail label="Last updated">{formatDate(opportunity.updatedAt)}</Detail>
           </dl>
         </CardContent>

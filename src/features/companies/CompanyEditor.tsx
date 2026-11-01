@@ -8,11 +8,13 @@ import { EditorForm } from '@/ui/EditorForm.tsx';
 import { TextField } from '@/ui/form-fields.tsx';
 import { linkButton } from '@/ui/link-button.ts';
 import { RecordNotFound } from '@/ui/record-page.tsx';
+import { CustomFieldInputs } from '../custom-fields/CustomFields.tsx';
+import { customConflictRow, customCopyLines, useCustomFields } from '../custom-fields/custom-values.ts';
 import { useRecord } from '../records.ts';
 import { useRecordEditor } from '../use-record-editor.ts';
 import { companyFields, companyValues, readCompanyForm, type CompanyFields, type CompanyFormValues } from './company-form.ts';
 
-const LABELS: Record<keyof CompanyFields, string> = { name: 'Name', website: 'Website', tags: 'Tags' };
+const LABELS: Record<Exclude<keyof CompanyFields, 'customFields'>, string> = { name: 'Name', website: 'Website', tags: 'Tags' };
 
 export function NewCompanyPage() {
   return <CompanyEditor saved={null} />;
@@ -29,12 +31,13 @@ export function EditCompanyPage() {
 
 function CompanyEditor({ saved }: { saved: VersionedRecord<Company> | null }) {
   const navigate = useNavigate();
+  const custom = useCustomFields('company');
   const editor = useRecordEditor({
     type: 'company',
     saved,
     fieldsOf: companyFields,
-    valuesOf: companyValues,
-    read: readCompanyForm,
+    valuesOf: (fields) => companyValues(fields, custom.shown),
+    read: (values, base) => readCompanyForm(values, { custom: custom.shown, stored: base?.customFields }),
     onSaved: (result) => void navigate({ to: '/companies/$companyId', params: { companyId: result.record.id } }),
   });
   const { values, errors } = editor;
@@ -46,8 +49,14 @@ function CompanyEditor({ saved }: { saved: VersionedRecord<Company> | null }) {
     <ConflictPanel
       noun="company"
       remoteDeleted={!editor.remote}
-      rows={editor.rows.map((row) => ({ label: LABELS[row.key], remote: shown(row.remote), mine: shown(row.mine), changedByMe: row.changedByMe }))}
-      copyText={editor.attempt ? (Object.keys(LABELS) as (keyof CompanyFields)[]).map((key) => `${LABELS[key]}: ${asText(shown(editor.attempt![key]))}`).join('\n') : ''}
+      rows={editor.rows.map((row) =>
+        row.customId ? customConflictRow(custom.all, row) : { label: LABELS[row.key as keyof typeof LABELS], remote: shown(row.remote), mine: shown(row.mine), changedByMe: row.changedByMe },
+      )}
+      copyText={
+        editor.attempt
+          ? [...(Object.keys(LABELS) as (keyof typeof LABELS)[]).map((key) => `${LABELS[key]}: ${asText(shown(editor.attempt![key]))}`), ...customCopyLines(custom.shown, editor.attempt.customFields)].join('\n')
+          : ''
+      }
       onRetry={() => void editor.retryAfterReview()}
       onDiscard={() => {
         if (editor.remote) return editor.discardMine();
@@ -87,6 +96,7 @@ function CompanyEditor({ saved }: { saved: VersionedRecord<Company> | null }) {
         onChange={(e) => set({ website: e.target.value })}
       />
       <TextField id="tags" label="Tags" autoComplete="off" hint="Separate tags with commas." value={values.tags} onChange={(e) => set({ tags: e.target.value })} />
+      <CustomFieldInputs fields={custom.shown} values={values.custom} errors={errors} onChange={(changed) => set({ custom: changed })} />
     </EditorForm>
   );
 }

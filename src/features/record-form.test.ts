@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { changedFields, cleanList, conflictRows, rebaseFields, splitTags } from './record-form.ts';
+import { changedKeys, cleanList, conflictRows, rebaseFields, splitTags } from './record-form.ts';
 
 describe('splitTags', () => {
   it('splits on commas, trims, and drops empty and repeated tags', () => {
@@ -19,9 +19,37 @@ describe('cleanList', () => {
 
 const base = { name: 'Ava Bennett', emails: ['ava@example.test'], phones: [] as string[] };
 
-describe('changedFields', () => {
+describe('changedKeys', () => {
   it('returns only the fields that differ, comparing lists by value', () => {
-    expect(changedFields({ ...base, emails: ['ava@example.test'], phones: ['555-0100'] }, base)).toEqual({ phones: ['555-0100'] });
+    expect(changedKeys({ ...base, emails: ['ava@example.test'], phones: ['555-0100'] }, base)).toEqual(['phones']);
+  });
+});
+
+describe('custom fields (spec 10): each one is its own field', () => {
+  const start = { name: 'Ava Bennett', customFields: { linkedin: 'https://linkedin.com/in/ava', source: 'conference' } as Record<string, string> | undefined };
+  const mine = { ...start, customFields: { ...start.customFields, linkedin: 'https://linkedin.com/in/ava-b' } };
+  const remote = { ...start, customFields: { ...start.customFields, source: 'referral' } };
+
+  it('compares each custom field, and an empty object is the same as none', () => {
+    expect(changedKeys(remote, start)).toEqual(['customFields.source']);
+    expect(changedKeys({ name: 'A', customFields: undefined }, { name: 'A', customFields: {} })).toEqual([]);
+  });
+
+  it("keeps the remote's change to another custom field on a retry", () => {
+    expect(rebaseFields(mine, start, remote)).toEqual({ name: 'Ava Bennett', customFields: { linkedin: 'https://linkedin.com/in/ava-b', source: 'referral' } });
+  });
+
+  it('removes a value I cleared, and leaves out an empty object', () => {
+    const renamed = { ...start, name: 'Ava B.' };
+    expect(rebaseFields({ ...start, customFields: { linkedin: 'https://linkedin.com/in/ava' } }, start, renamed)).toEqual({ name: 'Ava B.', customFields: { linkedin: 'https://linkedin.com/in/ava' } });
+    expect(rebaseFields({ ...start, customFields: undefined }, start, renamed)).toEqual({ name: 'Ava B.', customFields: undefined });
+  });
+
+  it('lists one row for each custom field that I or the remote changed', () => {
+    expect(conflictRows(mine, start, remote)).toEqual([
+      { key: 'customFields', customId: 'linkedin', mine: 'https://linkedin.com/in/ava-b', remote: 'https://linkedin.com/in/ava', changedByMe: true, changedRemotely: false },
+      { key: 'customFields', customId: 'source', mine: 'conference', remote: 'referral', changedByMe: false, changedRemotely: true },
+    ]);
   });
 });
 
