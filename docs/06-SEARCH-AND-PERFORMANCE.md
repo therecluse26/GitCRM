@@ -123,6 +123,8 @@ Other results:
 - The Pipeline board has pages of 50 in each column. At 2,000 records, a column has about 40 cards, so the board still draws about 200: 376 ms with the slow CPU.
 - The Base UI checkbox costs about 1 ms per draw with the slow CPU. With 50 rows on a page, that cost is small, so the checkbox stays.
 
+**List filters and sort, measured 2026-11-02** (spec 14): Node through Vitest on the development machine, not the browser. At 2,000 contacts, `listRecords` with two filters and a sort by Job title took a median of 1.91 ms over 21 runs; the sort by name alone took 1.05 ms. Each sort reads a record's key once, not once per comparison. So the filter and the sort stay small next to drawing the rows, the same as search.
+
 ## Caching
 
 - Treat git blob SHA and tree/commit SHA as the cache keys.
