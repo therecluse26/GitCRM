@@ -8,6 +8,8 @@ Professional, minimal, and fast. Users should see CRM concepts, not Git internal
 
 Primary: Home, Contacts, Companies, Pipeline, Tasks, Search, Settings. A unified record view includes tabs/sections for details, linked records, activities, and related tasks.
 
+Built (spec 12): one top bar holds the main navigation as tabs, the repository, the sync status, and Refresh. The current page's tab has an accent line under it. There is no left navigation column.
+
 Built (spec 08): on a phone, the main navigation wraps into rows, with no menu button. An address that matches no page shows "Page not found" inside the app.
 
 Built (spec 08): no page draws a long list at once. Each list that can grow comes in pages of 50, with "Previous page" and "Next page": Contacts, Companies, Tasks, the Pipeline list and each board column, Search for one record type, and the lists on a record page. Home's "Tasks due" shows the first 10. List rows are memos, so a save draws again only the row that changed (docs/06).
@@ -49,6 +51,7 @@ Built (spec 08): no page draws a long list at once. Each list that can grow come
 ### Settings
 
 - Workspace name, connected GitHub repo, private status, connection health.
+- Built (spec 12): an "Appearance" card with the theme, Dark or Light. Dark is the default. The choice is stored only while the connection is remembered.
 - Export complete snapshot / CSV.
 - Built (spec 05): an Export card with "Export JSON snapshot" and "Export CSV". It waits for a complete, current snapshot, and says why when it waits.
 - Disconnect and token safety guidance.
@@ -90,15 +93,16 @@ The target is WCAG 2.2 AA (PRODUCT_REQUIREMENTS). `e2e/accessibility.spec.ts` ch
 
 Things that need no check: GitCRM has no dialogs, because a delete is its own page; so no focus trap is needed. The stage always shows as text: the column heading on the board, and the Stage column in the list.
 
-The theme is light only. Three tokens in `src/index.css` were darkened to meet AA:
+Every page is checked in both themes, dark and light (spec 12). The tokens in `src/index.css` that these checks depend on:
 
-| Token | Before | After | Contrast now |
+| Token | Light | Dark | Why |
 | --- | --- | --- | --- |
-| `--destructive` | `oklch(0.577 0.245 27.325)` | `oklch(0.505 0.213 27.518)` | 5.3:1 on its 10% tint (the "Delete" button) |
-| `--input` | `oklch(0.922 0 0)` | `oklch(0.62 0 0)` | 3.6:1 on `--background` (field borders) |
-| `--ring` | `oklch(0.708 0 0)` | `oklch(0.205 0 0)` | 3.4:1 at 50% on `--background` (focus rings) |
+| `--input` | `#6b7280`, 4.8:1 on `--background` | `#6b7280`, 4.0:1 on `--background` | Field borders |
+| `--ring` | `#0f766e`, 5.5:1 | `#2dd4bf`, 10.4:1 | Focus rings, drawn at full strength. At 50%, the old strength, teal on white is only 2.1:1 |
+| `--destructive` | `#b91c1c` | `#f87171` | The "Delete" button, and the border of a field with an error. In dark, that border was drawn at 50% (2.5:1); now it is full strength |
+| `--muted-foreground` | `#4b5563`, 7.6:1 | `#9ca3af`, 7.6:1 | Secondary text |
 
-The "Delete" button used its own faint focus ring (`--destructive` at 20%). It now uses the same ring as every other button. A field with an error had a faint red ring that hid its focus ring. Now the red border (5.3:1) and the error text mark the field, and focus shows the usual ring.
+The "Delete" button uses the same focus ring as every other button. A field with an error shows a red border and the error text; focus shows the usual ring.
 
 Not checked yet: a screen reader run (NVDA, VoiceOver), text at 200%, and Windows contrast themes. These need a person.
 

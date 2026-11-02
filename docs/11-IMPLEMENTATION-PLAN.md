@@ -67,6 +67,16 @@ Owner decision 2026-10-31, after the first run against a real repository (ADR-02
 - [x] 4. A manual run on the owner's own copy, from "Use this template" to the first record. Done on 2026-11-01 (docs/12, S-09 "Live run"). The owner found no rough spots.
 - [x] 5. The update button (spec 11, owner decision 2026-11-01). On a copy's GitHub Pages site, the app reads the template's latest release with no token. When it is newer, a banner shows **Update GitCRM**, which opens the copy's Template update workflow. The workflow now runs only by hand, commits the release to `main`, and starts Deploy. No pull request, no schedule. A release whose `package.json` has another version is refused.
 
+### Styling and CRM features
+
+Owner request 2026-11-02: the app needs styling, and standard CRM features.
+
+- [x] 1. Visual style, first slice (spec 12, ADR-027). Option C, "Dense and data-first", from three mock-ups. New theme tokens, IBM Plex fonts, a smaller type scale, one top bar with tabs. Dark by default; Settings, Appearance offers Light. Every page passes the accessibility checks in both themes.
+- [ ] 2. Visual style, second slice: the list pages as tables with columns, and stage marks.
+- [ ] 3. More built-in contact fields.
+- [ ] 4. List sort and filter by any field.
+- [ ] 5. A public lead form. Needs an owner decision first: a browser cannot write to a private repo without a token (ADR-004).
+
 ## Future considerations (not promises)
 
 - GitHub App sign-in through a stateless auth broker, only if real demand appears (ADR-009, deferred; design in `docs/05-AUTH-AND-ONBOARDING.md`).
