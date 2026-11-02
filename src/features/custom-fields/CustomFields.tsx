@@ -5,10 +5,11 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { activeFields, fits, formValue, misfit, type CustomField, type CustomRecordType, type FormValue, type StoredValues } from '@/core/custom-fields.ts';
 import { SelectField, TextField } from '@/ui/form-fields.tsx';
+import { td } from '@/ui/data-table.ts';
 import { Detail } from '@/ui/record-page.tsx';
 import type { FieldErrors } from '../record-form.ts';
 import { useFieldSets } from '../records.ts';
-import { customText } from './custom-values.ts';
+import { customCellText, customText } from './custom-values.ts';
 
 export function CustomFieldInputs({ fields, values, errors, onChange }: { fields: CustomField[]; values: Record<string, FormValue>; errors: FieldErrors; onChange: (values: Record<string, FormValue>) => void }) {
   return fields.map((field) => {
@@ -70,4 +71,13 @@ export function CustomFieldDetails({ type, values }: { type: CustomRecordType; v
       </Detail>
     );
   });
+}
+
+// The custom columns of a list row (spec 14), after the built-in cells.
+export function CustomCells({ fields, values }: { fields: CustomField[]; values: StoredValues }) {
+  return fields.map((field) => (
+    <td key={field.id} className={field.type === 'number' ? `${td} text-right tabular-nums` : td}>
+      {customCellText(field, values?.[field.id])}
+    </td>
+  ));
 }
