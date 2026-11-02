@@ -3,7 +3,7 @@
 import { expect, test, type Page } from './fixtures.ts';
 import { connect } from './connect-page.ts';
 import { routeFakeGitHub } from './fake-route.ts';
-import { go, open, seedWorkspace } from './workspace.ts';
+import { company, contact, go, open, opportunity, seedWorkspace } from './workspace.ts';
 
 const theme = (page: Page) => page.evaluate(() => (document.documentElement.classList.contains('dark') ? 'dark' : 'light'));
 const background = (page: Page) => page.evaluate(() => getComputedStyle(document.body).backgroundColor);
@@ -86,4 +86,40 @@ test('every font comes from the app itself', async ({ page, baseURL }) => {
   await page.evaluate(() => document.fonts.ready);
   expect(fonts.length).toBeGreaterThan(0);
   expect(fonts.filter((url) => !url.startsWith(new URL(baseURL!).origin))).toEqual([]);
+});
+
+// The second slice: tables with columns, and stage marks.
+const acme = company('Acme Corp', { website: 'https://acme.example' });
+const ava = contact('Ava Bennett', { companyId: acme.id, emails: ['ava@acme.example', 'ava@home.example'], phones: ['+1 202 555 0143'], tags: ['vip'] });
+const ben = contact('Ben Ortiz', { companyId: acme.id });
+const headers = (page: Page, table: string) => page.getByRole('table', { name: table }).getByRole('columnheader');
+const cells = (page: Page, table: string, name: string) => page.getByRole('table', { name: table }).getByRole('row', { name: new RegExp(name) }).getByRole('cell');
+
+test('Contacts is a table with a column per field', async ({ page }) => {
+  await open(page, [acme, ava, ben]);
+  await go(page, 'Contacts');
+  await expect(headers(page, 'Contacts')).toHaveText(['Name', 'Company', 'Email', 'Phone', 'Tags', 'Updated']);
+  await expect(cells(page, 'Contacts', 'Ava Bennett')).toHaveText(['Ava Bennett', 'Acme Corp', 'ava@acme.example', '+1 202 555 0143', 'vip', /\w{3} \d{1,2}, \d{4}/]);
+  await cells(page, 'Contacts', 'Ava Bennett').getByRole('link', { name: 'Ava Bennett' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Ava Bennett' })).toBeVisible();
+});
+
+test('Companies is a table with a column per field', async ({ page }) => {
+  await open(page, [acme, ava, ben]);
+  await go(page, 'Companies');
+  await expect(headers(page, 'Companies')).toHaveText(['Name', 'Website', 'Contacts', 'Tags', 'Updated']);
+  await expect(cells(page, 'Companies', 'Acme Corp')).toHaveText(['Acme Corp', 'acme.example', '2', '', /\w{3} \d{1,2}, \d{4}/]);
+});
+
+test('each stage has a mark: three colours for the open stages, the same mark in the list', async ({ page }) => {
+  await open(page, [opportunity('Website rebuild', 'proposal')]);
+  await go(page, 'Pipeline');
+  const marks = page.getByRole('main').locator('h2 [data-slot=stage-mark]');
+  await expect(marks).toHaveCount(5);
+  const colours = await marks.evaluateAll((els) => els.map((el) => getComputedStyle(el).backgroundColor));
+  expect(new Set(colours.slice(0, 3)).size).toBe(3);
+
+  await page.getByLabel('View').selectOption('List');
+  const row = page.getByRole('table', { name: 'Opportunities' }).getByRole('row', { name: /Website rebuild/ });
+  await expect(row.locator('[data-slot=stage-mark]')).toHaveCSS('background-color', colours[2]);
 });
