@@ -26,6 +26,7 @@ Built (spec 08): no page draws a long list at once. Each list that can grow come
 ### Contacts and companies
 
 - Searchable sortable list, create/edit form, detail view.
+- Built (spec 12): the list is a dense table. Contacts: Name, Company, Email, Phone, Tags, Updated. Companies: Name, Website, Contacts, Tags, Updated.
 - Contact may belong to a company; company detail shows associated contacts/opportunities.
 - A notes/activity timeline, adding each note as a new activity record.
 
@@ -35,6 +36,7 @@ Built (spec 08): no page draws a long list at once. Each list that can grow come
 - Opportunity card shows title, linked company/contact, amount when present.
 - Detail form edits stage, amount, expected close date, relations.
 - Terminal stages visually distinct; no automatic downstream workflow.
+- Built (spec 12): each stage has a coloured mark before its name, on the board and in the list. Open stages take four colours in pipeline order; Won is green, and Lost is grey.
 
 ### Tasks
 
@@ -91,7 +93,7 @@ The target is WCAG 2.2 AA (PRODUCT_REQUIREMENTS). `e2e/accessibility.spec.ts` ch
 - **No motion:** no CSS animation runs on any page. Hover colors fade in 150 ms; nothing moves. So reduced motion needs no change.
 - **Reflow:** at 320 pixels wide, no page scrolls sideways (WCAG 1.4.10, spec 08 "Phone width").
 
-Things that need no check: GitCRM has no dialogs, because a delete is its own page; so no focus trap is needed. The stage always shows as text: the column heading on the board, and the Stage column in the list.
+Things that need no check: GitCRM has no dialogs, because a delete is its own page; so no focus trap is needed. The stage always shows as text: the column heading on the board, and the Stage column in the list. The stage marks (spec 12) only add colour next to that text; each mark reaches 3:1 in both themes.
 
 Every page is checked in both themes, dark and light (spec 12). The tokens in `src/index.css` that these checks depend on:
 

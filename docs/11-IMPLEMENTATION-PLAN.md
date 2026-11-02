@@ -72,7 +72,7 @@ Owner decision 2026-10-31, after the first run against a real repository (ADR-02
 Owner request 2026-11-02: the app needs styling, and standard CRM features.
 
 - [x] 1. Visual style, first slice (spec 12, ADR-027). Option C, "Dense and data-first", from three mock-ups. New theme tokens, IBM Plex fonts, a smaller type scale, one top bar with tabs. Dark by default; Settings, Appearance offers Light. Every page passes the accessibility checks in both themes.
-- [ ] 2. Visual style, second slice: the list pages as tables with columns, and stage marks.
+- [x] 2. Visual style, second slice (spec 12). Contacts and Companies are dense tables with a column per field; the Pipeline list uses the same style. Each stage has a coloured mark next to its name. Task groups sit in boxes; they stay lists, because the same row shows on Home and on record pages.
 - [ ] 3. More built-in contact fields.
 - [ ] 4. List sort and filter by any field.
 - [ ] 5. A public lead form. Needs an owner decision first: a browser cannot write to a private repo without a token (ADR-004).
