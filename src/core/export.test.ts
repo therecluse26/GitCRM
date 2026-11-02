@@ -21,10 +21,20 @@ const opportunity = (title: string, changes: Partial<Opportunity> = {}): Opportu
 const task = (title: string, changes: Partial<Task> = {}): Task => ({ ...newRecord('task', { title, description: '', dueDate: null, completedAt: null, related: null }, { now }), ...changes });
 const activity = (body: string, changes: Partial<Activity> = {}): Activity => ({ ...newRecord('activity', { kind: 'note', body, occurredAt: '2026-10-26T16:15:00Z', related: null }, { now }), ...changes });
 
-const northwind = company('Northwind Traders', { website: 'https://northwind.example', tags: ['wholesale', 'a;b'] });
+const northwind = company('Northwind Traders', {
+  industry: 'Wholesale',
+  website: 'https://northwind.example',
+  phones: ['+1 555 0199'],
+  address: { street: '1 Dock Rd\nUnit 2', city: 'Seattle', region: 'WA', postalCode: '98101', country: 'USA' },
+  tags: ['wholesale', 'a;b'],
+});
 const ava = contact('=Ava Bennett', {
+  jobTitle: 'Head of Operations',
   emails: ['ava@northwind.example', 'ava.b@home.example'],
   phones: ['+1 555 0100'],
+  profiles: ['https://linkedin.com/in/ava'],
+  address: { street: null, city: 'Portland', region: null, postalCode: null, country: 'USA' },
+  source: 'Referral',
   companyId: northwind.id,
   tags: ['vip'],
   customFields: { seats: 3, tier: 'gold' },
@@ -43,15 +53,20 @@ const source: ExportSource = { repository: 'octo-dev/crm', branch: 'main', commi
 const utf8 = new TextDecoder('utf-8', { ignoreBOM: true });
 const unzip = (bytes: Uint8Array) => Object.fromEntries(Object.entries(unzipSync(bytes)).map(([path, data]) => [path, utf8.decode(data)]));
 const ofType = (type: RecordType, list: CRMRecord[] = records) => list.filter((r) => r.type === type).toSorted((a, b) => (a.id < b.id ? -1 : 1));
+const ADDRESS_COLUMNS = ['addressStreet', 'addressCity', 'addressRegion', 'addressPostalCode', 'addressCountry'];
 const SCHEMA_FILES = ['contact', 'company', 'opportunity', 'task', 'activity', 'workspace'].map((name) => `schemas/${name}.schema.json`);
 
 // Rebuilds a record from its CSV row by the rules in spec 05 ("CSV rules").
-const LISTS = new Set(['emails', 'phones', 'tags', 'contactIds']);
+const LISTS = new Set(['emails', 'phones', 'profiles', 'tags', 'contactIds']);
 function fromRow(header: string[], row: string[]): Record<string, unknown> {
   const record: Record<string, unknown> = {};
   header.forEach((column, i) => {
     const value = readValue(row[i]);
-    if (column === 'relatedType') record.related = value === '' ? null : { type: value, id: readValue(row[i + 1]) };
+    if (column.startsWith('address')) {
+      const part = `${column[7].toLowerCase()}${column.slice(8)}`;
+      const address = { ...(record.address as object), [part]: value === '' ? null : value };
+      record.address = column === 'addressCountry' && Object.values(address).every((v) => v === null) ? null : address;
+    } else if (column === 'relatedType') record.related = value === '' ? null : { type: value, id: readValue(row[i + 1]) };
     else if (column === 'customFields') {
       if (value !== '') record.customFields = JSON.parse(value);
     } else if (LISTS.has(column)) record[column] = readList(row[i]);
@@ -65,8 +80,12 @@ describe('csvTables', () => {
   it('gives each record type a fixed header: the JSON fields in order, with related as two columns', () => {
     const tables = csvTables([], config.pipelineStages);
     expect(Object.fromEntries(RECORD_TYPES.map((type) => [type, readCsv(tables[type])]))).toEqual({
-      contact: [['schemaVersion', 'type', 'id', 'name', 'emails', 'phones', 'companyId', 'tags', 'customFields', 'createdAt', 'updatedAt', 'archivedAt']],
-      company: [['schemaVersion', 'type', 'id', 'name', 'website', 'tags', 'customFields', 'createdAt', 'updatedAt', 'archivedAt']],
+      contact: [
+        [
+          'schemaVersion', 'type', 'id', 'name', 'jobTitle', 'emails', 'phones', 'profiles', ...ADDRESS_COLUMNS, 'companyId', 'source', 'tags', 'customFields', 'createdAt', 'updatedAt', 'archivedAt',
+        ],
+      ],
+      company: [['schemaVersion', 'type', 'id', 'name', 'industry', 'website', 'phones', ...ADDRESS_COLUMNS, 'tags', 'customFields', 'createdAt', 'updatedAt', 'archivedAt']],
       opportunity: [
         ['schemaVersion', 'type', 'id', 'title', 'stageId', 'companyId', 'contactIds', 'valueMinor', 'currency', 'expectedCloseDate', 'customFields', 'createdAt', 'updatedAt', 'archivedAt', 'stageLabel', 'value'],
       ],
@@ -87,6 +106,11 @@ describe('csvTables', () => {
     const [header, ...rows] = readCsv(tables.contact);
     const row = Object.fromEntries(header.map((column, i) => [column, rows.find((r) => r[2] === ava.id)![i]]));
     expect(row).toMatchObject({ name: "'=Ava Bennett", emails: 'ava@northwind.example;ava.b@home.example', phones: "'+1 555 0100", companyId: northwind.id, customFields: '{"seats":3,"tier":"gold"}', archivedAt: '' });
+    expect(row).toMatchObject({ schemaVersion: '2', jobTitle: 'Head of Operations', profiles: 'https://linkedin.com/in/ava', addressStreet: '', addressCity: 'Portland', addressCountry: 'USA', source: 'Referral' });
+    const [companyHeader, companyRow] = readCsv(tables.company);
+    expect(Object.fromEntries(companyHeader.map((column, i) => [column, companyRow[i]]))).toMatchObject({ industry: 'Wholesale', phones: "'+1 555 0199", addressStreet: '1 Dock Rd\nUnit 2', addressPostalCode: '98101' });
+    const zoeRow = rows.find((r) => r[2] === zoe.id)!;
+    expect(ADDRESS_COLUMNS.map((column) => zoeRow[header.indexOf(column)])).toEqual(['', '', '', '', '']);
 
     const [dealHeader, ...deals] = readCsv(tables.opportunity);
     const deal = Object.fromEntries(dealHeader.map((column, i) => [column, deals.find((r) => r[2] === rebuild.id)![i]]));

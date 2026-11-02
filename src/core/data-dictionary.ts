@@ -5,7 +5,7 @@ import { fieldSets, TYPE_LABELS } from './custom-fields.ts';
 import type { ExportSource } from './export.ts';
 import { FOLDERS, WORKSPACE_PATH } from './paths.ts';
 import { isoTimestamp } from './records.ts';
-import { CUSTOM_RECORD_TYPES, RECORD_TYPES, recordSchemas, workspaceSchema, type RecordType } from './schemas.ts';
+import { ADDRESS_PARTS, CUSTOM_RECORD_TYPES, fileSchemas, RECORD_TYPES, recordSchemas, workspaceSchema, type RecordType } from './schemas.ts';
 
 const COMMON: Record<string, string> = {
   schemaVersion: 'The version of the record format. Always 1.',
@@ -19,16 +19,29 @@ const COMMON: Record<string, string> = {
   archivedAt: 'When the record was archived, as a UTC timestamp. null when the record is not archived.',
 };
 
+const VERSIONS = 'The version of the record format: 1 or 2. A version 1 file has no version 2 fields. In the CSV it is always 2.';
+const ADDRESS =
+  'Version 2. The postal address: an object with street, city, region, postalCode, and country, or null. An empty part is null. The street can have more than one line.';
+
 const SPECIFIC: Record<RecordType, Record<string, string>> = {
   contact: {
+    schemaVersion: VERSIONS,
     name: 'The contact name. It must not be blank.',
+    jobTitle: 'Version 2. The job title, or null.',
     emails: 'Email addresses, a list.',
     phones: 'Phone numbers as the user typed them, a list.',
+    profiles: 'Version 2. Web addresses, such as a LinkedIn profile, a list of http or https URLs.',
+    address: ADDRESS,
     companyId: "The ID of the contact's company, or null.",
+    source: 'Version 2. How the contact was met, such as Referral, or null.',
   },
   company: {
+    schemaVersion: VERSIONS,
     name: 'The company name. It must not be blank.',
+    industry: 'Version 2. The industry, or null.',
     website: 'The website, an http or https URL, or null.',
+    phones: 'Version 2. Phone numbers as the user typed them, a list.',
+    address: ADDRESS,
   },
   opportunity: {
     title: 'The opportunity title. It must not be blank.',
@@ -57,8 +70,9 @@ export const FIELD_NOTES = Object.fromEntries(
   RECORD_TYPES.map((type) => [type, Object.fromEntries(Object.keys(recordSchemas[type].shape).map((key) => [key, key === 'type' ? `Always "${type}".` : (SPECIFIC[type][key] ?? COMMON[key])]))]),
 ) as Record<RecordType, Record<string, string>>;
 
-// The CSV columns of a field: `related` becomes two.
-export const csvColumns = (key: string) => (key === 'related' ? ['relatedType', 'relatedId'] : [key]);
+// The CSV columns of a field: `related` becomes two, and `address` five.
+export const ADDRESS_COLUMNS = ADDRESS_PARTS.map((part) => `address${part[0].toUpperCase()}${part.slice(1)}`);
+export const csvColumns = (key: string) => (key === 'related' ? ['relatedType', 'relatedId'] : key === 'address' ? ADDRESS_COLUMNS : [key]);
 
 // The columns at the end of opportunities.csv that are not JSON fields.
 export const OPPORTUNITY_CSV_ONLY = {
@@ -71,8 +85,9 @@ const CSV_RULES = [
   'The first row is the header. The columns are the fields of the JSON file, in the same order.',
   'Every cell is in double quotes. A double quote in a value is written twice.',
   'An empty cell is null, an empty list, or an empty task description.',
-  'A list (`emails`, `phones`, `tags`, `contactIds`) is one cell, with `;` between items. In an item, `\\` is written `\\\\`, and `;` is written `\\;`.',
+  'A list (`emails`, `phones`, `profiles`, `tags`, `contactIds`) is one cell, with `;` between items. In an item, `\\` is written `\\\\`, and `;` is written `\\;`.',
   '`related` becomes two columns, `relatedType` and `relatedId`.',
+  '`address` becomes five columns, from `addressStreet` to `addressCountry`. When all five are empty, the address is null.',
   '`customFields` is one cell of JSON text. It is empty when the record has no custom fields.',
   '`opportunities.csv` has two more columns at the end, `stageLabel` and `value`.',
   'Spreadsheet safety (OWASP, "CSV Injection"): a cell that begins with `=`, `+`, `-`, `@`, `＝`, `＋`, `－`, `＠`, a tab, a carriage return, a line feed, or `\'` gets a `\'` in front, so a spreadsheet shows it as text. To read the value back, remove that one `\'`. The JSON snapshot keeps the original value.',
@@ -120,7 +135,7 @@ export function dataDictionary(source: ExportSource, now: Date): string {
     `| Repository | ${source.repository}, branch ${source.branch} |`,
     `| Commit | ${source.commitSha ?? 'Not known: this browser saved changes after it last read the branch'} |`,
     `| Exported | ${isoTimestamp(now)} (UTC) |`,
-    `| Schema versions | Record files 1, ${code(WORKSPACE_PATH)} ${config.schemaVersion} |`,
+    `| Schema versions | Contact and company files 1 or 2, other record files 1, ${code(WORKSPACE_PATH)} ${config.schemaVersion} |`,
     '',
     `The JSON snapshot holds ${code(WORKSPACE_PATH)} and every record file under ${code('data/')}, with the same text as on the branch. It is a copy of the branch, not its history. To keep the history, clone the repository.`,
     '',
@@ -144,9 +159,9 @@ export function dataDictionary(source: ExportSource, now: Date): string {
     '',
     '## Fields',
     '',
-    `Every JSON file has every field in its table. Only ${code('customFields')} can be left out.`,
+    `Every JSON file has every field in its table. Only ${code('customFields')} can be left out. A version 1 contact or company file leaves out the version 2 fields; GitCRM writes version 2 only when one of them has a value.`,
     '',
-    `The exact formats are in ${code('schemas/')}: JSON Schema 2020-12, generated from the validation in GitCRM. Three rules are not in the schemas. A name, title, tag, phone number, or activity text must not be blank. A website must use http or https. The workspace file needs unique stage IDs and positions, a ${code('won')} and a ${code('lost')} stage, unique custom field IDs, positions, and option IDs, and ${code('schemaVersion')} 2 when it has custom fields.`,
+    `The exact formats are in ${code('schemas/')}: JSON Schema 2020-12, generated from the validation in GitCRM. These rules are not in the schemas. A text value, a tag, a phone number, or an address part must not be blank. A website or profile must use http or https. An address has at least one part. The workspace file needs unique stage IDs and positions, a ${code('won')} and a ${code('lost')} stage, unique custom field IDs, positions, and option IDs, and ${code('schemaVersion')} 2 when it has custom fields.`,
     ...RECORD_TYPES.flatMap((type) => [
       '',
       `### ${type[0].toUpperCase()}${type.slice(1)} (${code(`data/${FOLDERS[type]}/`)}, ${code(`${FOLDERS[type]}.csv`)})`,
@@ -166,6 +181,6 @@ export function dataDictionary(source: ExportSource, now: Date): string {
 
 // One JSON Schema per record type, and one for the workspace file.
 export function jsonSchemas(): Record<string, string> {
-  const schemas = { ...recordSchemas, workspace: workspaceSchema };
+  const schemas = { ...fileSchemas, workspace: workspaceSchema };
   return Object.fromEntries(Object.entries(schemas).map(([name, schema]) => [`schemas/${name}.schema.json`, `${JSON.stringify(z.toJSONSchema(schema), null, 2)}\n`]));
 }
