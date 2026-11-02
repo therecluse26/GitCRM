@@ -1,5 +1,6 @@
-// Pure helpers that the record forms share: list and tag input, and the compare and rebase that
-// a conflict needs (spec 07).
+// Pure helpers that the record forms share: list, tag, and address input, and the compare and
+// rebase that a conflict needs (spec 07).
+import { ADDRESS_PARTS, isWebsite, withScheme, type Address } from '@/core/schemas.ts';
 
 export type FieldErrors = Record<string, string>;
 export type FormResult<F> = { ok: true; fields: F } | { ok: false; errors: FieldErrors };
@@ -16,6 +17,51 @@ export function splitTags(text: string): string[] {
 export function cleanList(values: string[]): string[] {
   return values.map((value) => value.trim()).filter((value) => value !== '');
 }
+
+// The values other records use, for suggestions (spec 13): each once, ignoring case, sorted. Of
+// two spellings, the more used one shows; a tie goes to the first in code point order.
+export function usedValues(values: (string | null)[]): string[] {
+  const spellings = new Map<string, Map<string, number>>();
+  for (const value of values) {
+    if (!value?.trim()) continue;
+    const counts = spellings.get(value.toLowerCase()) ?? new Map<string, number>();
+    spellings.set(value.toLowerCase(), counts.set(value, (counts.get(value) ?? 0) + 1));
+  }
+  const best = (counts: Map<string, number>) => [...counts].sort(([a, n], [b, m]) => m - n || (a < b ? -1 : 1))[0][0];
+  return [...spellings.values()].map(best).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+}
+
+// A list input always shows at least one row.
+export const listRows = (values: string[]) => (values.length > 0 ? values : ['']);
+
+// Blank text stores null (spec 13).
+export const optionalText = (text: string) => text.trim() || null;
+
+// Web addresses, one per row: a row with no scheme gets https://, and a bad row gets an error.
+export function readWebAddresses(name: string, values: string[], errors: FieldErrors, message: string): string[] {
+  return values.flatMap((value, i) => {
+    const typed = value.trim();
+    if (typed === '') return [];
+    if (!isWebsite(withScheme(typed))) errors[`${name}.${i}`] = message;
+    return [withScheme(typed)];
+  });
+}
+
+export type AddressValues = Record<(typeof ADDRESS_PARTS)[number], string>;
+
+export function addressValues(address: Address | null): AddressValues {
+  return Object.fromEntries(ADDRESS_PARTS.map((part) => [part, address?.[part] ?? ''])) as AddressValues;
+}
+
+// Each street line is trimmed, and empty lines go. An address with no part is null.
+export function readAddress(values: AddressValues): Address | null {
+  const street = cleanList(values.street.split('\n')).join('\n') || null;
+  const parts = Object.fromEntries(ADDRESS_PARTS.map((part) => [part, part === 'street' ? street : optionalText(values[part])])) as Address;
+  return Object.values(parts).some((part) => part !== null) ? parts : null;
+}
+
+// One line for a page or a compare row: "12 Main St, Suite 4, Portland, USA".
+export const addressText = (address: Address | null) => (address ? ADDRESS_PARTS.flatMap((part) => address[part]?.split('\n') ?? []).join(', ') : '');
 
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 

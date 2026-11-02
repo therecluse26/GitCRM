@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { changedKeys, cleanList, conflictRows, rebaseFields, splitTags } from './record-form.ts';
+import { addressText, changedKeys, cleanList, conflictRows, rebaseFields, splitTags, usedValues } from './record-form.ts';
 
 describe('splitTags', () => {
   it('splits on commas, trims, and drops empty and repeated tags', () => {
@@ -14,6 +14,24 @@ describe('splitTags', () => {
 describe('cleanList', () => {
   it('trims each value and drops empty rows', () => {
     expect(cleanList([' ava@example.test ', '', '  '])).toEqual(['ava@example.test']);
+  });
+});
+
+describe('usedValues (spec 13)', () => {
+  it('gives each value once, ignoring case, in its most used spelling, and sorts', () => {
+    expect(usedValues(['event', null, 'Event', ' ', 'event', 'Trade fair'])).toEqual(['event', 'Trade fair']);
+  });
+
+  it('breaks a tie between spellings the same way, whatever the record order', () => {
+    expect(usedValues(['referral', 'Referral'])).toEqual(['Referral']);
+    expect(usedValues(['Referral', 'referral'])).toEqual(['Referral']);
+  });
+});
+
+describe('addressText', () => {
+  it('writes every part and every street line on one line', () => {
+    expect(addressText({ street: '12 Main St\nSuite 4', city: 'Portland', region: null, postalCode: '97201', country: 'USA' })).toBe('12 Main St, Suite 4, Portland, 97201, USA');
+    expect(addressText(null)).toBe('');
   });
 });
 

@@ -16,13 +16,17 @@ describe('isoTimestamp', () => {
 describe('newRecord', () => {
   it('fills the common fields', () => {
     expect(ava).toEqual({
-      schemaVersion: 1,
+      schemaVersion: 2,
       type: 'contact',
       id,
       name: 'Ava Bennett',
+      jobTitle: null,
       emails: ['ava@example.test'],
       phones: [],
+      profiles: [],
+      address: null,
       companyId: null,
+      source: null,
       tags: [],
       createdAt: '2026-10-26T16:00:00Z',
       updatedAt: '2026-10-26T16:00:00Z',

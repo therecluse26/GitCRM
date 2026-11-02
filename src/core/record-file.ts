@@ -2,7 +2,7 @@
 // even if GitCRM wrote it; a bad file becomes a visible issue, never a silent drop.
 import type { z } from 'zod';
 import { parseRecordPath, WORKSPACE_PATH } from './paths.ts';
-import { recordSchemas, WORKSPACE_VERSION, workspaceSchema, type CRMRecord, type WorkspaceConfig } from './schemas.ts';
+import { fileSchemas, RECORD_VERSIONS, recordSchemas, VERSION_2_FIELDS, WORKSPACE_VERSION, workspaceSchema, type CRMRecord, type WorkspaceConfig } from './schemas.ts';
 
 // Size cap for one file (docs/07); a larger file is reported, not parsed.
 export const MAX_FILE_BYTES = 100 * 1024;
@@ -21,7 +21,17 @@ export function serializeRecord(record: CRMRecord): string {
   if ('customFields' in parsed && parsed.customFields) {
     parsed.customFields = Object.fromEntries(Object.entries(parsed.customFields).sort(([a], [b]) => (a < b ? -1 : 1)));
   }
-  return toText(parsed);
+  return toText(lowestVersion(parsed));
+}
+
+// A contact or company with no value in a version 2 field is written as version 1 (ADR-028), so
+// an older GitCRM can still open it.
+function lowestVersion(record: CRMRecord): object {
+  if (record.type !== 'contact' && record.type !== 'company') return record;
+  const empty = Object.entries(VERSION_2_FIELDS[record.type]);
+  if (empty.some(([key, value]) => JSON.stringify(record[key as keyof typeof record]) !== JSON.stringify(value))) return record;
+  const keys = new Set(empty.map(([key]) => key));
+  return { ...Object.fromEntries(Object.entries(record).filter(([key]) => !keys.has(key))), schemaVersion: 1 };
 }
 
 export function serializeWorkspace(config: WorkspaceConfig): string {
@@ -31,13 +41,16 @@ export function serializeWorkspace(config: WorkspaceConfig): string {
 export function parseRecordFile(path: string, text: string): { ok: true; record: CRMRecord } | Failure {
   const location = parseRecordPath(path);
   if (!location) return { ok: false, issue: unrecognizedPath(path) };
-  const json = readJson(path, text, 1);
+  const { type } = location;
+  const json = readJson(path, text, RECORD_VERSIONS[type]);
   if (!json.ok) return json;
-  if (json.value.type !== location.type) return failure(path, 'path-mismatch', `The file is in the ${location.type} folder but has type ${String(json.value.type)}`);
-  const result = recordSchemas[location.type].safeParse(json.value);
+  if (json.value.type !== type) return failure(path, 'path-mismatch', `The file is in the ${type} folder but has type ${String(json.value.type)}`);
+  const result = fileSchemas[type].safeParse(json.value);
   if (!result.success) return failure(path, 'invalid-record', describe(result.error));
   if (result.data.id !== location.id) return failure(path, 'path-mismatch', 'The record ID does not match the filename');
-  return { ok: true, record: result.data };
+  // A version 1 contact or company reads with its version 2 fields empty.
+  const record = (type === 'contact' || type === 'company') && result.data.schemaVersion === 1 ? recordSchemas[type].parse({ ...result.data, ...VERSION_2_FIELDS[type], schemaVersion: 2 }) : result.data;
+  return { ok: true, record: record as CRMRecord };
 }
 
 export function unrecognizedPath(path: string): FileIssue {

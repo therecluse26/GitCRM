@@ -6,7 +6,7 @@ import { csvColumns, dataDictionary, jsonSchemas, OPPORTUNITY_CSV_ONLY } from '.
 import { minorToInput } from './money.ts';
 import { FOLDERS } from './paths.ts';
 import { unreadable, type FileIssue } from './record-file.ts';
-import { RECORD_TYPES, recordSchemas, type CRMRecord, type RecordType, type WorkspaceConfig } from './schemas.ts';
+import { ADDRESS_PARTS, RECORD_TYPES, recordSchemas, type Address, type CRMRecord, type RecordType, type WorkspaceConfig } from './schemas.ts';
 import type { Stage } from './stages.ts';
 
 export type ExportKind = 'snapshot' | 'csv';
@@ -40,6 +40,7 @@ function cells(key: string, value: unknown): string[] {
     const link = value as { type: string; id: string } | null;
     return [link?.type ?? '', link?.id ?? ''];
   }
+  if (key === 'address') return ADDRESS_PARTS.map((part) => (value as Address | null)?.[part] ?? '');
   if (key === 'customFields') return [value === undefined ? '' : JSON.stringify(value)];
   if (Array.isArray(value)) return [csvList(value)];
   return [value === null || value === undefined ? '' : String(value)];

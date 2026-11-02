@@ -6,8 +6,8 @@ Git stores the truth. The **current checked-out logical snapshot on `main`** is 
 
 ## Search behavior
 
-- Search contacts by name, email, phone, tags, and company name.
-- Search companies by name and website.
+- Search contacts by name, job title, email, phone, profile, address, source, tags, and company name.
+- Search companies by name, industry, website, phone, address, and tags.
 - Search opportunities by title, stage, linked contact/company, and exact/filtered value.
 - Search tasks and activities by title/body and associated record.
 - Case-insensitive, trimmed, forgiving matching. A local fuzzy-search library is optional.

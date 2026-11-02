@@ -7,7 +7,7 @@ import { selectCanWrite, selectReadOnly, useApp } from '@/app/store.ts';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { linkButton } from '@/ui/link-button.ts';
-import { ArchivedBadge, Detail, Pager, Problem, RecordNotFound, Tags } from '@/ui/record-page.tsx';
+import { AddressLines, ArchivedBadge, Detail, Pager, PhoneList, Problem, RecordNotFound, Tags, TextOrNone } from '@/ui/record-page.tsx';
 import { CustomFieldDetails } from '../custom-fields/CustomFields.tsx';
 import { onePage } from '../list-page.ts';
 import { RelatedOpportunities } from '../opportunities/RelatedOpportunities.tsx';
@@ -52,12 +52,21 @@ export function CompanyPage() {
       <Card>
         <CardContent>
           <dl className="flex flex-col gap-3 text-sm">
+            <Detail label="Industry">
+              <TextOrNone text={company.industry} />
+            </Detail>
             <Detail label="Website">
               {company.website ? (
                 <a className="underline" href={company.website} target="_blank" rel="noopener noreferrer">{company.website}</a>
               ) : (
                 <span className="text-muted-foreground">None</span>
               )}
+            </Detail>
+            <Detail label="Phone">
+              <PhoneList phones={company.phones} />
+            </Detail>
+            <Detail label="Address">
+              <AddressLines address={company.address} />
             </Detail>
             <Detail label="Tags">
               <Tags tags={company.tags} />

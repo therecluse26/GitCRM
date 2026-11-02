@@ -178,13 +178,17 @@ describe('form values', () => {
 
 describe('customFieldIssues', () => {
   const ava: Contact = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     type: 'contact',
     id: 'd13d0f69-0a4c-4192-9009-9e36a51c42c0',
     name: 'Ava Bennett',
+    jobTitle: null,
     emails: [],
     phones: [],
+    profiles: [],
+    address: null,
     companyId: null,
+    source: null,
     tags: [],
     createdAt: '2026-10-26T16:00:00Z',
     updatedAt: '2026-10-26T16:00:00Z',

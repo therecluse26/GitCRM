@@ -1,4 +1,4 @@
-// Record and workspace schemas, version 1 (docs/02-DATA-MODEL.md).
+// Record and workspace schemas (docs/02-DATA-MODEL.md).
 // Key order in each schema is the canonical key order of the JSON files.
 import { z } from 'zod';
 
@@ -29,7 +29,17 @@ const lifecycle = {
   archivedAt: timestamp.nullable(),
 };
 
-export const contactSchema = z.strictObject({
+// Text that may be left empty: null, never blank.
+const optionalText = nonBlank.nullable();
+// An empty part is null; an address with no part is null, not an object (spec 13).
+const address = z
+  .strictObject({ street: optionalText, city: optionalText, region: optionalText, postalCode: optionalText, country: optionalText })
+  .refine((parts) => Object.values(parts).some((part) => part !== null), 'An empty address is null');
+export type Address = z.infer<typeof address>;
+export const ADDRESS_PARTS = ['street', 'city', 'region', 'postalCode', 'country'] as const;
+
+// Contacts and companies have two file versions (ADR-028). Version 1 has none of the spec 13 fields.
+const contactV1Schema = z.strictObject({
   schemaVersion: z.literal(1),
   type: z.literal('contact'),
   id: uuid,
@@ -42,12 +52,43 @@ export const contactSchema = z.strictObject({
   ...lifecycle,
 });
 
-export const companySchema = z.strictObject({
+export const contactSchema = z.strictObject({
+  schemaVersion: z.literal(2),
+  type: z.literal('contact'),
+  id: uuid,
+  name: nonBlank,
+  jobTitle: optionalText,
+  emails: z.array(z.email()),
+  phones: z.array(nonBlank),
+  profiles: z.array(website),
+  address: address.nullable(),
+  companyId: uuid.nullable(),
+  source: optionalText,
+  tags: z.array(nonBlank),
+  customFields,
+  ...lifecycle,
+});
+
+const companyV1Schema = z.strictObject({
   schemaVersion: z.literal(1),
   type: z.literal('company'),
   id: uuid,
   name: nonBlank,
   website: website.nullable(),
+  tags: z.array(nonBlank),
+  customFields,
+  ...lifecycle,
+});
+
+export const companySchema = z.strictObject({
+  schemaVersion: z.literal(2),
+  type: z.literal('company'),
+  id: uuid,
+  name: nonBlank,
+  industry: optionalText,
+  website: website.nullable(),
+  phones: z.array(nonBlank),
+  address: address.nullable(),
   tags: z.array(nonBlank),
   customFields,
   ...lifecycle,
@@ -91,6 +132,7 @@ export const activitySchema = z.strictObject({
   ...lifecycle,
 });
 
+// A record in memory: contacts and companies always have the version 2 fields.
 export const recordSchemas = {
   contact: contactSchema,
   company: companySchema,
@@ -98,6 +140,23 @@ export const recordSchemas = {
   task: taskSchema,
   activity: activitySchema,
 } as const;
+
+// What a record file may hold, by type.
+export const fileSchemas = {
+  contact: z.discriminatedUnion('schemaVersion', [contactV1Schema, contactSchema]),
+  company: z.discriminatedUnion('schemaVersion', [companyV1Schema, companySchema]),
+  opportunity: opportunitySchema,
+  task: taskSchema,
+  activity: activitySchema,
+} as const;
+
+// The version 2 fields and their empty values. A file whose version 2 fields are all empty is
+// written as version 1 (ADR-028).
+export const VERSION_2_FIELDS = {
+  contact: { jobTitle: null, profiles: [], address: null, source: null },
+  company: { industry: null, phones: [], address: null },
+} as const;
+export const RECORD_VERSIONS = { contact: 2, company: 2, opportunity: 1, task: 1, activity: 1 } as const satisfies Record<RecordType, number>;
 
 export type Contact = z.infer<typeof contactSchema>;
 export type Company = z.infer<typeof companySchema>;

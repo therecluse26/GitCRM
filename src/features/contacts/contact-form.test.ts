@@ -10,21 +10,36 @@ const companies = new Set([companyId]);
 const employees: CustomField = { id: 'employees', label: 'Employees', type: 'number', position: 0, archived: false, options: [] };
 const vip: CustomField = { id: 'vip', label: 'VIP', type: 'checkbox', position: 1, archived: false, options: [] };
 
-const filled: ContactFormValues = { name: ' Ava Bennett ', emails: ['ava@example.test', ''], phones: [' 555-0100 '], companyId, tags: 'referral, vip', custom: {} };
+const noAddress = { street: '', city: '', region: '', postalCode: '', country: '' };
+const empty = { jobTitle: '', profiles: [''], address: noAddress, source: '' };
+const none = { jobTitle: null, profiles: [], address: null, source: null };
+const filled: ContactFormValues = { name: ' Ava Bennett ', emails: ['ava@example.test', ''], phones: [' 555-0100 '], companyId, tags: 'referral, vip', custom: {}, ...empty };
 
 describe('contactValues', () => {
   it('starts a new contact with one empty email row and one empty phone row', () => {
-    expect(contactValues(null)).toEqual({ name: '', emails: [''], phones: [''], companyId: '', tags: '', custom: {} });
+    expect(contactValues(null)).toEqual({ name: '', emails: [''], phones: [''], companyId: '', tags: '', custom: {}, ...empty });
   });
 
   it('reads a saved contact back into the form', () => {
-    const fields = { name: 'Ava Bennett', emails: ['ava@example.test'], phones: [], companyId, tags: ['referral', 'vip'] };
-    expect(contactValues(fields)).toEqual({ name: 'Ava Bennett', emails: ['ava@example.test'], phones: [''], companyId, tags: 'referral, vip', custom: {} });
+    const fields = { name: 'Ava Bennett', emails: ['ava@example.test'], phones: [], companyId, tags: ['referral', 'vip'], ...none };
+    expect(contactValues(fields)).toEqual({ name: 'Ava Bennett', emails: ['ava@example.test'], phones: [''], companyId, tags: 'referral, vip', custom: {}, ...empty });
   });
 
   it('shows each custom field that the form shows (spec 10)', () => {
-    const fields = { name: 'Ava Bennett', emails: [], phones: [], companyId: null, tags: [], customFields: { employees: 12, gone: 'x' } };
+    const fields = { name: 'Ava Bennett', emails: [], phones: [], companyId: null, tags: [], customFields: { employees: 12, gone: 'x' }, ...none };
     expect(contactValues(fields, [employees, vip]).custom).toEqual({ employees: '12', vip: false });
+  });
+
+  it('reads the spec 13 fields back into the form, with null address parts empty', () => {
+    const fields = {
+      name: 'Ava Bennett', emails: [], phones: [], companyId: null, tags: [],
+      jobTitle: 'Head of Operations', profiles: ['https://linkedin.com/in/ava'], source: 'Referral',
+      address: { street: '12 Main St\nSuite 4', city: 'Portland', region: null, postalCode: null, country: 'USA' },
+    };
+    expect(contactValues(fields)).toMatchObject({
+      jobTitle: 'Head of Operations', profiles: ['https://linkedin.com/in/ava'], source: 'Referral',
+      address: { street: '12 Main St\nSuite 4', city: 'Portland', region: '', postalCode: '', country: 'USA' },
+    });
   });
 });
 
@@ -32,8 +47,43 @@ describe('readContactForm', () => {
   it('turns valid values into contact fields', () => {
     expect(readContactForm(filled, { companies, currentCompanyId: null })).toEqual({
       ok: true,
-      fields: { name: 'Ava Bennett', emails: ['ava@example.test'], phones: ['555-0100'], companyId, tags: ['referral', 'vip'], customFields: undefined },
+      fields: { name: 'Ava Bennett', emails: ['ava@example.test'], phones: ['555-0100'], companyId, tags: ['referral', 'vip'], customFields: undefined, ...none },
     });
+  });
+
+  it('reads the spec 13 fields: trimmed text, https:// for a profile, and null for an empty part', () => {
+    const values = {
+      ...filled,
+      jobTitle: ' Head of Operations ',
+      profiles: ['linkedin.com/in/ava', ' ', 'https://ava.example '],
+      address: { ...noAddress, city: ' Portland ', country: 'USA' },
+      source: ' Referral ',
+    };
+    expect(readContactForm(values, { companies, currentCompanyId: null })).toMatchObject({
+      ok: true,
+      fields: {
+        jobTitle: 'Head of Operations',
+        profiles: ['https://linkedin.com/in/ava', 'https://ava.example'],
+        address: { street: null, city: 'Portland', region: null, postalCode: null, country: 'USA' },
+        source: 'Referral',
+      },
+    });
+  });
+
+  it('stores null for an address with no part, and for blank text', () => {
+    const values = { ...filled, jobTitle: '  ', address: { ...noAddress, street: ' \n ' }, source: ' ' };
+    expect(readContactForm(values, { companies, currentCompanyId: null })).toMatchObject({ ok: true, fields: none });
+  });
+
+  it('keeps the lines of a street, trimmed', () => {
+    const values = { ...filled, address: { ...noAddress, street: ' 12 Main St \n Suite 4 \n' } };
+    const result = readContactForm(values, { companies, currentCompanyId: null });
+    expect(result.ok && result.fields.address?.street).toBe('12 Main St\nSuite 4');
+  });
+
+  it('marks a bad profile on its own row', () => {
+    const result = readContactForm({ ...filled, profiles: ['https://ava.example', 'javascript:alert(1)'] }, { companies, currentCompanyId: null });
+    expect(result).toEqual({ ok: false, errors: { 'profiles.1': 'Enter a web address, such as https://example.com/ava.' } });
   });
 
   it('reads custom fields, keeps the other stored values, and reports a refused value (spec 10)', () => {

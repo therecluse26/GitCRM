@@ -5,6 +5,7 @@ import { formatMoney, minorToInput } from '@/core/money.ts';
 import { RECORD_TYPES, type CRMRecord, type RecordOf, type RecordType } from '@/core/schemas.ts';
 import type { Stage } from '@/core/stages.ts';
 import { latestFirst } from '@/features/activities/timeline.ts';
+import { addressText } from '@/features/record-form.ts';
 import { fold, searchWords } from '@/features/list-query.ts';
 import { stageName } from '@/features/opportunities/pipeline.ts';
 import type { Related } from '@/features/related.ts';
@@ -35,9 +36,20 @@ export function indexRecords(records: VersionedRecord[], stages: Stage[], fields
   function searchText(record: CRMRecord): string[] {
     switch (record.type) {
       case 'contact':
-        return [record.name, ...record.emails, ...record.phones, ...record.tags, nameOf('company', record.companyId), ...custom(record)];
+        return [
+          record.name,
+          record.jobTitle ?? '',
+          ...record.emails,
+          ...record.phones,
+          ...record.profiles,
+          addressText(record.address),
+          record.source ?? '',
+          ...record.tags,
+          nameOf('company', record.companyId),
+          ...custom(record),
+        ];
       case 'company':
-        return [record.name, record.website ?? '', ...record.tags, ...custom(record)];
+        return [record.name, record.industry ?? '', record.website ?? '', ...record.phones, addressText(record.address), ...record.tags, ...custom(record)];
       case 'opportunity': {
         const amount = record.valueMinor === null ? [] : [formatMoney(record.valueMinor, record.currency), minorToInput(record.valueMinor, record.currency)];
         return [record.title, stageName(stages, record.stageId), nameOf('company', record.companyId), ...record.contactIds.map((id) => nameOf('contact', id)), ...amount, ...custom(record)];

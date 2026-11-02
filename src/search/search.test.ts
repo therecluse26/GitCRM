@@ -64,6 +64,19 @@ describe('search', () => {
     expect(findIn('hidden')).toBeUndefined();
   });
 
+  it('finds a contact by job title, profile, address, and source, and a company by industry, phone, and address (spec 13)', () => {
+    const lee = contact('Lee Park', {
+      jobTitle: 'Head of Operations',
+      profiles: ['https://linkedin.com/in/leepark'],
+      address: { street: '12 Main St\nSuite 4', city: 'Portland', region: null, postalCode: '97201', country: null },
+      source: 'Trade fair',
+    });
+    const acme = company('Acme Corp', { industry: 'Manufacturing', phones: ['+1 503 555 0188'], address: { street: null, city: 'Tacoma', region: null, postalCode: null, country: null } });
+    const findIn = (query: string) => found(search(indexRecords([saved(lee), saved(acme)], stages), { ...DEFAULT_SEARCH_VIEW, query }));
+    for (const query of ['operations', 'leepark', 'suite 4', 'portland', '97201', 'fair']) expect(findIn(query).contact, query).toEqual(['Lee Park']);
+    for (const query of ['manufacturing', '555 0188', 'tacoma']) expect(findIn(query).company, query).toEqual(['Acme Corp']);
+  });
+
   it('finds a company by name, website, and tag', () => {
     for (const query of ['traders', 'northwind.example', 'wholesale']) expect(found(find(query)).company, query).toEqual(['Northwind Traders']);
   });

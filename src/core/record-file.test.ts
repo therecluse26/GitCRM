@@ -2,20 +2,25 @@ import { describe, expect, it } from 'vitest';
 import { recordPath } from './paths.ts';
 import { MAX_FILE_BYTES, parseRecordFile, parseWorkspaceFile, serializeRecord, serializeWorkspace } from './record-file.ts';
 import type { CustomField } from './custom-fields.ts';
-import type { Contact, WorkspaceConfig } from './schemas.ts';
+import type { Company, Contact, WorkspaceConfig } from './schemas.ts';
 
 const contactId = 'd13d0f69-0a4c-4192-9009-9e36a51c42c0';
 const companyId = 'a28a8fb0-52c6-493d-9a11-99a4f0b8a6cf';
 const contactPath = recordPath('contact', contactId);
 
+// In memory a contact always has the version 2 fields (ADR-028). Empty, they are written as version 1.
 const contact: Contact = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   type: 'contact',
   id: contactId,
   name: 'Ava Bennett',
+  jobTitle: null,
   emails: ['ava@example.test'],
   phones: [],
+  profiles: [],
+  address: null,
   companyId,
+  source: null,
   tags: ['referral'],
   createdAt: '2026-10-26T16:00:00Z',
   updatedAt: '2026-10-26T16:00:00Z',
@@ -93,12 +98,9 @@ describe('parseRecordFile', () => {
     expect(result).toEqual({ ok: true, record: contact });
   });
 
-  it('parses every record type from the data model', () => {
+  // Contacts and companies are in "record versions" below.
+  it('parses the other record types from the data model', () => {
     const records = [
-      {
-        schemaVersion: 1, type: 'company', id: companyId, name: 'Example Studio', website: 'https://example.test', tags: [],
-        createdAt: '2026-10-26T16:00:00Z', updatedAt: '2026-10-26T16:00:00Z', archivedAt: null,
-      },
       {
         schemaVersion: 1, type: 'opportunity', id: 'e8c756c7-f1b2-4c47-9d3d-26457c6b0979', title: 'Website rebuild', stageId: 'proposal',
         companyId, contactIds: [contactId], valueMinor: 250000, currency: 'USD', expectedCloseDate: '2026-11-30',
@@ -126,7 +128,7 @@ describe('parseRecordFile', () => {
   });
 
   it('reports a newer schema version separately from invalid records', () => {
-    expect(issueOf(contactPath, JSON.stringify({ ...contact, schemaVersion: 2 }))).toMatchObject({ code: 'unsupported-version' });
+    expect(issueOf(contactPath, JSON.stringify({ ...contact, schemaVersion: 3 }))).toMatchObject({ code: 'unsupported-version' });
   });
 
   it('reports unknown fields, invalid values, and missing fields', () => {
@@ -180,6 +182,76 @@ describe('parseRecordFile', () => {
   });
 });
 
+describe('record versions (spec 13, ADR-028)', () => {
+  const address = { street: null, city: 'Portland', region: null, postalCode: null, country: 'USA' };
+  const full: Contact = { ...contact, jobTitle: 'Head of Operations', profiles: ['https://linkedin.com/in/ava'], address, source: 'Referral' };
+  const companyPath = recordPath('company', companyId);
+  const companyV1 = {
+    schemaVersion: 1, type: 'company' as const, id: companyId, name: 'Example Studio', website: 'https://example.test', tags: [],
+    createdAt: '2026-10-26T16:00:00Z', updatedAt: '2026-10-26T16:00:00Z', archivedAt: null,
+  };
+  const company: Company = { ...companyV1, schemaVersion: 2, industry: null, phones: [], address: null };
+
+  it('writes version 2, with every field in order, when a new field has a value', () => {
+    const json = JSON.parse(serializeRecord({ ...contact, jobTitle: 'Head of Operations' }));
+    expect(json.schemaVersion).toBe(2);
+    expect(Object.keys(json)).toEqual([
+      'schemaVersion', 'type', 'id', 'name', 'jobTitle', 'emails', 'phones', 'profiles', 'address', 'companyId', 'source', 'tags', 'createdAt', 'updatedAt', 'archivedAt',
+    ]);
+    expect(Object.keys(JSON.parse(serializeRecord({ ...company, industry: 'Manufacturing' })))).toEqual([
+      'schemaVersion', 'type', 'id', 'name', 'industry', 'website', 'phones', 'address', 'tags', 'createdAt', 'updatedAt', 'archivedAt',
+    ]);
+  });
+
+  it('writes version 1, without the new fields, when they are empty', () => {
+    expect(serializeRecord(contact)).toBe(contactText);
+    expect(serializeRecord(company)).toBe(`${JSON.stringify(companyV1, null, 2)}\n`);
+  });
+
+  it('round-trips a version 2 file', () => {
+    expect(parseRecordFile(contactPath, serializeRecord(full))).toEqual({ ok: true, record: full });
+    const withAll: Company = { ...company, industry: 'Manufacturing', phones: ['+1 503 555 0100'], address };
+    expect(parseRecordFile(companyPath, serializeRecord(withAll))).toEqual({ ok: true, record: withAll });
+  });
+
+  it('reads a version 1 file as a record with empty new fields', () => {
+    expect(parseRecordFile(contactPath, contactText)).toEqual({ ok: true, record: contact });
+    expect(parseRecordFile(companyPath, JSON.stringify(companyV1))).toEqual({ ok: true, record: company });
+  });
+
+  it('keeps the other record types at version 1', () => {
+    const id = '9b8b4d79-75d6-450c-a492-1e0638d49cd8';
+    const task = { schemaVersion: 2, type: 'task', id, title: 'Call', description: '', dueDate: null, completedAt: null, related: null, createdAt: '2026-10-26T16:00:00Z', updatedAt: '2026-10-26T16:00:00Z', archivedAt: null };
+    expect(issueOf(recordPath('task', id), JSON.stringify(task)).code).toBe('unsupported-version');
+  });
+
+  it('refuses a new field in a version 1 file, and a missing field in a version 2 file', () => {
+    expect(issueOf(contactPath, JSON.stringify({ ...JSON.parse(contactText), jobTitle: 'Head of Operations' })).code).toBe('invalid-record');
+    const { source: _, ...noSource } = full;
+    expect(issueOf(contactPath, JSON.stringify(noSource)).code).toBe('invalid-record');
+  });
+
+  it('refuses a bad profile, a blank value, and an empty address', () => {
+    for (const bad of [
+      { profiles: ['javascript:alert(1)'] },
+      { profiles: ['linkedin.com/in/ava'] },
+      { jobTitle: '  ' },
+      { source: '' },
+      { address: { ...address, city: ' ' } },
+      { address: { street: null, city: null, region: null, postalCode: null, country: null } },
+      { address: { city: 'Portland' } },
+    ]) {
+      expect(issueOf(contactPath, JSON.stringify({ ...full, ...bad })).code, JSON.stringify(bad)).toBe('invalid-record');
+    }
+    expect(issueOf(companyPath, JSON.stringify({ ...company, phones: [' '] })).code).toBe('invalid-record');
+  });
+
+  it('allows a street with more than one line', () => {
+    const twoLines = { ...full, address: { ...address, street: '12 Main St\nSuite 4' } };
+    expect(parseRecordFile(contactPath, serializeRecord(twoLines))).toEqual({ ok: true, record: twoLines });
+  });
+});
+
 describe('workspace file', () => {
   it('round-trips the example workspace', () => {
     expect(parseWorkspaceFile(serializeWorkspace(workspace))).toEqual({ ok: true, config: workspace });
@@ -202,9 +274,8 @@ describe('workspace file', () => {
     expect(parseWorkspaceFile(JSON.stringify({ ...workspace, schemaVersion: 3 }))).toMatchObject({ ok: false, issue: { code: 'unsupported-version' } });
   });
 
-  it('reads version 2, but a record file stays at version 1', () => {
+  it('reads version 2', () => {
     expect(parseWorkspaceFile(serializeWorkspace({ ...workspace, schemaVersion: 2 }))).toMatchObject({ ok: true, config: { schemaVersion: 2 } });
-    expect(issueOf(contactPath, JSON.stringify({ ...contact, schemaVersion: 2 })).code).toBe('unsupported-version');
   });
 });
 

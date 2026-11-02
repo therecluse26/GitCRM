@@ -5,7 +5,7 @@
 - **JSON, UTF-8, pretty-printed, deterministic property ordering**, newline at EOF.
 - One file per document. No arrays of all contacts/opportunities in a single file.
 - `id` is an immutable RFC 4122 UUID v4 (from `crypto.randomUUID()`); never use names/emails as IDs or paths.
-- `schemaVersion: 1`, `type`, `id`, `createdAt`, `updatedAt`, and `archivedAt` are common fields. Timestamps are UTC ISO 8601 strings; `archivedAt` is `null` when active.
+- `schemaVersion`, `type`, `id`, `createdAt`, `updatedAt`, and `archivedAt` are common fields. `schemaVersion` is 1, or 1 or 2 for a contact or company (ADR-028). Timestamps are UTC ISO 8601 strings; `archivedAt` is `null` when active.
 - Unknown schema versions or malformed documents trigger a visible validation issue; do not silently discard them from exports.
 - Optional references MUST refer to same-workspace IDs; dangling references are surfaced and cannot be created through UI.
 - No HTML strings stored as rich text in MVP; activity bodies are plain text.
@@ -16,11 +16,11 @@
 `src/core/schemas.ts` and `src/core/record-file.ts` implement these rules. No ADR covers them, and the owner has not reviewed them yet.
 
 - The canonical file is `JSON.stringify(record, null, 2)` plus a final newline. Keys follow the order in the examples below, and `customFields` keys are sorted. Arrays put one item per line, unlike the compact arrays in the examples.
-- Every key in the examples is required; an empty value is `null` or `[]`. Only `customFields` may be left out.
+- Every key in the examples is required; an empty value is `null` or `[]`. Only `customFields` may be left out. A version 1 contact or company leaves out the version 2 fields ("Schema evolution" below).
 - An unknown key makes the file invalid. A hand-added field then shows up as an issue, instead of disappearing on the next save.
 - IDs are lowercase UUID v4. Timestamps are written to the second (`2026-10-26T16:00:00Z`). A timestamp with an offset, such as `+01:00`, is invalid.
-- `website` must be an `http` or `https` URL with a domain name, so a `javascript:` link cannot be stored.
-- Names, titles, and activity bodies must not be blank. A task `description` may be an empty string.
+- `website` and each `profiles` entry must be an `http` or `https` URL with a domain name, so a `javascript:` link cannot be stored.
+- Names, titles, activity bodies, and the spec 13 text fields (`jobTitle`, `source`, `industry`, and each `address` part) must not be blank; empty is `null`. An `address` has all five parts and at least one that is not null; with none, it is `null`. A task `description` may be an empty string.
 - `related` points only to a contact, a company, or an opportunity.
 - Stage IDs and custom field IDs use lowercase letters, digits, `-`, and `_`, up to 64 characters.
 - A file over 100 KiB is an issue and is not parsed (the size cap in `docs/07`).
@@ -61,13 +61,17 @@ Money (`src/core/money.ts`): the decimal places come from the currency through `
 
 ```json
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "type": "contact",
   "id": "d13d0f69-0a4c-4192-9009-9e36a51c42c0",
   "name": "Ava Bennett",
+  "jobTitle": "Head of Operations",
   "emails": ["ava@example.test"],
   "phones": [],
+  "profiles": ["https://linkedin.example/in/ava"],
+  "address": { "street": null, "city": "Portland", "region": "OR", "postalCode": null, "country": "USA" },
   "companyId": "a28a8fb0-52c6-493d-9a11-99a4f0b8a6cf",
+  "source": "Referral",
   "tags": ["referral"],
   "createdAt": "2026-10-26T16:00:00Z",
   "updatedAt": "2026-10-26T16:00:00Z",
@@ -76,6 +80,8 @@ Money (`src/core/money.ts`): the decimal places come from the currency through `
 ```
 
 `name` required; email format optional but validated when present. `companyId` optional/null. No password, secret, or sensitive custom fields.
+
+Version 1 has no `jobTitle`, `profiles`, `address`, or `source` (spec 13).
 
 ## Company
 
@@ -94,6 +100,8 @@ Money (`src/core/money.ts`): the decimal places come from the currency through `
 ```
 
 `name` required, `website` nullable and validated as a URL when present.
+
+Version 2 (spec 13) adds `industry` after `name`, and `phones` and `address` after `website`, with the same rules as a contact's. Version 1 has none of them.
 
 ## Opportunity
 
@@ -199,4 +207,6 @@ Built rules (`src/core/custom-fields.ts`):
 
 Any change to persisted shape MUST include versioned schema validation, migration tests, and an export compatibility statement. `schemaVersion` is required per record and in workspace config; unknown newer versions should open in read-only/error mode, not be rewritten by older clients.
 
-Built (spec 10): custom fields took `.gitcrm/workspace.json` to version 2. A settings file without custom fields stays at version 1, so a workspace that never uses them still opens in an older GitCRM. That older GitCRM refuses a version 2 file as newer and writes nothing. Record files stay at version 1, because v1 already reserved `customFields`. The export says both versions in `DATA-DICTIONARY.md`.
+Built (spec 13, ADR-028): contacts and companies have record version 2. GitCRM writes each file at the lowest version that holds its values. A file whose version 2 fields are all empty is version 1, without them; otherwise it is version 2, with every field. So a file can go back to version 1 when its new fields are cleared. GitCRM reads a version 1 file as a record with the version 2 fields empty. An older GitCRM refuses a version 2 file as newer and writes nothing. In the CSV export, contacts and companies always have the version 2 columns. Opportunities, tasks, and activities stay at version 1.
+
+Built (spec 10): custom fields took `.gitcrm/workspace.json` to version 2. A settings file without custom fields stays at version 1, so a workspace that never uses them still opens in an older GitCRM. That older GitCRM refuses a version 2 file as newer and writes nothing. Record files stayed at version 1 for custom fields, because v1 already reserved `customFields`. The export says both versions in `DATA-DICTIONARY.md`.

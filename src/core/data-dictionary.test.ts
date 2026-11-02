@@ -31,7 +31,7 @@ describe('dataDictionary', () => {
     expect(text).toContain('| Repository | octo-dev/crm, branch main |');
     expect(text).toContain(`| Commit | ${source.commitSha} |`);
     expect(text).toContain('| Exported | 2026-10-30T22:58:40Z (UTC) |');
-    expect(text).toContain('| Schema versions | Record files 1, `.gitcrm/workspace.json` 1 |');
+    expect(text).toContain('| Schema versions | Contact and company files 1 or 2, other record files 1, `.gitcrm/workspace.json` 1 |');
     expect(text).toContain('| Contacts | 2 | 1 | `data/contacts/` | `contacts.csv` |');
     expect(text).toContain('| Activities | 0 | 0 | `data/activities/` | `activities.csv` |');
     expect(text).toContain('| `proposal` | Proposal | 2 |');
@@ -45,6 +45,8 @@ describe('dataDictionary', () => {
     const text = dataDictionary(source, exportedAt);
     expect(text).toContain('| `related` | `relatedType`, `relatedId` |');
     expect(text).toContain('| `emails` | `emails` |');
+    expect(text).toContain('| `address` | `addressStreet`, `addressCity`, `addressRegion`, `addressPostalCode`, `addressCountry` |');
+    expect(text).toContain('A version 1 contact or company file leaves out the version 2 fields');
     expect(text).toContain('| (none) | `stageLabel` |');
     expect(text).toContain('## CSV rules');
     expect(text).toContain('remove that one `\'`');
@@ -62,7 +64,7 @@ describe('dataDictionary', () => {
       opportunity: [],
     });
     const text = dataDictionary({ ...source, config: withFields }, exportedAt);
-    expect(text).toContain('| Schema versions | Record files 1, `.gitcrm/workspace.json` 2 |');
+    expect(text).toContain('| Schema versions | Contact and company files 1 or 2, other record files 1, `.gitcrm/workspace.json` 2 |');
     expect(text).toContain('| Contact | `lead-source` | Lead source | Choice list | `referral` Referral; `fair` Trade \\| fair (removed) |  |');
     expect(text).toContain('| Company | `size` | Size | Number |  | Removed |');
   });
@@ -79,10 +81,22 @@ describe('jsonSchemas', () => {
   it('gives a JSON Schema for each record type and for the workspace file', () => {
     const schemas = jsonSchemas();
     expect(Object.keys(schemas)).toEqual([...RECORD_TYPES, 'workspace'].map((name) => `schemas/${name}.schema.json`));
-    for (const [type, schema] of [...RECORD_TYPES.map((t) => [t, recordSchemas[t]] as const), ['workspace', workspaceSchema] as const]) {
+    for (const [type, schema] of [...(['opportunity', 'task', 'activity'] as const).map((t) => [t, recordSchemas[t]] as const), ['workspace', workspaceSchema] as const]) {
       const json = JSON.parse(schemas[`schemas/${type}.schema.json`]);
       expect(json, type).toMatchObject({ $schema: 'https://json-schema.org/draft/2020-12/schema', type: 'object', additionalProperties: false });
       expect(Object.keys(json.properties), type).toEqual(Object.keys(schema.shape));
+    }
+  });
+
+  it('accepts both versions of a contact or company file (ADR-028)', () => {
+    const schemas = jsonSchemas();
+    for (const type of ['contact', 'company'] as const) {
+      const json = JSON.parse(schemas[`schemas/${type}.schema.json`]);
+      expect(json.$schema, type).toBe('https://json-schema.org/draft/2020-12/schema');
+      const versions = json.oneOf ?? json.anyOf;
+      expect(versions.map((v: { properties: { schemaVersion: { const: number } } }) => v.properties.schemaVersion.const), type).toEqual([1, 2]);
+      expect(Object.keys(versions[1].properties), type).toEqual(Object.keys(recordSchemas[type].shape));
+      expect(versions.every((v: { additionalProperties: boolean }) => v.additionalProperties === false), type).toBe(true);
     }
   });
 });
