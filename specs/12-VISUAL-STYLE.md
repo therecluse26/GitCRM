@@ -29,8 +29,8 @@ The owner chose option C, "Dense and data-first", from three mock-ups of the Con
 The second slice (2026-11-02):
 
 - Contacts and Companies show their records in a dense table: a header row, grid lines, 32 px rows, and one column per field. The record's name links to its page.
-  - Contacts: Name, Company, Email, Phone, Tags, Updated. Email and Phone show the first of each.
-  - Companies: Name, Website, Contacts, Tags, Updated.
+  - Contacts: Name, Job title, Company, Email, Phone, Tags, Updated. Email and Phone show the first of each. Job title came with spec 13.
+  - Companies: Name, Industry, Website, Contacts, Tags, Updated. Industry came with spec 13.
 - The Pipeline list uses the same table style.
 - Each stage has a mark: a small coloured square before its name, on the board's column headings and in the Pipeline list. Open stages take one of four colours in pipeline order; Won is green, and Lost is grey. The stage name always shows, so colour is never the only cue (docs/08).
 - Tasks stay a list in groups, because the same row shows on Home and on record pages. Each group's rows sit in one box with lines between them.
@@ -79,14 +79,14 @@ Scenario: Both themes are accessible
 Scenario: Contacts as a table
   Given the contacts Ava Bennett, at Acme Corp, with two emails and a phone, and Ben Ortiz
   When I open Contacts
-  Then the table "Contacts" has the columns Name, Company, Email, Phone, Tags, and Updated
+  Then the table "Contacts" has the columns Name, Job title, Company, Email, Phone, Tags, and Updated
   And Ava Bennett's row shows "Acme Corp", her first email, her phone, and the date she was last changed
   And her name links to her page
 
 Scenario: Companies as a table
   Given the company Acme Corp, with the website https://acme.example and 2 contacts
   When I open Companies
-  Then the table "Companies" has the columns Name, Website, Contacts, Tags, and Updated
+  Then the table "Companies" has the columns Name, Industry, Website, Contacts, Tags, and Updated
   And Acme Corp's row shows "acme.example" and "2"
 
 Scenario: Stage marks

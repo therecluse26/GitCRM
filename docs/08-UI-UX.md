@@ -26,7 +26,8 @@ Built (spec 08): no page draws a long list at once. Each list that can grow come
 ### Contacts and companies
 
 - Searchable sortable list, create/edit form, detail view.
-- Built (spec 12): the list is a dense table. Contacts: Name, Company, Email, Phone, Tags, Updated. Companies: Name, Website, Contacts, Tags, Updated.
+- Built (spec 12): the list is a dense table. Contacts: Name, Job title, Company, Email, Phone, Tags, Updated. Companies: Name, Industry, Website, Contacts, Tags, Updated.
+- Built (spec 13): the contact form has Job title, Profiles, Address, and Source; the company form has Industry, Phone numbers, and Address. Address is a group of five inputs, with a two-line Street box. Source and Industry offer the values other records use, through a native `<datalist>`. On a record page, a profile opens in a new tab, a company phone is a `tel:` link, and the address shows one part per line.
 - Contact may belong to a company; company detail shows associated contacts/opportunities.
 - A notes/activity timeline, adding each note as a new activity record.
 

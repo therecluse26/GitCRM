@@ -13,8 +13,8 @@ The Search page searches the current records in browser memory (docs/06). It fin
 
 | Record type | Found by |
 | --- | --- |
-| Contact | name, email, phone, tag, company name |
-| Company | name, website, tag |
+| Contact | name, job title, email, phone, profile, address, source, tag, company name |
+| Company | name, industry, website, phone, address, tag |
 | Opportunity | title, stage name, company name, contact names, amount as shown ("$12,000.00") or as typed ("12000") |
 | Task | title, description, the name of its related record |
 | Activity | what happened, the name of its related record |
@@ -108,8 +108,10 @@ CSV rules:
 - The first row is the header. The columns are the fields of the JSON file, in the same order, so the header is the same in every export. A table with no records has only the header.
 - Every cell is in double quotes. A double quote in a value is written twice.
 - An empty cell is `null`, an empty list, or an empty task description.
-- A list (`emails`, `phones`, `tags`, `contactIds`) is one cell, with `;` between items. In an item, `\` is written `\\`, and `;` is written `\;`.
+- A list (`emails`, `phones`, `profiles`, `tags`, `contactIds`) is one cell, with `;` between items. In an item, `\` is written `\\`, and `;` is written `\;`.
 - `related` becomes two columns, `relatedType` and `relatedId`.
+- `address` (spec 13) becomes five columns: `addressStreet`, `addressCity`, `addressRegion`, `addressPostalCode`, and `addressCountry`. When all five are empty, the address is null.
+- The columns are the version 2 fields of a contact or company, so `schemaVersion` is always 2 in `contacts.csv` and `companies.csv`, even for a version 1 file (ADR-028).
 - `customFields` is one cell of JSON text. It is empty when the record has no custom fields.
 - `opportunities.csv` has two more columns at the end: `stageLabel`, the stage's label in the workspace file, and `value`, the amount with all its decimal places, such as `12000.00`.
 - Spreadsheet safety (OWASP, "CSV Injection"): a cell that begins with `=`, `+`, `-`, `@`, `＝`, `＋`, `－`, `＠`, a tab, a carriage return, a line feed, or `'` gets a `'` in front. Then a spreadsheet shows the cell as text, not as a formula. To read the value back, remove that one `'`. The JSON snapshot keeps the original value. A phone number such as `+1 555 0100` becomes `'+1 555 0100`.
