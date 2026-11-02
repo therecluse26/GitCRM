@@ -245,7 +245,9 @@ test('searches and sorts the contact list', async ({ page }) => {
   await field(page, 'Search contacts').fill('VIP');
   await expect(names).toHaveText(['Ben Carter']);
   await field(page, 'Search contacts').fill('');
-  await field(page, 'Sort by').selectOption('Recently updated');
+  const updated = page.getByRole('button', { name: 'Updated', exact: true });
+  await updated.click();
+  await updated.click();
   await expect(names).toHaveText(['Ben Carter', 'Carla Diaz', 'Ava Bennett']);
 });
 
