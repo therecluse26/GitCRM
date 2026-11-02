@@ -94,7 +94,7 @@ Scenario: A long list comes in pages of 50
 
 Scenario: A changed view starts at the first page
   Given I am on page 2 of Contacts
-  When I change the search text, "Sort by", or "Show archived"
+  When I change the search text, the sort, a filter, or "Show archived"
   Then the list shows its first page
 
 Scenario: Back to the list keeps the page
@@ -129,6 +129,6 @@ Specs 02, 03, 04, and 07 already cover these save states: "Saving…" on the con
 - The skip link is a button. With hash addresses, a link to `#main` would change the page address and show "Page not found".
 - An error stays until the next Save, as on GOV.UK forms. The page does not change while the user types, and focus does not jump.
 - Pages of 50 apply to Contacts, Companies, Tasks, the Pipeline list, each Pipeline board column, Search after "Show all" (spec 05), and the lists on a record page: activity, tasks, opportunities, and a company's contacts. A page draws its rows only, so a page change and a save stay fast at 2,000 records (docs/06, "Measured in the browser").
-- The page number of a main list stays in memory with its search text and sort, never in the page address. A board column and a list on a record page start at page 1 each time the page opens.
+- The page number of a main list stays in memory with its search text, sort, and filters (spec 14), never in the page address. A board column and a list on a record page start at page 1 each time the page opens.
 - After "Next page" or "Previous page", focus moves to the list, so a screen reader reads the new rows. The status above the list says which rows show.
 - On a phone, the main navigation wraps into two rows. GitCRM is usable on mobile web, but it is not mobile-first (PRODUCT_REQUIREMENTS), so there is no menu button.
