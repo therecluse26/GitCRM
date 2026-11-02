@@ -98,8 +98,8 @@ const cells = (page: Page, table: string, name: string) => page.getByRole('table
 test('Contacts is a table with a column per field', async ({ page }) => {
   await open(page, [acme, ava, ben]);
   await go(page, 'Contacts');
-  await expect(headers(page, 'Contacts')).toHaveText(['Name', 'Company', 'Email', 'Phone', 'Tags', 'Updated']);
-  await expect(cells(page, 'Contacts', 'Ava Bennett')).toHaveText(['Ava Bennett', 'Acme Corp', 'ava@acme.example', '+1 202 555 0143', 'vip', /\w{3} \d{1,2}, \d{4}/]);
+  await expect(headers(page, 'Contacts')).toHaveText(['Name', 'Job title', 'Company', 'Email', 'Phone', 'Tags', 'Updated']);
+  await expect(cells(page, 'Contacts', 'Ava Bennett')).toHaveText(['Ava Bennett', '', 'Acme Corp', 'ava@acme.example', '+1 202 555 0143', 'vip', /\w{3} \d{1,2}, \d{4}/]);
   await cells(page, 'Contacts', 'Ava Bennett').getByRole('link', { name: 'Ava Bennett' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Ava Bennett' })).toBeVisible();
 });
@@ -107,8 +107,8 @@ test('Contacts is a table with a column per field', async ({ page }) => {
 test('Companies is a table with a column per field', async ({ page }) => {
   await open(page, [acme, ava, ben]);
   await go(page, 'Companies');
-  await expect(headers(page, 'Companies')).toHaveText(['Name', 'Website', 'Contacts', 'Tags', 'Updated']);
-  await expect(cells(page, 'Companies', 'Acme Corp')).toHaveText(['Acme Corp', 'acme.example', '2', '', /\w{3} \d{1,2}, \d{4}/]);
+  await expect(headers(page, 'Companies')).toHaveText(['Name', 'Industry', 'Website', 'Contacts', 'Tags', 'Updated']);
+  await expect(cells(page, 'Companies', 'Acme Corp')).toHaveText(['Acme Corp', '', 'acme.example', '2', '', /\w{3} \d{1,2}, \d{4}/]);
 });
 
 test('each stage has a mark: three colours for the open stages, the same mark in the list', async ({ page }) => {

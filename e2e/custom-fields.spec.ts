@@ -187,7 +187,7 @@ test('a stored value that does not fit is listed in Settings, and the page shows
 
 test('company and opportunity forms show their own fields, of every type', async ({ page }) => {
   const config = withFields({
-    company: [def('industry', 'Industry', 'text')],
+    company: [def('sector', 'Sector', 'text')],
     opportunity: [def('signed', 'Signed', 'checkbox'), def('renewal', 'Renewal', 'date', { position: 1 })],
   });
   const acme = company('Acme Corp');
@@ -197,11 +197,11 @@ test('company and opportunity forms show their own fields, of every type', async
   await go(page, 'Companies');
   await page.getByRole('link', { name: 'Acme Corp' }).click();
   await page.getByRole('link', { name: 'Edit' }).click();
-  await field(page, 'Industry').fill(' Logistics ');
+  await field(page, 'Sector').fill(' Logistics ');
   await expect(field(page, 'Signed')).toHaveCount(0);
   await page.getByRole('button', { name: 'Save company' }).click();
-  await expect(detail(page, 'Industry')).toHaveText('IndustryLogistics');
-  expect(fileOf(fake, acme).customFields).toEqual({ industry: 'Logistics' });
+  await expect(detail(page, 'Sector')).toHaveText('SectorLogistics');
+  expect(fileOf(fake, acme).customFields).toEqual({ sector: 'Logistics' });
 
   await page.goto(`/#/opportunities/${deal.id}`);
   await expect(detail(page, 'Signed')).toHaveText('SignedNo');
@@ -214,7 +214,7 @@ test('company and opportunity forms show their own fields, of every type', async
   expect(fileOf(fake, deal).customFields).toEqual({ signed: true, renewal: '2027-01-31' });
   await go(page, 'Contacts');
   await page.getByRole('link', { name: 'New contact' }).click();
-  await expect(field(page, 'Industry')).toHaveCount(0);
+  await expect(field(page, 'Sector')).toHaveCount(0);
 });
 
 test('search finds the name of a chosen option', async ({ page }) => {

@@ -23,8 +23,8 @@ test('creates a contact as a new schema version 1 file, and it is there after a 
   const [path, ...others] = fake.paths().filter((p) => p.startsWith('data/'));
   expect(others).toEqual([]);
   expect(path).toMatch(/^data\/contacts\/([0-9a-f]{2})\/\1[0-9a-f]{6}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.json$/);
-  const parsed = parseRecordFile(path, fake.file(path)!);
-  expect(parsed.ok && parsed.record).toMatchObject({ schemaVersion: 1, type: 'contact', name: 'Ava Bennett', emails: ['ava@example.test'] });
+  expect(parseRecordFile(path, fake.file(path)!).ok).toBe(true);
+  expect(JSON.parse(fake.file(path)!)).toMatchObject({ schemaVersion: 1, type: 'contact', name: 'Ava Bennett', emails: ['ava@example.test'] });
   expect(fake.lastCommitMessage()).toMatch(/^gitcrm: create contact [0-9a-f]{8}$/);
 
   await page.reload();
