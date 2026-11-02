@@ -2,25 +2,48 @@
 // Custom fields (spec 10) come after the built-in fields.
 import { formValues, readCustomValues, type CustomField, type FormValue } from '@/core/custom-fields.ts';
 import { contactSchema, type Contact } from '@/core/schemas.ts';
-import { cleanList, splitTags, type FieldErrors, type FormResult } from '../record-form.ts';
+import {
+  addressValues,
+  cleanList,
+  listRows,
+  optionalText,
+  readAddress,
+  readWebAddresses,
+  splitTags,
+  type AddressValues,
+  type FieldErrors,
+  type FormResult,
+} from '../record-form.ts';
 
-export type ContactFields = Pick<Contact, 'name' | 'emails' | 'phones' | 'companyId' | 'tags' | 'customFields'>;
-export type ContactFormValues = { name: string; emails: string[]; phones: string[]; companyId: string; tags: string; custom: Record<string, FormValue> };
+export type ContactFields = Pick<Contact, 'name' | 'jobTitle' | 'emails' | 'phones' | 'profiles' | 'address' | 'companyId' | 'source' | 'tags' | 'customFields'>;
+export type ContactFormValues = {
+  name: string;
+  jobTitle: string;
+  emails: string[];
+  phones: string[];
+  profiles: string[];
+  address: AddressValues;
+  companyId: string;
+  source: string;
+  tags: string;
+  custom: Record<string, FormValue>;
+};
 
-// The form always shows at least one email row and one phone row.
-const rows = (values: string[]) => (values.length > 0 ? values : ['']);
-
-export function contactFields({ name, emails, phones, companyId, tags, customFields }: Contact): ContactFields {
-  return { name, emails, phones, companyId, tags, customFields };
+export function contactFields({ name, jobTitle, emails, phones, profiles, address, companyId, source, tags, customFields }: Contact): ContactFields {
+  return { name, jobTitle, emails, phones, profiles, address, companyId, source, tags, customFields };
 }
 
 // `custom` holds the custom fields the form shows.
 export function contactValues(fields: ContactFields | null, custom: CustomField[] = []): ContactFormValues {
   return {
     name: fields?.name ?? '',
-    emails: rows(fields?.emails ?? []),
-    phones: rows(fields?.phones ?? []),
+    jobTitle: fields?.jobTitle ?? '',
+    emails: listRows(fields?.emails ?? []),
+    phones: listRows(fields?.phones ?? []),
+    profiles: listRows(fields?.profiles ?? []),
+    address: addressValues(fields?.address ?? null),
     companyId: fields?.companyId ?? '',
+    source: fields?.source ?? '',
     tags: fields?.tags.join(', ') ?? '',
     custom: formValues(custom, fields?.customFields),
   };
@@ -41,6 +64,7 @@ export function readContactForm(
       errors[`emails.${i}`] = 'Enter a valid email address, such as ava@example.com.';
     }
   });
+  const profiles = readWebAddresses('profiles', values.profiles, errors, 'Enter a web address, such as https://example.com/ava.');
   const companyId = values.companyId || null;
   if (companyId && companyId !== currentCompanyId && !companies.has(companyId)) errors.companyId = 'Choose a company from the list.';
   const customFields = readCustomValues(custom, values.custom, stored);
@@ -48,7 +72,18 @@ export function readContactForm(
   if (!customFields.ok || Object.keys(errors).length > 0) return { ok: false, errors };
   return {
     ok: true,
-    fields: { name, emails: cleanList(values.emails), phones: cleanList(values.phones), companyId, tags: splitTags(values.tags), customFields: customFields.customFields },
+    fields: {
+      name,
+      jobTitle: optionalText(values.jobTitle),
+      emails: cleanList(values.emails),
+      phones: cleanList(values.phones),
+      profiles,
+      address: readAddress(values.address),
+      companyId,
+      source: optionalText(values.source),
+      tags: splitTags(values.tags),
+      customFields: customFields.customFields,
+    },
   };
 }
 

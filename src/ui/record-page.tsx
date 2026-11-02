@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { ADDRESS_PARTS, type Address } from '@/core/schemas.ts';
 import type { Page } from '@/features/list-page.ts';
 import { selectClassName } from './form-fields.tsx';
 
@@ -123,5 +124,41 @@ export function Tags({ tags }: { tags: string[] }) {
         <Badge key={tag} variant="outline">{tag}</Badge>
       ))}
     </span>
+  );
+}
+
+const none = <span className="text-muted-foreground">None</span>;
+
+// Email addresses, phone numbers, or web addresses as links. A web address opens in a new tab.
+export function LinkList({ items, href, newTab = false }: { items: string[]; href: (item: string) => string; newTab?: boolean }) {
+  if (items.length === 0) return none;
+  return (
+    <ul>
+      {items.map((item) => (
+        <li key={item}>
+          <a className="underline" href={href(item)} {...(newTab && { target: '_blank', rel: 'noopener noreferrer' })}>{item}</a>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+export function PhoneList({ phones }: { phones: string[] }) {
+  return <LinkList items={phones} href={(phone) => `tel:${phone.replace(/[^\d+]/g, '')}`} />;
+}
+
+export function TextOrNone({ text }: { text: string | null }) {
+  return text === null ? none : <span className="whitespace-pre-line">{text}</span>;
+}
+
+// One part per line, in the stored order; a street keeps its own lines.
+export function AddressLines({ address }: { address: Address | null }) {
+  if (!address) return none;
+  return (
+    <address className="not-italic">
+      {ADDRESS_PARTS.flatMap((part) => address[part]?.split('\n') ?? []).map((line, i) => (
+        <span key={i} className="block">{line}</span>
+      ))}
+    </address>
   );
 }

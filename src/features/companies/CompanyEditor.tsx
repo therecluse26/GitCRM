@@ -1,20 +1,28 @@
 // The new-company and edit-company forms (spec 02).
 import { Link, useNavigate, useParams } from '@tanstack/react-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { Company } from '@/core/schemas.ts';
 import type { VersionedRecord } from '@/storage/workspace-repository.ts';
 import { ConflictPanel } from '@/ui/ConflictPanel.tsx';
 import { EditorForm } from '@/ui/EditorForm.tsx';
-import { TextField } from '@/ui/form-fields.tsx';
+import { AddressField, TextField, ValueListField } from '@/ui/form-fields.tsx';
 import { linkButton } from '@/ui/link-button.ts';
 import { RecordNotFound } from '@/ui/record-page.tsx';
 import { CustomFieldInputs } from '../custom-fields/CustomFields.tsx';
 import { customConflictRow, customCopyLines, useCustomFields } from '../custom-fields/custom-values.ts';
-import { useRecord } from '../records.ts';
+import { addressText, usedValues } from '../record-form.ts';
+import { useRecord, useRecords } from '../records.ts';
 import { useRecordEditor } from '../use-record-editor.ts';
 import { companyFields, companyValues, readCompanyForm, type CompanyFields, type CompanyFormValues } from './company-form.ts';
 
-const LABELS: Record<Exclude<keyof CompanyFields, 'customFields'>, string> = { name: 'Name', website: 'Website', tags: 'Tags' };
+const LABELS: Record<Exclude<keyof CompanyFields, 'customFields'>, string> = {
+  name: 'Name',
+  industry: 'Industry',
+  website: 'Website',
+  phones: 'Phone',
+  address: 'Address',
+  tags: 'Tags',
+};
 
 export function NewCompanyPage() {
   return <CompanyEditor saved={null} />;
@@ -31,6 +39,8 @@ export function EditCompanyPage() {
 
 function CompanyEditor({ saved }: { saved: VersionedRecord<Company> | null }) {
   const navigate = useNavigate();
+  const companies = useRecords('company');
+  const industries = useMemo(() => usedValues(companies.map((c) => c.record.industry)), [companies]);
   const custom = useCustomFields('company');
   const editor = useRecordEditor({
     type: 'company',
@@ -43,18 +53,21 @@ function CompanyEditor({ saved }: { saved: VersionedRecord<Company> | null }) {
   const { values, errors } = editor;
   const set = (changes: Partial<CompanyFormValues>) => editor.setValues({ ...values, ...changes });
 
-  const shown = (value: unknown) => (value === null ? 'None' : (value as string | string[]));
+  const shown = (key: keyof CompanyFields, value: unknown): string | string[] => {
+    if (key === 'address') return addressText(value as Company['address']) || 'None';
+    return value === null ? 'None' : (value as string | string[]);
+  };
   const asText = (value: string | string[]) => (Array.isArray(value) ? value.join(', ') || 'None' : value);
   const conflict = editor.conflict && (
     <ConflictPanel
       noun="company"
       remoteDeleted={!editor.remote}
       rows={editor.rows.map((row) =>
-        row.customId ? customConflictRow(custom.all, row) : { label: LABELS[row.key as keyof typeof LABELS], remote: shown(row.remote), mine: shown(row.mine), changedByMe: row.changedByMe },
+        row.customId ? customConflictRow(custom.all, row) : { label: LABELS[row.key as keyof typeof LABELS], remote: shown(row.key, row.remote), mine: shown(row.key, row.mine), changedByMe: row.changedByMe },
       )}
       copyText={
         editor.attempt
-          ? [...(Object.keys(LABELS) as (keyof typeof LABELS)[]).map((key) => `${LABELS[key]}: ${asText(shown(editor.attempt![key]))}`), ...customCopyLines(custom.shown, editor.attempt.customFields)].join('\n')
+          ? [...(Object.keys(LABELS) as (keyof typeof LABELS)[]).map((key) => `${LABELS[key]}: ${asText(shown(key, editor.attempt![key]))}`), ...customCopyLines(custom.shown, editor.attempt.customFields)].join('\n')
           : ''
       }
       onRetry={() => void editor.retryAfterReview()}
@@ -84,6 +97,7 @@ function CompanyEditor({ saved }: { saved: VersionedRecord<Company> | null }) {
       }
     >
       <TextField id="name" label="Name" autoComplete="off" value={values.name} error={errors.name} onChange={(e) => set({ name: e.target.value })} />
+      <TextField id="industry" label="Industry" autoComplete="off" suggestions={industries} value={values.industry} onChange={(e) => set({ industry: e.target.value })} />
       <TextField
         id="website"
         label="Website"
@@ -95,6 +109,8 @@ function CompanyEditor({ saved }: { saved: VersionedRecord<Company> | null }) {
         error={errors.website}
         onChange={(e) => set({ website: e.target.value })}
       />
+      <ValueListField name="phones" label="Phone numbers" itemLabel="Phone" type="tel" autoComplete="off" values={values.phones} errors={errors} onChange={(phones) => set({ phones })} />
+      <AddressField values={values.address} onChange={(address) => set({ address })} />
       <TextField id="tags" label="Tags" autoComplete="off" hint="Separate tags with commas." value={values.tags} onChange={(e) => set({ tags: e.target.value })} />
       <CustomFieldInputs fields={custom.shown} values={values.custom} errors={errors} onChange={(changed) => set({ custom: changed })} />
     </EditorForm>

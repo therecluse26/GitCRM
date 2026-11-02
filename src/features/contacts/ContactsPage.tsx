@@ -53,7 +53,7 @@ export function ContactsPage() {
               <table ref={list} tabIndex={-1} aria-label="Contacts" className={table}>
                 <thead>
                   <tr>
-                    {['Name', 'Company', 'Email', 'Phone', 'Tags', 'Updated'].map((name) => (
+                    {['Name', 'Job title', 'Company', 'Email', 'Phone', 'Tags', 'Updated'].map((name) => (
                       <th key={name} className={th}>{name}</th>
                     ))}
                   </tr>
@@ -85,6 +85,7 @@ const ContactRow = memo(function ContactRow({ contact: c, company }: { contact: 
           {c.archivedAt && <ArchivedBadge />}
         </span>
       </td>
+      <td className={td}>{c.jobTitle}</td>
       <td className={td}>{company}</td>
       <td className={`${td} text-muted-foreground`}>{c.emails[0]}</td>
       <td className={`${td} font-mono text-xs whitespace-nowrap text-muted-foreground`}>{c.phones[0]}</td>

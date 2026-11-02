@@ -56,7 +56,7 @@ export function CompaniesPage() {
               <table ref={list} tabIndex={-1} aria-label="Companies" className={table}>
                 <thead>
                   <tr>
-                    {['Name', 'Website', 'Contacts', 'Tags', 'Updated'].map((name) => (
+                    {['Name', 'Industry', 'Website', 'Contacts', 'Tags', 'Updated'].map((name) => (
                       <th key={name} className={th}>{name}</th>
                     ))}
                   </tr>
@@ -88,6 +88,7 @@ const CompanyRow = memo(function CompanyRow({ company: c, contacts }: { company:
           {c.archivedAt && <ArchivedBadge />}
         </span>
       </td>
+      <td className={td}>{c.industry}</td>
       <td className={`${td} text-muted-foreground`}>{c.website && new URL(c.website).host}</td>
       <td className={`${td} text-right tabular-nums`}>{contacts}</td>
       <td className={td}>{c.tags.join(', ')}</td>
