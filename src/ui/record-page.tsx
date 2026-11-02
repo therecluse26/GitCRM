@@ -7,31 +7,32 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import type { CustomField } from '@/core/custom-fields.ts';
 import { ADDRESS_PARTS, type Address } from '@/core/schemas.ts';
 import type { Page } from '@/features/list-page.ts';
-import { selectClassName } from './form-fields.tsx';
+import type { ListField } from '@/features/list-query.ts';
+import { ColumnsMenu, Filters } from './list-controls.tsx';
 
-export function ListToolbar({ type, plural }: { type: keyof AppState['lists']; plural: string }) {
+// Search, "Show archived", the Columns menu, and the filter rows of Contacts and Companies (spec 14).
+export function ListToolbar<R>({ type, plural, fields, custom }: { type: keyof AppState['lists']; plural: string; fields: ListField<R>[]; custom: CustomField[] }) {
   const view = useApp((s) => s.lists[type]);
+  const columns = useApp((s) => s.columns[type]);
   const set = (changes: Partial<typeof view>) => useApp.getState().setListView(type, changes);
   return (
-    <div className="flex flex-wrap items-end gap-3">
-      <div className="flex min-w-48 flex-1 flex-col gap-1.5">
-        <Label htmlFor="list-search">Search {plural}</Label>
-        <Input id="list-search" type="search" autoComplete="off" value={view.query} onChange={(e) => set({ query: e.target.value })} />
+    <>
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="flex min-w-48 flex-1 flex-col gap-1.5">
+          <Label htmlFor="list-search">Search {plural}</Label>
+          <Input id="list-search" type="search" autoComplete="off" value={view.query} onChange={(e) => set({ query: e.target.value })} />
+        </div>
+        <div className="flex h-8 items-center gap-2">
+          <Checkbox id="show-archived" aria-labelledby="show-archived-label" checked={view.showArchived} onCheckedChange={(checked) => set({ showArchived: checked === true })} />
+          <Label id="show-archived-label" htmlFor="show-archived">Show archived</Label>
+        </div>
+        <ColumnsMenu fields={custom} shown={columns} onChange={(ids) => useApp.getState().setColumns(type, ids)} />
       </div>
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="list-sort">Sort by</Label>
-        <select id="list-sort" className={selectClassName} value={view.sort} onChange={(e) => set({ sort: e.target.value as typeof view.sort })}>
-          <option value="name">Name</option>
-          <option value="updated">Recently updated</option>
-        </select>
-      </div>
-      <div className="flex h-8 items-center gap-2">
-        <Checkbox id="show-archived" aria-labelledby="show-archived-label" checked={view.showArchived} onCheckedChange={(checked) => set({ showArchived: checked === true })} />
-        <Label id="show-archived-label" htmlFor="show-archived">Show archived</Label>
-      </div>
-    </div>
+      <Filters fields={fields} filters={view.filters} onChange={(filters) => set({ filters })} />
+    </>
   );
 }
 

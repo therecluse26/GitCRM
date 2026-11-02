@@ -227,7 +227,7 @@ test('a changed search, sort, or filter starts at the first page, and Back to th
   await field(page, 'Search contacts').fill('contact');
   await expect(listStatus(page)).toHaveText('Showing 1–50 of 120 contacts');
   await next.click();
-  await field(page, 'Sort by').selectOption('Recently updated');
+  await page.getByRole('button', { name: 'Updated', exact: true }).click();
   await expect(listStatus(page)).toHaveText('Showing 1–50 of 120 contacts');
   await next.click();
   await page.getByRole('checkbox', { name: 'Show archived' }).click();

@@ -1,22 +1,29 @@
 // The pipeline (spec 03): a board with a column per stage, and a list view for keyboard users and
 // narrow screens. Each opportunity has a Move to stage menu; on the board, drag and drop works too.
-// The list and each column come in pages of 50 (spec 08). Cards and rows are memos, so a move draws
-// again only the opportunity that moved (docs/06).
+// The list and each column come in pages of 50 (spec 08). Filters change the board and the list; the
+// list sorts by any column and shows the custom fields that the user turns on (spec 14). Cards and
+// rows are memos, so a move draws again only the opportunity that moved (docs/06).
 import { Link } from '@tanstack/react-router';
 import { Plus } from 'lucide-react';
-import { memo, useId, useMemo, useRef, useState, type DragEvent, type RefObject } from 'react';
+import { memo, useCallback, useId, useMemo, useRef, useState, type DragEvent, type RefObject } from 'react';
 import { selectCanWrite, selectReadOnly, useApp } from '@/app/store.ts';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import type { CustomField } from '@/core/custom-fields.ts';
 import { formatMoney } from '@/core/money.ts';
 import type { Opportunity } from '@/core/schemas.ts';
 import { isTerminal, type Stage } from '@/core/stages.ts';
 import type { VersionedRecord } from '@/storage/workspace-repository.ts';
-import { table as tableStyle, tableBox, td, th } from '@/ui/data-table.ts';
+import { table as tableStyle, tableBox, td } from '@/ui/data-table.ts';
 import { selectClassName } from '@/ui/form-fields.tsx';
 import { linkButton } from '@/ui/link-button.ts';
+import { ColumnsMenu, Filters, SortHeader } from '@/ui/list-controls.tsx';
 import { ArchivedBadge, ListSummary, Pager, Problem } from '@/ui/record-page.tsx';
+import { useCustomFields } from '../custom-fields/custom-values.ts';
+import { CustomCells } from '../custom-fields/CustomFields.tsx';
+import { opportunitySpec } from '../list-fields.ts';
 import { onePage } from '../list-page.ts';
+import { filterRecords, sortRecords, type Sort } from '../list-query.ts';
 import { formatCalendarDate, useRecords, useStages } from '../records.ts';
 import { pipelineColumns, stageName, type PipelineColumn } from './pipeline.ts';
 import { StageMark } from './StageMark.tsx';
@@ -25,7 +32,17 @@ import { useStageMove } from './use-stage-move.ts';
 // Only GitCRM's own columns accept the drag, and the drag carries an ID, never record data.
 const DRAG_TYPE = 'application/x-gitcrm-opportunity';
 
-type Names = { company: (id: string | null) => string; contacts: (ids: string[]) => string };
+// `contacts` is the short form a card or row shows; `contactList` has every name, for filters.
+type Names = { company: (id: string | null) => string; contacts: (ids: string[]) => string; contactList: (ids: string[]) => string[] };
+
+const COLUMNS = [
+  ['title', 'Opportunity'],
+  ['stage', 'Stage'],
+  ['value', 'Value'],
+  ['company', 'Company'],
+  ['contacts', 'Contacts'],
+  ['expectedClose', 'Expected close'],
+] as const;
 // What every card and row shares. Each part stays the same object until its records change.
 type Shared = { stages: Stage[]; names: Names; versions: Map<string, VersionedRecord<Opportunity>>; pendingId: string | null; onMove: ReturnType<typeof useStageMove>['move'] };
 
@@ -40,12 +57,10 @@ export function PipelinePage() {
   const table = useRef<HTMLTableElement>(null);
   const pendingId = moves.pending?.id ?? null;
   const pendingStage = moves.pending?.stageId ?? null;
-  const { openOnly, showArchived } = view;
-  // A pending move shows the card in its new stage until the commit lands.
-  const { columns, shown, hiddenArchived } = useMemo(() => {
-    const shownRecords = saved.map(({ record }) => (record.id === pendingId ? { ...record, stageId: pendingStage! } : record));
-    return pipelineColumns(shownRecords, stages, { openOnly, showArchived });
-  }, [saved, pendingId, pendingStage, stages, openOnly, showArchived]);
+  const { openOnly, showArchived, filters, sort } = view;
+  const { shown: custom } = useCustomFields('opportunity');
+  const columnIds = useApp((s) => s.columns.opportunity);
+  const customColumns = useMemo(() => custom.filter((f) => columnIds.includes(f.id)), [custom, columnIds]);
   const names = useMemo((): Names => {
     const companyNames = new Map(companies.map(({ record }) => [record.id, record.name]));
     const contactNames = new Map(contacts.map(({ record }) => [record.id, record.name]));
@@ -56,15 +71,21 @@ export function PipelinePage() {
         const found = ids.flatMap((id) => contactNames.get(id) ?? []);
         return found.length > 1 ? `${found[0]} and ${found.length - 1} more` : (found[0] ?? '');
       },
+      contactList: (ids) => ids.flatMap((id) => contactNames.get(id) ?? []),
     };
   }, [companies, contacts]);
+  const spec = useMemo(() => opportunitySpec({ stages, companyName: names.company, contactNames: names.contactList, custom }), [stages, names, custom]);
+  // A pending move shows the card in its new stage until the commit lands.
+  const { columns, shown, hiddenArchived } = useMemo(() => {
+    const shownRecords = saved.map(({ record }) => (record.id === pendingId ? { ...record, stageId: pendingStage! } : record));
+    return pipelineColumns(filterRecords(shownRecords, filters, spec.fields), stages, { openOnly, showArchived });
+  }, [saved, pendingId, pendingStage, stages, openOnly, showArchived, filters, spec]);
   const versions = useMemo(() => new Map(saved.map((v) => [v.record.id, v])), [saved]);
   const shared: Shared = { stages, names, versions, pendingId, onMove: moves.move };
-  const page = onePage(
-    columns.flatMap((column) => column.opportunities),
-    view.page,
-  );
+  const rows = useMemo(() => (view.layout === 'list' ? sortRecords(columns.flatMap((column) => column.opportunities), sort, spec) : []), [view.layout, columns, sort, spec]);
+  const page = onePage(rows, view.page);
   const set = useApp.getState().setPipelineView;
+  const onSort = useCallback((sort: Sort) => useApp.getState().setPipelineView({ sort }), []);
 
   return (
     <>
@@ -96,14 +117,16 @@ export function PipelinePage() {
           <Checkbox id="pipeline-archived" aria-labelledby="pipeline-archived-label" checked={view.showArchived} onCheckedChange={(checked) => set({ showArchived: checked === true })} />
           <Label id="pipeline-archived-label" htmlFor="pipeline-archived">Show archived</Label>
         </div>
+        {view.layout === 'list' && <ColumnsMenu fields={custom} shown={columnIds} onChange={(ids) => useApp.getState().setColumns('opportunity', ids)} />}
       </div>
+      <Filters fields={spec.fields} filters={filters} onChange={(filters) => set({ filters })} />
       <ListSummary shown={shown} hiddenArchived={hiddenArchived} singular="opportunity" plural="opportunities" page={view.layout === 'list' ? page : undefined} />
       {moves.message && <Problem>{moves.message}</Problem>}
       {view.layout === 'board' ? (
         <Board columns={columns} shared={shared} />
       ) : (
         <>
-          <OpportunityTable rows={page.rows} table={table} shared={shared} />
+          <OpportunityTable rows={page.rows} table={table} shared={shared} sort={sort} onSort={onSort} columns={customColumns} />
           <Pager page={page} label="Opportunities" list={table} onPage={(page) => set({ page })} />
         </>
       )}
@@ -225,15 +248,20 @@ function StageMenu({ opportunity, saved, stages, onMove }: Pick<ItemProps, 'oppo
   );
 }
 
-function OpportunityTable({ rows, table, shared }: { rows: Opportunity[]; table: RefObject<HTMLTableElement | null>; shared: Shared }) {
+type TableProps = { rows: Opportunity[]; table: RefObject<HTMLTableElement | null>; shared: Shared; sort: Sort; onSort: (sort: Sort) => void; columns: CustomField[] };
+
+function OpportunityTable({ rows, table, shared, sort, onSort, columns }: TableProps) {
   if (rows.length === 0) return null;
   return (
     <div className={tableBox}>
       <table ref={table} tabIndex={-1} aria-label="Opportunities" className={tableStyle}>
         <thead>
           <tr>
-            {['Opportunity', 'Stage', 'Value', 'Company', 'Contacts', 'Expected close'].map((name) => (
-              <th key={name} className={th}>{name}</th>
+            {COLUMNS.map(([field, label]) => (
+              <SortHeader key={field} field={field} label={label} sort={sort} onSort={onSort} />
+            ))}
+            {columns.map((f) => (
+              <SortHeader key={f.id} field={`custom.${f.id}`} label={f.label} sort={sort} onSort={onSort} />
             ))}
           </tr>
         </thead>
@@ -247,6 +275,7 @@ function OpportunityTable({ rows, table, shared }: { rows: Opportunity[]; table:
               stages={shared.stages}
               pending={shared.pendingId === opportunity.id}
               onMove={shared.onMove}
+              columns={columns}
             />
           ))}
         </tbody>
@@ -255,7 +284,7 @@ function OpportunityTable({ rows, table, shared }: { rows: Opportunity[]; table:
   );
 }
 
-const OpportunityRow = memo(function OpportunityRow({ opportunity, saved, names, stages, pending, onMove }: ItemProps) {
+const OpportunityRow = memo(function OpportunityRow({ opportunity, saved, names, stages, pending, onMove, columns }: ItemProps & { columns: CustomField[] }) {
   return (
     <tr>
       <td className={td}>
@@ -277,6 +306,7 @@ const OpportunityRow = memo(function OpportunityRow({ opportunity, saved, names,
       <td className={td}>{names.company(opportunity.companyId)}</td>
       <td className={td}>{names.contacts(opportunity.contactIds)}</td>
       <td className={`${td} whitespace-nowrap`}>{opportunity.expectedCloseDate ? formatCalendarDate(opportunity.expectedCloseDate) : ''}</td>
+      <CustomCells fields={columns} values={opportunity.customFields} />
     </tr>
   );
 });

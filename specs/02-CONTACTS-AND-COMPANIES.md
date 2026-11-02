@@ -12,7 +12,7 @@ As a solo consultant, I want to maintain contacts and companies, with lightweigh
 - Contacts: create, view, edit name/email(s)/phone(s)/tags/company association, archive, unarchive, and safe current-snapshot deletion.
 - Companies: create, view, edit name/website/tags, archive, unarchive, and safe deletion.
 - Detail views show related records and recent manual activities.
-- List views support filters, search, and sensible sort (name, recently updated).
+- List views support search, filters on any field, and a sort by any column (spec 14). They start sorted by name.
 - More built-in fields (job title, profiles, address, source; a company's industry, phones, and address) are in spec 13. Custom fields are in spec 10. No deduplication engine, enrichment, or email integration.
 
 ## Acceptance criteria

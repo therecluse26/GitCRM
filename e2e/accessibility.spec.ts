@@ -144,6 +144,29 @@ for (const theme of ['dark', 'light'] as const) {
   }
 }
 
+// Spec 14: filter rows of each value kind, the Columns menu open, and a custom column.
+for (const theme of ['dark', 'light'] as const) {
+  test(`list filters and columns, ${theme}`, async ({ page }) => {
+    if (theme === 'light') await page.addInitScript(() => localStorage.setItem('gitcrm.theme', 'light'));
+    const fields: CustomField[] = [{ id: 'newsletter', label: 'Newsletter', type: 'checkbox', position: 0, archived: false, options: [] }];
+    await open(page, records, {}, withCustomFields(exampleConfig(), { contact: fields, company: [], opportunity: fields }));
+    await visit(page, '/contacts');
+    await page.getByRole('button', { name: 'Add filter' }).click();
+    await page.getByRole('button', { name: 'Add filter' }).click();
+    await field(page, 'Filter 2 field').selectOption({ label: 'Updated' });
+    await page.getByText('Columns', { exact: true }).click();
+    await page.getByRole('checkbox', { name: 'Newsletter' }).click();
+    await checkPage(page, `Contacts with filters, ${theme}`);
+
+    await visit(page, '/pipeline');
+    await field(page, 'View').selectOption('List');
+    await page.getByRole('button', { name: 'Add filter' }).click();
+    await field(page, 'Filter 1 field').selectOption({ label: 'Stage' });
+    await page.getByRole('button', { name: 'Value', exact: true }).click();
+    await checkPage(page, `Pipeline list with filters, ${theme}`);
+  });
+}
+
 test('the connect screen and workspace setup, with and without field errors', async ({ page }) => {
   const fake = await routeFakeGitHub(page);
   await page.goto('/');

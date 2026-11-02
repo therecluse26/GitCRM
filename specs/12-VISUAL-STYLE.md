@@ -24,7 +24,7 @@ The owner chose option C, "Dense and data-first", from three mock-ups of the Con
 - Settings has an "Appearance" card with a choice: Dark or Light. The choice applies at once.
 - The choice is stored on this device only while the connection is remembered ("Remember on this device"). Without that, it lasts until the page reloads. Disconnect removes it.
 - The Connect and Initialize screens use the stored theme, or dark.
-- Out of scope here: sort and filter by any field (docs/11, item 4).
+- Out of scope here: sort and filter by any field (docs/11, item 4, spec 14).
 
 The second slice (2026-11-02):
 

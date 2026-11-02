@@ -17,7 +17,7 @@ As a small team, I want a few fields of my own on contacts, companies, and oppor
 - The contact, company, and opportunity forms show each field after the built-in fields, in its list order.
 - The record page shows each field with its value, or "None". A checkbox shows "Yes" or "No".
 - Search finds the values of Text, Number, Web address, and Choice list fields.
-- Out of scope (docs/02): required fields, defaults, formulas, multi-select, record-link fields, and per-field permissions. Also out of scope for now: list columns, sort, and filters by a custom field, and reordering options.
+- Out of scope (docs/02): required fields, defaults, formulas, multi-select, record-link fields, and per-field permissions. Also out of scope for now: reordering options. Spec 14 adds list columns, sort, and filters by a custom field.
 
 ## Acceptance criteria
 
