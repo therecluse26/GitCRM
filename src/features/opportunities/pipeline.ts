@@ -1,9 +1,11 @@
 // The pipeline (spec 03): opportunities grouped by stage, in stage order, for the board and the list.
 import type { Opportunity } from '@/core/schemas.ts';
 import { isTerminal, sortStages, type Stage } from '@/core/stages.ts';
+import type { Filter, Sort } from '../list-query.ts';
 
-export type PipelineView = { layout: 'board' | 'list'; openOnly: boolean; showArchived: boolean; page: number };
-export const DEFAULT_PIPELINE_VIEW: PipelineView = { layout: 'board', openOnly: false, showArchived: false, page: 0 };
+// The sort applies to the list only; the filters to the board too (spec 14).
+export type PipelineView = { layout: 'board' | 'list'; openOnly: boolean; showArchived: boolean; sort: Sort; filters: Filter[]; page: number };
+export const DEFAULT_PIPELINE_VIEW: PipelineView = { layout: 'board', openOnly: false, showArchived: false, sort: { field: 'stage', direction: 'ascending' }, filters: [], page: 0 };
 
 // `stage` is null for opportunities whose stage is not in the workspace settings.
 export type PipelineColumn = { stage: Stage | null; opportunities: Opportunity[] };

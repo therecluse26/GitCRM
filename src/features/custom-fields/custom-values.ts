@@ -32,6 +32,15 @@ export function customText(field: CustomField | undefined, value: CustomValue | 
   }
 }
 
+// A list cell (spec 14): nothing for no value, an unchecked box, a removed option, or a value that
+// does not fit, the same values that a filter reads as empty. A web address shows its host.
+export function customCellText(field: CustomField, value: CustomValue | undefined): string {
+  if (value === undefined || value === null || value === false || !fits(field, value)) return '';
+  if (field.type === 'select' && field.options.some((o) => o.id === value && o.archived)) return '';
+  if (field.type === 'url') return new URL(value as string).host;
+  return customText(field, value);
+}
+
 // A conflict panel row for a custom field, which may be removed or unknown by now.
 export function customConflictRow(fields: CustomField[], row: { customId?: string; mine: unknown; remote: unknown; changedByMe: boolean }): ConflictRowView {
   const field = fields.find((f) => f.id === row.customId);
