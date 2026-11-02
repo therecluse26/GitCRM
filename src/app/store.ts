@@ -4,6 +4,7 @@
 import { create } from 'zustand';
 import { assessRepository, describeConnectError, inspectRepository, type Access } from '../auth/connect.ts';
 import { forgetConnection, readSavedConnection, saveConnection, type SavedConnection } from '../auth/credentials.ts';
+import { forgetColumns, NO_COLUMNS, storeColumns, storedColumns, type Columns } from './columns.ts';
 import { applyTheme, forgetTheme, storedTheme, storeTheme, type Theme } from './theme.ts';
 import { WORKSPACE_PATH } from '../core/paths.ts';
 import { serializeRecord, serializeWorkspace } from '../core/record-file.ts';
@@ -59,6 +60,7 @@ export type AppState = {
   tasks: TaskView;
   search: SearchView;
   theme: Theme;
+  columns: Columns; // the custom field columns of each list (spec 14)
   start(): Promise<void>;
   connect(credentials: Credentials): Promise<void>;
   refresh(): Promise<void>;
@@ -75,6 +77,8 @@ export type AppState = {
   setSearchView(changes: Partial<SearchView>): void;
   // Applies at once; stored on this device only while the connection is remembered (spec 12).
   setTheme(theme: Theme): void;
+  // The same storage rule as the theme. A hidden column no longer sorts its list.
+  setColumns(type: keyof Columns, fieldIds: string[]): void;
   tabFocused(): void;
   disconnect(): Promise<void>;
 };
@@ -220,12 +224,18 @@ export const useApp = create<AppState>()((set, get) => {
     set({ ...cleared, ...next });
   }
 
+  // What this device keeps beside the connection: the theme and the list columns (specs 12 and 14).
+  function forgetDevice() {
+    forgetTheme();
+    forgetColumns();
+  }
+
   // Forgets the token in memory too. The stored token and the cache are already gone.
   function signOut() {
     api = null;
-    forgetTheme();
+    forgetDevice();
     applyTheme('dark');
-    set({ theme: 'dark' });
+    set({ theme: 'dark', columns: NO_COLUMNS });
     leave({ credentials: null, repoName: '', screen: { name: 'connect', problem: null, busy: false } });
   }
 
@@ -236,7 +246,7 @@ export const useApp = create<AppState>()((set, get) => {
     if (from === 'connect' || tokenRejected) {
       if (tokenRejected) {
         forgetConnection();
-        forgetTheme();
+        forgetDevice();
         api = null;
       }
       leave({ credentials: null, screen: { name: 'connect', problem, busy: false } });
@@ -255,6 +265,7 @@ export const useApp = create<AppState>()((set, get) => {
     credentials: null,
     ...cleared,
     theme: storedTheme(),
+    columns: storedColumns(),
 
     async start() {
       if (started) return;
@@ -281,13 +292,14 @@ export const useApp = create<AppState>()((set, get) => {
         if (!credentials.remember) {
           // A shared computer: store nothing in this browser.
           forgetConnection();
-          forgetTheme();
+          forgetDevice();
           await cache.clear();
         }
         await establish(credentials, credentials.remember ? await cache.read(cacheKey(credentials)) : null);
         if (credentials.remember) {
           saveConnection({ owner: credentials.owner, repo: credentials.repo, token: credentials.token });
           storeTheme(get().theme);
+          storeColumns(get().columns);
         }
       } catch (error) {
         fail(error, 'connect');
@@ -364,6 +376,17 @@ export const useApp = create<AppState>()((set, get) => {
       applyTheme(theme);
       set({ theme });
       if (get().credentials?.remember) storeTheme(theme);
+    },
+
+    setColumns(type, fieldIds) {
+      const columns = { ...get().columns, [type]: fieldIds };
+      set({ columns });
+      if (get().credentials?.remember) storeColumns(columns);
+      const view = type === 'opportunity' ? get().pipeline : get().lists[type];
+      const sorted = view.sort.field.startsWith('custom.') ? view.sort.field.slice('custom.'.length) : null;
+      if (sorted === null || fieldIds.includes(sorted)) return;
+      if (type === 'opportunity') get().setPipelineView({ sort: DEFAULT_PIPELINE_VIEW.sort });
+      else get().setListView(type, { sort: DEFAULT_LIST_VIEW.sort });
     },
 
     tabFocused() {
