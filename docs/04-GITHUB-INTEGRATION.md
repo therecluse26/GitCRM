@@ -40,7 +40,9 @@ Git Trees has response-size/truncation limits. If `truncated = true`, recursivel
 3. Run the connect checks again (`GET /user`, `GET` repo, the write check), so a revoked token or a repo that turned public is caught. Then sync: if `main`'s commit SHA equals the cached one, the cache is current. Otherwise fetch the recursive tree, compare blob SHAs, fetch only new or changed records (GraphQL, by shard folder), and drop deleted ones. An unchanged `main` costs 4 requests in all, with no record downloads.
 4. Apply the result to the in-memory store, and to IndexedDB in one transaction, so the cache is always one coherent snapshot. The cache is one IndexedDB entry per workspace (`src/storage/record-cache.ts`).
 
-Saves write to GitHub first, then update the in-memory store and IndexedDB. After a save, clear the cached commit SHA: `main` may now include other people's commits, so the next sync compares blob SHAs. A change to the app's record schema version clears the cache. Unverified: Safari may delete script-written storage for a site unused for 7 days; the app then falls back to a full load.
+Saves write to GitHub first, then update the in-memory store and IndexedDB. After a save, clear the cached commit SHA: `main` may now include other people's commits, so the next sync compares blob SHAs. A change to the app's record schema version clears the cache.
+
+Built (spec 15): "Add as contact" on a lead saves two records, the contact and then the note, each as its own create through the Contents API. That is two commits, not one, because no record save needs a shared commit (ADR-021 uses one only for a delete with cascade). A failure between them leaves a contact with no note. Both IDs come from a hash of the lead, so a second try meets the first try's records: GitHub answers 422 or 409 for a path that exists, GitCRM reads the existing record from the conflict, and a same-ID, same-type record counts as saved. The lead leaves the inbox only after both saves. Unverified: Safari may delete script-written storage for a site unused for 7 days; the app then falls back to a full load.
 
 ## First-load transport (spike 3)
 

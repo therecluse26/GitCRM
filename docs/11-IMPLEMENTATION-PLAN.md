@@ -75,7 +75,7 @@ Owner request 2026-11-02: the app needs styling, and standard CRM features.
 - [x] 2. Visual style, second slice (spec 12). Contacts and Companies are dense tables with a column per field; the Pipeline list uses the same style. Each stage has a coloured mark next to its name. Task groups sit in boxes; they stay lists, because the same row shows on Home and on record pages.
 - [x] 3. More built-in contact and company fields (spec 13, ADR-028 proposed). A contact gets Job title, Profiles, Address, and Source; a company gets Industry, Phone numbers, and Address. A file is version 2 only when one of these has a value, so a workspace that does not use them still opens in an older GitCRM.
 - [x] 4. List sort and filter by any field (spec 14). Contacts, Companies, and the Pipeline list sort by a click on any column header. "Add filter" rows filter by any field, also custom fields; on the Pipeline they change the board too. "Columns" shows custom fields as columns.
-- [ ] 5. A public lead form. Needs an owner decision first: a browser cannot write to a private repo without a token (ADR-004).
+- [x] 5. A lead form and a lead inbox (spec 15, ADR-029 proposed). Visitors send a form on a page of the owner's GitCRM site (`lead.html`) or on the owner's own website; leads wait in Formcarry's Free plan (S-10) until the owner adds each as a contact with a note, or discards it. The inbox sits behind an adapter interface, so an own relay can follow. Owner decisions 2026-11-02 and 2026-11-03.
 
 ## Future considerations (not promises)
 

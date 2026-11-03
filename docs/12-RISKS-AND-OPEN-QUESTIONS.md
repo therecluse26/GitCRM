@@ -19,6 +19,7 @@ These are **real unresolved dependencies**, not minor TODOs. The docs deliberate
 | R-13 | Medium | Anyone who can push to `main` in an owner's app repository, or who controls an action the workflow uses, can change that owner's page and read the PAT typed into it | Done (spec 09): no secrets in the workflow; the deploy job runs no project code; actions are pinned to commit SHAs; the live check compares the site with the tested build. A template update deploys only when the owner runs it, and a revert undoes it (ADR-026) | If the PAT leaks: revoke it on GitHub, and make a new one. It reaches only the data repository |
 | R-14 | Medium | Record version 2 (ADR-028): a copy that has not updated yet cannot read a contact or company that uses a spec 13 field. In a shared workspace, a teammate on an older copy sees those files as "unsupported version" | The older copy writes nothing to such a file, and lists it in Settings. Each owner updates with **Update GitCRM** (ADR-026). The older copy also blocks every delete while it cannot read a file (`deleteBlocker`, spec 06), so no delete leaves a broken link | Mention the version in the release notes; owner review of ADR-028 |
 | R-15 | Low | A workspace may already have custom fields with the same purpose as a spec 13 field, such as "Industry" or "LinkedIn". The form then shows both | Nothing moves the values: GitCRM never rewrites custom field values by itself. The owner can copy the values by hand, then remove the custom field in Settings | Owner decision: whether Settings should warn about a custom field named like a built-in field |
+| R-16 | Medium | The lead inbox (ADR-029). (a) A lead stays on Formcarry until GitCRM adds or discards it, and the form's retention setting may delete it first. (b) The form page takes the form ID from its link, so anyone can write a link to the owner's site that sends visitors' answers to another Formcarry form. (c) The app's `connect-src` has one more host, and the browser holds a second secret next to the PAT. Formcarry's docs say not to put keys in client-side code. (d) Formcarry can change its Free plan: 50 leads a month, and API access on that plan, are facts of 2026-11-02. (e) A contact from a lead has Source "Lead form", so its file is record version 2 (ADR-028, R-14): an older copy cannot read it | (a) The Settings card tells the owner. The Leads page lists leads oldest first. (b) The form page says where the answers go: "Sent through Formcarry, form ID". The snippet on the owner's own site has no such risk. (c) Scripts stay `self` only, with Trusted Types. The key is limited to one form and the scopes `submissions:read` and `submissions:write`, and the owner can revoke it on Formcarry. Tests prove the key goes only to Formcarry and the PAT never does. (d) The adapter interface lets another service or an own relay replace Formcarry. (e) The owner updates the copy (ADR-026) before the first lead is added; the release notes say so | Owner review of ADR-029; verify a browser fetch with a real key in the owner's first live run; whether the form page should need a signed link |
 
 ## P0 results
 
@@ -310,6 +311,37 @@ GitHub allows 60 s of GraphQL server time per minute, and says to estimate it fr
 | A release whose `package.json` has another version | A first `v0.3.1` was created by mistake on a commit with `0.3.0`. The copy showed the banner, and the owner ran the update (4:20 PM EST). The script refused the release, and pushed nothing. The release was deleted and made again on the right commit |
 | The update button, to `v0.3.1` | The owner clicked **Update GitCRM**, then **Run workflow** (5:06:46 PM EST). With the workflow's own token, the job pushed "Update GitCRM to v0.3.1" to `main` (5:06:56 PM) and started Deploy (5:06:58 PM). Deploy passed at 5:09:26 PM. The live bundle has `0.3.1`, and the banner is gone |
 
+
+### S-10: Lead inbox services
+
+- **Date:** 2026-11-02, from 6:52 PM to about 10 PM EST. Vendor docs and prices read the same day. Browser preflights from `https://example.com` with fake keys. One live check on the owner's Free-plan Formcarry account, with a key limited to one test form and curl run by the owner.
+- **Question:** can GitCRM read leads from a form service, and delete them, from a browser, on a $0 plan?
+- **The test:** a public submit with no secret; a list API; a delete API; the browser may call the API (CORS); and the API works on a $0 plan. Twelve services were read. Four were probed from a browser.
+- **Results:**
+
+| Service | $0 plan | API on the $0 plan | Browser call |
+| --- | --- | --- | --- |
+| Formcarry | 50 leads a month | Lists and deletes (live check, HTTP 200 each) | List and delete: a readable `401` with a fake key. Submit: readable |
+| Static Forms | 250 per 30 days, kept 1 year | No. The form key "cannot read submissions". Reading is MCP over OAuth, on paid plans only | The MCP endpoint sends no CORS header. Submit works |
+| FormKeep | 50 a month, kept 1 month | Not stated | List (key in the URL, and Bearer) and JSON submit: no CORS header |
+| Formspark | 250 in total | No ($25 once for the API) | List and delete: no CORS header |
+| Basin | 50 a month, kept 30 days | No (Growth, $24.17 a month billed yearly) | List and delete: passed |
+| Formspree | 50 a month, kept 30 days | No (Professional, $30 a month, or $20 billed yearly) | List passed. No delete call is documented |
+| Web3Forms, Forminit, FormBackend, Kwes, Formester, Fabform | Free tiers | API paid, or not stated | Not probed |
+
+- **Formcarry details (OpenAPI file, `api.formcarry.com/docs-json`, read 2026-11-02):**
+  - A lead has `id`, `form_id`, `created_at`, `spam`, `read`, `ip`, `country`, `user_agent`, `referer`, `fields` (a list of `{key, value}`), and `attachments`.
+  - List: `GET /v1/forms/{form}/submissions`. The filter `status` is `inbox` (the default, no spam), `spam`, or `all`. `order` is `newest` or `oldest`. `limit` is 1 to 100. `cursor` comes from `next_cursor` while `has_more` is true.
+  - Delete: `DELETE /v1/forms/{form}/submissions/{id}` answers `{id, deleted: true}`.
+  - `GET /v1/me` lists the key's `scopes`.
+  - Errors: `{ error: { type, code, message } }`, with the codes `invalid_key`, `insufficient_scope`, `form_access_restricted`, `plan_restricted`, and `rate_limited` (HTTP 429, `Retry-After`).
+  - A form takes a post at `https://formcarry.com/s/<form ID>`. `_gotcha` is the honeypot field.
+- **Decision:** Formcarry is the first adapter (ADR-029, spec 15). No other service met the test at $0.
+- **Not verified:**
+  - A browser `fetch` with a real key. The live check used curl, and the browser probes used fake keys.
+  - The Free plan's retention of leads.
+  - Formcarry's terms for this use. The Free plan's limits are facts of 2026-11-02.
+- **Evidence:** the probe notes and the live-check script are in the session scratchpad. The script prints status codes, error codes, and one lead ID, never the key or a lead's contents.
 
 ## Most important product decision
 

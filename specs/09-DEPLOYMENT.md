@@ -15,7 +15,7 @@ GitCRM is a GitHub template repository. Each owner makes their own app repositor
 
 - One GitHub Actions workflow in the template, `.github/workflows/deploy.yml`. On each push to `main`, it runs every check, builds once, deploys that build to the repository's GitHub Pages, and checks the live site.
 - The workflow uses no secrets. The deploy job gets the workflow's own token with `pages: write` and `id-token: write`, and nothing else.
-- `<meta name="robots" content="noindex">` in `index.html`. The build audit checks it.
+- `<meta name="robots" content="noindex">` in `index.html` and in `lead.html`, the public form page (spec 15). The build audit checks both.
 - A `_headers` file in the build, for hosts that read one, such as Cloudflare Pages. It sends the Content Security Policy as a header, with `frame-ancestors 'none'`. GitHub Pages serves it as a plain file. The build audit checks it.
 - A browser test that serves the same build from `/GitCRM/` with no custom headers, the way GitHub Pages serves a project site.
 

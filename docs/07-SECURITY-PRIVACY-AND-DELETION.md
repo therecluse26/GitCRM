@@ -51,32 +51,43 @@ The built `index.html` carries this policy in a `<meta>` tag, right after the ch
 | `script-src` | `'self'` | The app's own bundle only: no inline script, no `eval`, no script from another site |
 | `style-src` | `'self'` | The app's own stylesheet only |
 | `font-src` | `'self'` | The IBM Plex font files in the build (spec 12) |
-| `connect-src` | `https://api.github.com` | The PAT and CRM data can reach no other site |
+| `connect-src` | `https://api.github.com https://api.formcarry.com` | The PAT and CRM data reach GitHub. The lead inbox key reaches Formcarry (ADR-029). No other site |
 | `base-uri` | `'none'` | A planted `<base>` tag cannot move the relative asset paths |
 | `form-action` | `'none'` | No form submits natively; the app handles every form in script |
 | `require-trusted-types-for` | `'script'` | Trusted Types: a string can never become HTML or a script address, the usual way into an XSS |
 | `trusted-types` | `'none'` | GitCRM creates no Trusted Types policy, so no code can make an exception |
 
+- The public form page, `lead.html` (spec 15), carries its own policy in its own `<meta>` tag: `default-src 'none'`, `script-src 'self'`, `style-src 'self'`, `connect-src https://formcarry.com`, `base-uri 'none'`, `form-action 'none'`, and the two Trusted Types directives. It has no `font-src`, because it uses no font file. The page shares the app's origin, so it must carry no GitCRM code: its script is one file with no import.
 - The dev server sends no policy, because Vite's dev client needs inline scripts and a WebSocket.
 - The browser tests run against the built app, so they run under the policy. Any policy violation fails the test (`e2e/fixtures.ts`). Only the developer page's test uses the dev server.
 - Zod compiles validators with `new Function` unless `jitless` is on. `src/app/zod-config.ts` turns it on before any parse, so Zod never tries `eval`.
-- A `<meta>` policy cannot set `frame-ancestors`. On a host that reads the build's `_headers` file, such as Cloudflare Pages, it sends the same policy as a header, with `frame-ancestors 'none'` (spec 09). GitHub Pages sends no custom headers, so there the app's own frame check refuses to run inside a frame.
+- A `<meta>` policy cannot set `frame-ancestors`. On a host that reads the build's `_headers` file, such as Cloudflare Pages, it sends the same policy as a header, with `frame-ancestors 'none'` (spec 09). A `/lead.html` rule there detaches that policy and sends the form page's own, because two policies on one page would both apply, and the app's would block the page's request to Formcarry. This is not verified on such a host. If it fails, the page fails closed: the form cannot send (R-16). GitHub Pages sends no custom headers, so there the app's own frame check refuses to run inside a frame.
 - A browser without Trusted Types ignores those two directives; the others still apply. The browser tests run in Chromium only.
 - The browser tests pass with no Trusted Types policy because GitCRM never renders raw HTML or a `<script>` element. If a new library needs a policy, ask the owner first.
 
 `npm run build` runs the build audit (`scripts/check-build.ts`) on `dist/`. Any finding fails the build. The audit refuses:
 
-- an `index.html` without `<meta name="robots" content="noindex">`;
-- any file other than `index.html`, `_headers`, and the `.js`, `.css`, and `.woff2` files in `assets/`, so no source map and no developer page;
-- no `_headers` file; a `/*` rule that does not send the `<meta>` policy, then `; frame-ancestors 'none'`; another rule that changes or removes that header; or a line over 2,000 characters, the Cloudflare limit (spec 09);
+- an `index.html` or `lead.html` without `<meta name="robots" content="noindex">`;
+- any file other than `index.html`, `lead.html`, `_headers`, and the `.js`, `.css`, and `.woff2` files in `assets/`, so no source map and no developer page;
+- no `_headers` file; a `/*` rule that does not send the `<meta>` policy of `index.html`, then `; frame-ancestors 'none'`; a `/lead.html` rule that does not detach that policy and send the policy of `lead.html`, then `; frame-ancestors 'none'`; another rule that changes or removes that header; or a line over 2,000 characters, the Cloudflare limit (spec 09);
 - a link to a source map;
-- an `index.html` with no policy, with the policy after a script or stylesheet, or with a weaker policy: another `default-src`, `script-src`, or `connect-src`, no Trusted Types, or any `'unsafe-…'` keyword;
-- an inline script, an inline style, or an event handler attribute in `index.html`;
+- an `index.html` or `lead.html` with no policy, with the policy after a script or stylesheet, or with a weaker policy: another `default-src`, `script-src`, or `connect-src` (each page has its own exact value), no Trusted Types, or any `'unsafe-…'` keyword;
+- an inline script, an inline style, or an event handler attribute in either page;
+- a form page that loads more than one script, or whose script imports another file, or uses `localStorage`, `sessionStorage`, `indexedDB`, `document.cookie`, or `api.github.com`;
 - anything shaped like a GitHub token (`ghp_`, `gho_`, `ghu_`, `ghs_`, `ghr_`, or `github_pat_`);
 - an email address outside the reserved example domains (RFC 2606, RFC 6761), because a real address could be customer data from a fixture;
 - a host that nobody reviewed. `scripts/check-build.ts` lists each reviewed host with its reason.
 
 The audit is a text scan, so it cannot find a name or a phone number. The fixtures and the fake GitHub stay out of the build because no app code imports `src/test/`.
+
+## The lead inbox (ADR-029, spec 15)
+
+- A form service holds leads until the owner adds them as contacts or discards them. The first is Formcarry. The service sees lead data: names, emails, phone numbers, and messages. It never sees CRM records or the GitHub token.
+- The owner's Formcarry key is a second secret in browser storage, with the PAT's rule (ADR-017): stored only while the connection is remembered, and Disconnect removes it. The key is limited to one form and the scopes `submissions:read` and `submissions:write`. Formcarry's docs say not to put keys in client-side code (R-16).
+- The key goes only to `api.formcarry.com`, as a Bearer header, never in an address. The GitHub token never goes there. A browser test records every request and checks both.
+- A visitor's IP address, country, browser, and referring page, and any attached file, are dropped when GitCRM reads a lead. They never reach a contact or a note.
+- GitCRM reads Formcarry only when the Leads page opens and when the owner asks. It has no background check (ADR-006).
+- The form page takes the form ID from its link, so anyone can write a link that sends visitors' answers to another Formcarry form. The page says where the answers go (R-16).
 
 ## Deployment
 
