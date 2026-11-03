@@ -12,6 +12,7 @@ import { OpportunityPage } from '@/features/opportunities/OpportunityPage.tsx';
 import { PipelinePage } from '@/features/opportunities/PipelinePage.tsx';
 import { EditActivityPage, NewActivityPage } from '@/features/activities/ActivityEditor.tsx';
 import { DeleteActivityPage, DeleteCompanyPage, DeleteContactPage, DeleteOpportunityPage, DeleteTaskPage } from '@/features/DeletePage.tsx';
+import { LeadsPage } from '@/features/leads/LeadsPage.tsx';
 import { readNewRecordSearch } from '@/features/records.ts';
 import { EditTaskPage, NewTaskPage } from '@/features/tasks/TaskEditor.tsx';
 import { TaskPage } from '@/features/tasks/TaskPage.tsx';
@@ -41,6 +42,7 @@ const routeTree = rootRoute.addChildren([
   page('/companies/$companyId/edit', EditCompanyPage),
   page('/companies/$companyId/delete', DeleteCompanyPage),
   page('/pipeline', PipelinePage),
+  page('/leads', LeadsPage),
   newRecordPage('/opportunities/new', NewOpportunityPage),
   page('/opportunities/$opportunityId', OpportunityPage),
   page('/opportunities/$opportunityId/edit', EditOpportunityPage),

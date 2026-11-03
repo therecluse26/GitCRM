@@ -13,6 +13,7 @@ const NAV = [
   { to: '/contacts', label: 'Contacts' },
   { to: '/companies', label: 'Companies' },
   { to: '/pipeline', label: 'Pipeline' },
+  { to: '/leads', label: 'Leads' },
   { to: '/tasks', label: 'Tasks' },
   { to: '/search', label: 'Search' },
   { to: '/settings', label: 'Settings' },
@@ -20,6 +21,7 @@ const NAV = [
 
 export function AppShell({ children }: { children: ReactNode }) {
   const repoName = useApp((s) => s.repoName);
+  const hasLeadForm = useApp((s) => s.leadSetup !== null); // the Leads tab shows only with a lead form (spec 15)
   const access = useApp((s) => s.session?.access);
   const sync = useApp((s) => s.sync);
   const saving = useApp((s) => s.saving);
@@ -64,7 +66,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <header className="flex flex-wrap items-center gap-x-5 border-b bg-sidebar px-4">
         <span className="py-2 font-mono text-sm font-medium">GitCRM</span>
         <nav aria-label="Main" className="flex flex-wrap self-stretch">
-          {NAV.map(({ to, label }) => (
+          {NAV.filter(({ to }) => to !== '/leads' || hasLeadForm).map(({ to, label }) => (
             <Link
               key={to}
               to={to}
