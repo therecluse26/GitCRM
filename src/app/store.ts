@@ -5,6 +5,7 @@ import { create } from 'zustand';
 import { assessRepository, describeConnectError, inspectRepository, type Access } from '../auth/connect.ts';
 import { forgetConnection, readSavedConnection, saveConnection, type SavedConnection } from '../auth/credentials.ts';
 import { forgetColumns, NO_COLUMNS, storeColumns, storedColumns, type Columns } from './columns.ts';
+import { forgetLeadSetup, storeLeadSetup, storedLeadSetup, type LeadSetup } from './lead-setup.ts';
 import { applyTheme, forgetTheme, storedTheme, storeTheme, type Theme } from './theme.ts';
 import { WORKSPACE_PATH } from '../core/paths.ts';
 import { serializeRecord, serializeWorkspace } from '../core/record-file.ts';
@@ -61,6 +62,7 @@ export type AppState = {
   search: SearchView;
   theme: Theme;
   columns: Columns; // the custom field columns of each list (spec 14)
+  leadSetup: LeadSetup | null; // the lead form of this device, with the owner's key (spec 15)
   start(): Promise<void>;
   connect(credentials: Credentials): Promise<void>;
   refresh(): Promise<void>;
@@ -79,6 +81,8 @@ export type AppState = {
   setTheme(theme: Theme): void;
   // The same storage rule as the theme. A hidden column no longer sorts its list.
   setColumns(type: keyof Columns, fieldIds: string[]): void;
+  // Stored on this device only while the connection is remembered: the key is a secret (ADR-029).
+  setLeadSetup(setup: LeadSetup | null): void;
   tabFocused(): void;
   disconnect(): Promise<void>;
 };
@@ -224,10 +228,13 @@ export const useApp = create<AppState>()((set, get) => {
     set({ ...cleared, ...next });
   }
 
-  // What this device keeps beside the connection: the theme and the list columns (specs 12 and 14).
+  // What this device keeps beside the connection: the theme, the list columns, and the lead form
+  // (specs 12, 14, and 15). The lead form's key leaves memory too.
   function forgetDevice() {
     forgetTheme();
     forgetColumns();
+    forgetLeadSetup();
+    set({ leadSetup: null });
   }
 
   // Forgets the token in memory too. The stored token and the cache are already gone.
@@ -266,14 +273,18 @@ export const useApp = create<AppState>()((set, get) => {
     ...cleared,
     theme: storedTheme(),
     columns: storedColumns(),
+    leadSetup: null,
 
     async start() {
       if (started) return;
       started = true;
       const saved = readSavedConnection();
-      if (!saved) return set({ screen: { name: 'connect', problem: null, busy: false } });
+      if (!saved) {
+        forgetLeadSetup(); // a key without a saved connection is a leftover
+        return set({ screen: { name: 'connect', problem: null, busy: false } });
+      }
       const credentials = { ...saved, remember: true };
-      set({ credentials, repoName: `${saved.owner}/${saved.repo}` });
+      set({ credentials, repoName: `${saved.owner}/${saved.repo}`, leadSetup: storedLeadSetup() });
       const cached = await cache.read(cacheKey(saved));
       if (cached) {
         const snapshot = snapshotFromFiles(cached);
@@ -300,6 +311,7 @@ export const useApp = create<AppState>()((set, get) => {
           saveConnection({ owner: credentials.owner, repo: credentials.repo, token: credentials.token });
           storeTheme(get().theme);
           storeColumns(get().columns);
+          storeLeadSetup(get().leadSetup);
         }
       } catch (error) {
         fail(error, 'connect');
@@ -376,6 +388,11 @@ export const useApp = create<AppState>()((set, get) => {
       applyTheme(theme);
       set({ theme });
       if (get().credentials?.remember) storeTheme(theme);
+    },
+
+    setLeadSetup(setup) {
+      set({ leadSetup: setup });
+      if (get().credentials?.remember) storeLeadSetup(setup);
     },
 
     setColumns(type, fieldIds) {
