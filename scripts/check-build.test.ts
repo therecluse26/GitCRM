@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { auditBuild } from './check-build.ts';
-import { CSP, HEADERS } from './csp.ts';
+import { CSP, HEADERS, LEAD_CSP } from './csp.ts';
 
 const meta = (policy = CSP) => `<meta http-equiv="Content-Security-Policy" content="${policy}" />`;
 const page = (head = meta(), body = '') => `<!doctype html>
@@ -18,6 +18,25 @@ const page = (head = meta(), body = '') => `<!doctype html>
   </body>
 </html>`;
 
+// The public form page (spec 15): its own policy, and one script that carries no GitCRM code.
+const FORM_SCRIPT = 'assets/lead-e5f6a7b8.js';
+const leadPage = (head = meta(LEAD_CSP), body = '') => `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    ${head}
+    <meta name="robots" content="noindex" />
+    <title>Contact us</title>
+    <script type="module" crossorigin src="./${FORM_SCRIPT}"></script>
+    <link rel="stylesheet" crossorigin href="./assets/lead-e5f6a7b8.css">
+  </head>
+  <body>
+    <main><h1>Contact us</h1></main>${body}
+  </body>
+</html>`;
+const LEAD_HEADERS = `/lead.html\n  ! Content-Security-Policy\n  Content-Security-Policy: ${LEAD_CSP}; frame-ancestors 'none'\n`;
+const leadWrong = `_headers: the /lead.html rule must detach the policy, then send the policy from lead.html and "; frame-ancestors 'none'"`;
+
 // A clean build, changed by `changes`.
 function audit(changes: Record<string, string | null> = {}) {
   const files = new Map<string, string>([
@@ -25,6 +44,9 @@ function audit(changes: Record<string, string | null> = {}) {
     ['assets/index-a1b2c3d4.js', 'fetch("https://api.github.com/user");const ns="http://www.w3.org/2000/svg";'],
     ['assets/index-a1b2c3d4.css', 'body{font-family:Geist}'],
     ['assets/geist-latin-wght-normal-a1b2c3d4.woff2', ''],
+    ['lead.html', leadPage()],
+    [FORM_SCRIPT, 'const e="https://formcarry.com/s/";fetch(e+id,{method:"POST"});'],
+    ['assets/lead-e5f6a7b8.css', 'body{margin:0}'],
     ['_headers', HEADERS],
   ]);
   for (const [path, text] of Object.entries(changes)) {
@@ -68,8 +90,8 @@ describe('auditBuild', () => {
     expect(weaker("script-src 'self'", "script-src 'self' 'unsafe-inline'")).toEqual(["The policy's script-src must be exactly 'self'", "The policy allows 'unsafe-inline'"]);
     expect(weaker("default-src 'none'", "default-src 'self'")).toEqual(["The policy's default-src must be 'none'"]);
     expect(weaker("; require-trusted-types-for 'script'", '')).toEqual(["The policy must require Trusted Types for scripts"]);
-    expect(weaker('connect-src https://api.github.com', 'connect-src https://api.github.com https://collector.example')).toEqual([
-      "The policy's connect-src must be exactly https://api.github.com",
+    expect(weaker('connect-src https://api.github.com https://api.formcarry.com', 'connect-src https://api.github.com https://api.formcarry.com https://collector.example')).toEqual([
+      "The policy's connect-src must be exactly https://api.github.com https://api.formcarry.com",
       'index.html names a host that nobody reviewed: collector.example',
       '_headers names a host that nobody reviewed: collector.example',
     ]);
@@ -105,9 +127,9 @@ describe('auditBuild', () => {
   it('needs a headers file that sends the policy from index.html, with frame-ancestors', () => {
     const wrong = `_headers: the /* rule must send the policy from index.html, then "; frame-ancestors 'none'"`;
     expect(audit({ _headers: null })).toEqual(['The build has no _headers file']);
-    expect(audit({ _headers: `/*\n  Content-Security-Policy: ${CSP}\n` })).toEqual([wrong]);
-    expect(audit({ _headers: `/*\n  Content-Security-Policy: default-src *; frame-ancestors 'none'\n` })).toEqual([wrong]);
-    expect(audit({ _headers: `/assets/*\n  Content-Security-Policy: ${CSP}; frame-ancestors 'none'\n` })).toEqual([
+    expect(audit({ _headers: `/*\n  Content-Security-Policy: ${CSP}\n${LEAD_HEADERS}` })).toEqual([wrong]);
+    expect(audit({ _headers: `/*\n  Content-Security-Policy: default-src *; frame-ancestors 'none'\n${LEAD_HEADERS}` })).toEqual([wrong]);
+    expect(audit({ _headers: `/assets/*\n  Content-Security-Policy: ${CSP}; frame-ancestors 'none'\n${LEAD_HEADERS}` })).toEqual([
       wrong,
       '_headers: the /assets/* rule changes the Content-Security-Policy header',
     ]);
@@ -119,5 +141,56 @@ describe('auditBuild', () => {
     expect(audit({ _headers: `# My copy\n${HEADERS}/assets/*\n  Cache-Control: public, max-age=31536000, immutable\n` })).toEqual([]);
     const line = HEADERS.split('\n').length + 1;
     expect(audit({ _headers: `${HEADERS}/*\n  X-Note: ${'a'.repeat(2000)}\n` })).toEqual([`_headers: line ${line} is longer than 2,000 characters`]);
+  });
+});
+
+// The public form page, lead.html (spec 15, ADR-029). It shares the app's origin, so it must carry
+// no GitCRM code and no way to reach storage.
+describe('auditBuild, the form page', () => {
+  it('is part of every build, and needs the robots noindex tag', () => {
+    expect(audit({ 'lead.html': null })).toEqual([leadWrong, 'The build has no lead.html']);
+    const without = leadPage().replace('    <meta name="robots" content="noindex" />\n', '');
+    expect(audit({ 'lead.html': without })).toEqual(['lead.html has no <meta name="robots" content="noindex"> tag']);
+  });
+
+  it('needs a policy that lets it connect to the form only', () => {
+    const weaker = (from: string, to: string) => audit({ 'lead.html': leadPage(meta(LEAD_CSP.replace(from, to))), _headers: HEADERS.replace(LEAD_CSP, LEAD_CSP.replace(from, to)) });
+    expect(weaker('connect-src https://formcarry.com', 'connect-src https://formcarry.com https://collector.example')).toEqual([
+      "lead.html: The policy's connect-src must be exactly https://formcarry.com",
+      'lead.html names a host that nobody reviewed: collector.example',
+      '_headers names a host that nobody reviewed: collector.example',
+    ]);
+    expect(weaker('connect-src https://formcarry.com', 'connect-src https://api.github.com')).toEqual(["lead.html: The policy's connect-src must be exactly https://formcarry.com"]);
+    expect(weaker("script-src 'self'", "script-src 'self' 'unsafe-inline'")).toEqual(["lead.html: The policy's script-src must be exactly 'self'", "lead.html: The policy allows 'unsafe-inline'"]);
+    expect(audit({ 'lead.html': leadPage(meta(CSP)) })).toEqual(["lead.html: The policy's connect-src must be exactly https://formcarry.com", leadWrong]);
+  });
+
+  it('refuses an inline script, and a second script', () => {
+    expect(audit({ 'lead.html': leadPage(meta(LEAD_CSP), '<script>x()</script>') })).toEqual(['lead.html has an inline script']);
+    const two = leadPage().replace('</head>', '<script type="module" src="./assets/other.js"></script></head>');
+    expect(audit({ 'lead.html': two })).toEqual(['lead.html must load exactly one script, and it loads 2']);
+    expect(audit({ [FORM_SCRIPT]: null })).toEqual([`lead.html loads ${FORM_SCRIPT}, which is not in the build`]);
+  });
+
+  it('refuses a script that imports another file', () => {
+    for (const text of ['import"./chunk-1.js";fetch("https://formcarry.com/s/")', 'import{a}from"./chunk-1.js";a()', 'const m=await import("./chunk-1.js")']) {
+      expect(audit({ [FORM_SCRIPT]: text })).toEqual([`The form page script ${FORM_SCRIPT} imports another file`]);
+    }
+  });
+
+  it('refuses a script that reaches storage, cookies, or the GitHub API', () => {
+    expect(audit({ [FORM_SCRIPT]: 'localStorage.getItem("gitcrm.leads")' })).toEqual([`The form page script ${FORM_SCRIPT} uses localStorage`]);
+    expect(audit({ [FORM_SCRIPT]: 'sessionStorage.x;indexedDB.open("x");document.cookie="a=b"' })).toEqual([
+      `The form page script ${FORM_SCRIPT} uses sessionStorage`,
+      `The form page script ${FORM_SCRIPT} uses indexedDB`,
+      `The form page script ${FORM_SCRIPT} uses document.cookie`,
+    ]);
+    expect(audit({ [FORM_SCRIPT]: 'fetch("https://api.github.com/user")' })).toEqual([`The form page script ${FORM_SCRIPT} uses api.github.com`]);
+  });
+
+  it('needs a headers rule that detaches the app policy and sends its own', () => {
+    expect(audit({ _headers: HEADERS.replace(LEAD_HEADERS, '') })).toEqual([leadWrong]);
+    expect(audit({ _headers: HEADERS.replace('  ! Content-Security-Policy\n', '') })).toEqual([leadWrong]);
+    expect(audit({ _headers: HEADERS.replace(LEAD_CSP, "default-src *") })).toEqual([leadWrong]);
   });
 });

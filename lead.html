@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Contact us</title>
+    <link rel="stylesheet" href="/src/lead-form/lead-form.css" />
+  </head>
+  <body>
+    <main>
+      <h1>Contact us</h1>
+      <p id="invalid" hidden>This form link is not valid.</p>
+      <form id="form" novalidate hidden>
+        <div class="field">
+          <label for="name">Name</label>
+          <input id="name" name="name" type="text" autocomplete="name" required aria-required="true" aria-describedby="name-error" />
+          <p id="name-error" class="error"></p>
+        </div>
+        <div class="field">
+          <label for="email">Email</label>
+          <input id="email" name="email" type="email" autocomplete="email" required aria-required="true" aria-describedby="email-error" />
+          <p id="email-error" class="error"></p>
+        </div>
+        <div class="field">
+          <label for="phone">Phone (optional)</label>
+          <input id="phone" name="phone" type="tel" autocomplete="tel" />
+        </div>
+        <div class="field">
+          <label for="message">Message (optional)</label>
+          <textarea id="message" name="message" rows="5"></textarea>
+        </div>
+        <input class="trap" type="text" name="_gotcha" tabindex="-1" autocomplete="off" aria-hidden="true" />
+        <button id="send" type="submit">Send</button>
+      </form>
+      <p id="result" role="status" tabindex="-1"></p>
+      <p id="sent-through" class="note" hidden>Sent through Formcarry, form <span id="form-id"></span>.</p>
+      <noscript><p>This form needs JavaScript. Turn it on, then reload the page.</p></noscript>
+    </main>
+    <script type="module" src="/src/lead-form/main.ts"></script>
+  </body>
+</html>
