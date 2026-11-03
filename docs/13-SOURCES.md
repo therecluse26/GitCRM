@@ -55,6 +55,14 @@
 - [OWASP: CSV Injection - dangerous first characters, and the fix](https://owasp.org/www-community/attacks/CSV_Injection) (read 2026-10-30; it now redirects to community.owasp.org)
 - [GHSA-px8p-9vwx-vf98: fflate `unzipSync` can loop on a malformed ZIP64 archive; fixed in 0.8.3](https://github.com/advisories/GHSA-px8p-9vwx-vf98) (read 2026-10-30; GitCRM pins 0.8.3 and only writes ZIPs)
 
+## Lead form services
+
+- [Formcarry API overview, authentication, and errors](https://formcarry.com/docs/api/overview.md) (read 2026-11-02; the OpenAPI file is `https://api.formcarry.com/docs-json`)
+- [Formcarry: what every form needs - the `_gotcha` honeypot and the JSON answer](https://formcarry.com/docs/what-every-form-needs.md) (read 2026-11-03)
+- [Formcarry pricing - the Free plan and the paid plans](https://formcarry.com/pricing) (read in a browser 2026-11-03)
+- [Static Forms pricing in Markdown, and its AI snapshot](https://www.staticforms.dev/pricing.md) (read 2026-11-03: the form key cannot read leads; agent access is paid)
+- [Formspark API](https://documentation.formspark.io/api/), [Basin API](https://docs.usebasin.com/developer-features/api-reference/), [Formspree submissions API](https://help.formspree.io/articles/the-forms-api/form-submissions-api.md), [FormKeep API](https://formkeep.com/docs/api.md) (read 2026-11-02 and 2026-11-03; S-10)
+
 ## Notes
 
 - GitHub supports PKCE, but the current official OAuth app code-exchange docs still describe `client_secret` as required. Treat this as a **production auth feasibility question**, not a solved browser-only OAuth recipe.

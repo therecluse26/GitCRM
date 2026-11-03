@@ -7,6 +7,7 @@ import type { Theme } from '@/app/theme.ts';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { CustomFieldEditor } from '@/features/custom-fields/CustomFieldEditor.tsx';
+import { LeadFormCard } from '@/features/leads/LeadFormCard.tsx';
 import { StageEditor } from '@/features/opportunities/StageEditor.tsx';
 import { ExportCard } from './ExportCard.tsx';
 
@@ -76,6 +77,8 @@ export function SettingsPage() {
 
       <CustomFieldEditor />
 
+      <LeadFormCard />
+
       <Card>
         <CardHeader>
           <CardTitle>
@@ -126,7 +129,7 @@ export function SettingsPage() {
             <h2>Disconnect</h2>
           </CardTitle>
           <CardDescription>
-            Disconnect deletes the token, the saved records, and the theme choice from this browser. Your repository does not change. To stop the token working everywhere, delete it on{' '}
+            Disconnect deletes the token, the saved records, the theme and column choices, and the lead form key from this browser. Your repository does not change. To stop the token working everywhere, delete it on{' '}
             <a className="underline" href="https://github.com/settings/personal-access-tokens" target="_blank" rel="noopener noreferrer">GitHub's token page</a>.
           </CardDescription>
         </CardHeader>

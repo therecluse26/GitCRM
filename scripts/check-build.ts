@@ -3,10 +3,13 @@
 import { readdir, readFile } from 'node:fs/promises';
 import { join, relative } from 'node:path';
 
-// Every host named in the bundle. Only api.github.com receives requests (connect-src); the others
-// are plain text. A new host fails the build until someone reviews it and adds it here.
+// Every host named in the bundle. Only api.github.com and api.formcarry.com receive requests from the
+// app (connect-src), and formcarry.com from the form page; the others are plain text. A new host
+// fails the build until someone reviews it and adds it here.
 const REVIEWED_HOSTS = new Set([
   'api.github.com', // the GitHub REST and GraphQL APIs
+  'api.formcarry.com', // the lead inbox (spec 15, ADR-029)
+  'formcarry.com', // the public form's address: the form page and the snippet
   'github.com', // links: the token form, commits
   'www.w3.org', // SVG and XML namespaces
   'json-schema.org', // $schema in the exported JSON Schemas
@@ -17,43 +20,63 @@ const REVIEWED_HOSTS = new Set([
   'tailwindcss.com', // Tailwind's license comment
 ]);
 
-const FILE = /^(index\.html|_headers|assets\/[\w.-]+\.(js|css|woff2))$/;
+const FILE = /^(index\.html|lead\.html|_headers|assets\/[\w.-]+\.(js|css|woff2))$/;
 const TOKEN = /\b(gh[pousr]_[A-Za-z0-9]{36,}|github_pat_[A-Za-z0-9_]{60,})/;
 const EMAIL = /[A-Za-z0-9._%+-]+@([A-Za-z0-9-]+\.)+[A-Za-z]{2,}/g;
 // Reserved for examples (RFC 2606, RFC 6761): an address here is a hint, not someone's address.
 const EXAMPLE_DOMAIN = /@(([a-z0-9-]+\.)*example\.(com|org|net)|([a-z0-9-]+\.)+(example|test))$/i;
 const POLICY_META = /<meta http-equiv="Content-Security-Policy" content="([^"]*)"\s*\/?>/;
 
-function auditPolicy(policy: string): string[] {
+// What each page may connect to. The app reaches GitHub and the lead inbox; the public form page
+// reaches the form only (spec 15, ADR-029).
+const CONNECT = { 'index.html': 'https://api.github.com https://api.formcarry.com', 'lead.html': 'https://formcarry.com' } as const;
+type PageName = keyof typeof CONNECT;
+
+function auditPolicy(policy: string, page: PageName): string[] {
   const directives = new Map(policy.split(';').map((part) => part.trim().split(/\s+/)).map(([name, ...values]) => [name, values.join(' ')]));
   const problems: string[] = [];
   if (directives.get('default-src') !== "'none'") problems.push("The policy's default-src must be 'none'");
   if (directives.get('script-src') !== "'self'") problems.push("The policy's script-src must be exactly 'self'");
-  if (directives.get('connect-src') !== 'https://api.github.com') problems.push("The policy's connect-src must be exactly https://api.github.com");
+  if (directives.get('connect-src') !== CONNECT[page]) problems.push(`The policy's connect-src must be exactly ${CONNECT[page]}`);
   if (directives.get('require-trusted-types-for') !== "'script'") problems.push('The policy must require Trusted Types for scripts');
   for (const unsafe of ["'unsafe-inline'", "'unsafe-eval'", "'unsafe-hashes'", "'wasm-unsafe-eval'"]) {
     if (policy.includes(unsafe)) problems.push(`The policy allows ${unsafe}`);
   }
+  return page === 'index.html' ? problems : problems.map((problem) => `lead.html: ${problem}`);
+}
+
+function auditPage(html: string, page: PageName): string[] {
+  const policy = POLICY_META.exec(html);
+  if (!policy) return [`${page} has no Content Security Policy meta tag`];
+  const problems: string[] = [];
+  const firstResource = html.search(/<script|<link/);
+  if (firstResource !== -1 && firstResource < policy.index) problems.push(`${page}: the Content Security Policy must come before every script and stylesheet`);
+  problems.push(...auditPolicy(policy[1], page));
+  if (/<script(?![^>]*\bsrc=)[^>]*>/.test(html)) problems.push(`${page} has an inline script`);
+  if (/<style[\s>]|\sstyle=/.test(html)) problems.push(`${page} has an inline style`);
+  if (/\son[a-z]+=/.test(html)) problems.push(`${page} has an event handler attribute`);
+  if (!/<meta name="robots" content="noindex"\s*\/?>/.test(html)) problems.push(`${page} has no <meta name="robots" content="noindex"> tag`);
   return problems;
 }
 
-function auditPage(html: string): string[] {
-  const policy = POLICY_META.exec(html);
-  if (!policy) return ['index.html has no Content Security Policy meta tag'];
+// The form page is one script that carries no GitCRM code (spec 15): no import of another file, and
+// no use of storage, cookies, or the GitHub API. The page shares the app's origin, so this keeps a
+// stored token out of its reach.
+const FORBIDDEN_IN_FORM_PAGE = ['localStorage', 'sessionStorage', 'indexedDB', 'document.cookie', 'api.github.com'];
+function auditFormScript(html: string, files: Map<string, string>): string[] {
+  const sources = [...html.matchAll(/<script[^>]*\bsrc="\.\/([^"]+)"/g)].map(([, src]) => src);
+  if (sources.length !== 1) return [`lead.html must load exactly one script, and it loads ${sources.length}`];
+  const text = files.get(sources[0]);
+  if (text === undefined) return [`lead.html loads ${sources[0]}, which is not in the build`];
   const problems: string[] = [];
-  const firstResource = html.search(/<script|<link/);
-  if (firstResource !== -1 && firstResource < policy.index) problems.push('index.html: the Content Security Policy must come before every script and stylesheet');
-  problems.push(...auditPolicy(policy[1]));
-  if (/<script(?![^>]*\bsrc=)[^>]*>/.test(html)) problems.push('index.html has an inline script');
-  if (/<style[\s>]|\sstyle=/.test(html)) problems.push('index.html has an inline style');
-  if (/\son[a-z]+=/.test(html)) problems.push('index.html has an event handler attribute');
-  if (!/<meta name="robots" content="noindex"\s*\/?>/.test(html)) problems.push('index.html has no <meta name="robots" content="noindex"> tag');
+  if (/\bimport\s*[("'`]|\bfrom\s*["'`]/.test(text)) problems.push(`The form page script ${sources[0]} imports another file`);
+  for (const word of FORBIDDEN_IN_FORM_PAGE) if (text.includes(word)) problems.push(`The form page script ${sources[0]} uses ${word}`);
   return problems;
 }
 
 // Hosts such as Cloudflare Pages read _headers (spec 09): a URL pattern on its own line, then
 // indented `Name: value` lines, or `! Name` to remove a header. A line may hold at most 2,000 characters.
-function auditHeaders(text: string, policy: string | undefined): string[] {
+function auditHeaders(text: string, policy: string | undefined, leadPolicy: string | undefined): string[] {
   const problems: string[] = [];
   const rules: { pattern: string; headers: string[] }[] = [];
   text.split('\n').forEach((line, i) => {
@@ -67,8 +90,13 @@ function auditHeaders(text: string, policy: string | undefined): string[] {
   if (all.length !== 1 || all[0] !== `Content-Security-Policy: ${policy}; frame-ancestors 'none'`) {
     problems.push(`_headers: the /* rule must send the policy from index.html, then "; frame-ancestors 'none'"`);
   }
+  // The form page detaches the app's policy and sends its own (see csp.ts).
+  const lead = rules.find(({ pattern }) => pattern === '/lead.html')?.headers.filter(touchesPolicy);
+  if (lead?.length !== 2 || lead[0] !== '! Content-Security-Policy' || lead[1] !== `Content-Security-Policy: ${leadPolicy}; frame-ancestors 'none'`) {
+    problems.push(`_headers: the /lead.html rule must detach the policy, then send the policy from lead.html and "; frame-ancestors 'none'"`);
+  }
   for (const { pattern, headers } of rules) {
-    if (pattern !== '/*' && headers.some(touchesPolicy)) problems.push(`_headers: the ${pattern} rule changes the Content-Security-Policy header`);
+    if (pattern !== '/*' && pattern !== '/lead.html' && headers.some(touchesPolicy)) problems.push(`_headers: the ${pattern} rule changes the Content-Security-Policy header`);
   }
   return problems;
 }
@@ -82,8 +110,9 @@ export function auditBuild(files: Map<string, string>): string[] {
       continue;
     }
     if (path.endsWith('.woff2')) continue;
-    if (path === 'index.html') problems.push(...auditPage(text));
-    if (path === '_headers') problems.push(...auditHeaders(text, POLICY_META.exec(files.get('index.html') ?? '')?.[1]));
+    if (path === 'index.html' || path === 'lead.html') problems.push(...auditPage(text, path));
+    if (path === 'lead.html') problems.push(...auditFormScript(text, files));
+    if (path === '_headers') problems.push(...auditHeaders(text, POLICY_META.exec(files.get('index.html') ?? '')?.[1], POLICY_META.exec(files.get('lead.html') ?? '')?.[1]));
     if (/sourceMappingURL=/.test(text)) problems.push(`${path} links a source map`);
     if (TOKEN.test(text)) problems.push(`${path} holds something shaped like a GitHub token`);
     for (const [email] of text.matchAll(EMAIL)) if (!EXAMPLE_DOMAIN.test(email)) problems.push(`${path} holds an email address: ${email}`);
@@ -91,6 +120,7 @@ export function auditBuild(files: Map<string, string>): string[] {
     for (const host of hosts) if (!REVIEWED_HOSTS.has(host)) problems.push(`${path} names a host that nobody reviewed: ${host}`);
   }
   if (!files.has('index.html')) problems.push('The build has no index.html');
+  if (!files.has('lead.html')) problems.push('The build has no lead.html');
   if (!files.has('_headers')) problems.push('The build has no _headers file');
   return problems;
 }

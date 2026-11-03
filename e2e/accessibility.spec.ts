@@ -7,7 +7,7 @@ import { recordPath } from '../src/core/paths.ts';
 import { serializeRecord } from '../src/core/record-file.ts';
 import { expect, test, type Page } from './fixtures.ts';
 import { connect } from './connect-page.ts';
-import { PAGES_SITE, routeFakeGitHub, servePagesSite } from './fake-route.ts';
+import { PAGES_SITE, routeFakeFormcarry, routeFakeGitHub, servePagesSite } from './fake-route.ts';
 import { activity, company, contact, exampleConfig, field, open, opportunity, status, task } from './workspace.ts';
 
 const acme = company('Acme Corp', { website: 'https://acme.example' });
@@ -164,6 +164,51 @@ for (const theme of ['dark', 'light'] as const) {
     await field(page, 'Filter 1 field').selectOption({ label: 'Stage' });
     await page.getByRole('button', { name: 'Value', exact: true }).click();
     await checkPage(page, `Pipeline list with filters, ${theme}`);
+  });
+}
+
+// Spec 15: the Settings card before and after the setup, the Leads page with a confirmation open,
+// and the public form page. The form page follows the visitor's setting, not the app's theme.
+for (const theme of ['dark', 'light'] as const) {
+  test(`lead inbox, ${theme}`, async ({ page }) => {
+    if (theme === 'light') await page.addInitScript(() => localStorage.setItem('gitcrm.theme', 'light'));
+    const fc = await routeFakeFormcarry(page);
+    fc.addLead({ name: 'Ava Bennett', email: 'ava@acme.example', phone: '555-0100', message: 'I would like a quote for 20 desks.' });
+    await open(page, records);
+    await visit(page, '/settings');
+    await page.getByRole('button', { name: 'Save and check' }).click();
+    await checkPage(page, `Settings, lead form with field errors, ${theme}`);
+    await field(page, 'Form ID').fill(fc.formId);
+    await field(page, 'API key').fill(fc.key);
+    await page.getByRole('button', { name: 'Save and check' }).click();
+    await expect(page.getByRole('button', { name: 'Remove lead form' })).toBeVisible();
+    await page.getByRole('button', { name: 'Copy snippet' }).click();
+    await checkPage(page, `Settings, lead form set up, ${theme}`);
+
+    await visit(page, '/leads');
+    await expect(page.getByRole('table', { name: 'Leads' })).toBeVisible();
+    await checkPage(page, `Leads, ${theme}`);
+    await page.getByRole('button', { name: 'Discard lead from Ava Bennett' }).click();
+    await checkPage(page, `Leads, confirming a discard, ${theme}`);
+  });
+
+  test(`the lead form page, ${theme}`, async ({ page }) => {
+    await page.emulateMedia({ colorScheme: theme });
+    await routeFakeFormcarry(page);
+    await page.goto('./lead.html#form=exampleForm1');
+    await checkPage(page, `lead form, ${theme}`);
+    await page.getByRole('button', { name: 'Send' }).click();
+    await checkPage(page, `lead form with field errors, ${theme}`);
+    await page.getByLabel('Name', { exact: true }).fill('Ava Bennett');
+    await page.getByLabel('Email', { exact: true }).fill('ava@acme.example');
+    await page.getByRole('button', { name: 'Send' }).click();
+    await expect(page.getByRole('status')).toHaveText('Thank you. We received your message.');
+    await checkPage(page, `lead form after sending, ${theme}`);
+    await page.goto('./lead.html#form=bad'); // a new hash makes the page load again
+    await expect(page.getByText('This form link is not valid.')).toBeVisible();
+    // No control on this page, so there is no focus indicator or field border to measure: axe only.
+    const { violations } = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa', 'best-practice']).analyze();
+    expect(violations.map(({ id }) => id), `lead form with a bad link, ${theme}: axe`).toEqual([]);
   });
 }
 

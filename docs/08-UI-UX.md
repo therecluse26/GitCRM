@@ -6,7 +6,7 @@ Professional, minimal, and fast. Users should see CRM concepts, not Git internal
 
 ## Navigation
 
-Primary: Home, Contacts, Companies, Pipeline, Tasks, Search, Settings. A unified record view includes tabs/sections for details, linked records, activities, and related tasks.
+Primary: Home, Contacts, Companies, Pipeline, Tasks, Search, Settings. Built (spec 15): a Leads tab, after Pipeline, only while a lead form is set up on this device. A unified record view includes tabs/sections for details, linked records, activities, and related tasks.
 
 Built (spec 12): one top bar holds the main navigation as tabs, the repository, the sync status, and Refresh. The current page's tab has an accent line under it. There is no left navigation column.
 
@@ -46,6 +46,10 @@ Built (spec 08): no page draws a long list at once. Each list that can grow come
 - Manual create/edit/complete and related entity linking.
 - Date-aware visibility when the UI is open; no background reminders promised.
 
+### Leads
+
+Built (spec 15): the Leads page shows the leads that wait in the lead inbox, in a table: Received (local time), From, Email, Phone, and Message (the first 120 characters). Each row has "Add as contact" and "Discard". "Add as contact" saves a contact with Source "Lead form" and a note, then removes the lead from Formcarry; the row then says "Added" with a link to the contact. "Discard" asks first ("Confirm discard"). A failed step says which step failed, and a second try finishes the job without a second contact. "Check for leads" reads the inbox again; the page never checks by itself. The public form page, `lead.html`, is a separate page with its own small style, in the visitor's light or dark setting.
+
 ### Search
 
 - Search across all loaded current records with entity-type filter.
@@ -58,7 +62,8 @@ Built (spec 08): no page draws a long list at once. Each list that can grow come
 - Built (spec 12): an "Appearance" card with the theme, Dark or Light. Dark is the default. The choice is stored only while the connection is remembered.
 - Export complete snapshot / CSV.
 - Built (spec 05): an Export card with "Export JSON snapshot" and "Export CSV". It waits for a complete, current snapshot, and says why when it waits.
-- Disconnect and token safety guidance.
+- Disconnect and token safety guidance. Built (spec 14, spec 15): Disconnect also removes the list column choice and the lead form key from this browser.
+- Built (spec 15): a "Lead form" card. It takes the Formcarry form ID and API key, and checks the key before it saves anything. Then it shows the link to the form page and an HTML snippet for the owner's own website, each with a copy button, and "Remove lead form".
 - Pipeline stage editor: rename, reorder, add, and remove-when-unused; Won and Lost always present (ADR-019).
 - Built (spec 10): a "Custom fields" card. It adds, renames, reorders, removes, and restores the fields of each record type, and the options of a choice list. It saves `.gitcrm/workspace.json` in one commit.
 
